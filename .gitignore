@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+dist/
+.tmp/
+tmp/
+downloads/
+coverage.out
+*.test
