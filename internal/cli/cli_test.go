@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -108,6 +110,77 @@ func TestRootMisuse(t *testing.T) {
 		assertJSONInvalidUsage(t, stdout.String(), "unknown flag")
 		assertNoPanicText(t, stdout.String(), stderr.String())
 	})
+}
+
+func TestWarningsStayOnStderr(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	cwd := filepath.Join(repoRoot, "nested")
+	if err := os.MkdirAll(cwd, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(cwd, ".env"), []byte("MALFORMED sentinel-secret\nPAPER_SEARCH_MCP_UNPAYWALL_EMAIL=ok@example.com\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"sources", "--format", "json"}, &stdout, &stderr, runOptions{
+		workingDir:     cwd,
+		repositoryRoot: repoRoot,
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	var payload struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("expected stdout to remain valid json, got %q: %v", stdout.String(), err)
+	}
+
+	if payload.Status != "ok" {
+		t.Fatalf("expected ok status, got %#v", payload)
+	}
+
+	if !strings.Contains(stderr.String(), "warning:") {
+		t.Fatalf("expected warning on stderr, got %q", stderr.String())
+	}
+}
+
+func TestSecretsAreRedacted(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	cwd := filepath.Join(repoRoot, "nested")
+	if err := os.MkdirAll(cwd, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+
+	secret := "sentinel-secret-value"
+	if err := os.WriteFile(filepath.Join(cwd, ".env"), []byte("BROKEN "+secret+"\nPAPER_SEARCH_MCP_CORE_API_KEY="+secret+"\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"sources", "--format", "json"}, &stdout, &stderr, runOptions{
+		environ:        []string{"PAPER_SEARCH_MCP_IEEE_API_KEY=" + secret},
+		workingDir:     cwd,
+		repositoryRoot: repoRoot,
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	for _, output := range []string{stdout.String(), stderr.String()} {
+		if strings.Contains(output, secret) {
+			t.Fatalf("expected secret to be redacted from output, got %q", output)
+		}
+	}
 }
 
 func assertJSONInvalidUsage(t *testing.T, payload string, wantMessage string) {

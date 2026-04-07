@@ -6,17 +6,28 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
+
+	"github.com/jtsang4/search-paper-cli/internal/config"
 )
 
 const (
 	exitCodeOK           = 0
 	exitCodeInvalidUsage = 2
+	exitCodeRuntimeError = 4
 )
 
 const defaultVersion = "search-paper-cli dev"
 
 var version = defaultVersion
+
+type runOptions struct {
+	environ        []string
+	workingDir     string
+	repositoryRoot string
+}
 
 type errorResponse struct {
 	Status string `json:"status"`
@@ -27,11 +38,15 @@ type errorResponse struct {
 	} `json:"error"`
 }
 
+type sourcesResponse struct {
+	Status  string `json:"status"`
+	Sources []any  `json:"sources"`
+}
+
 type command struct {
 	name        string
 	summary     string
 	description string
-	run         func(args []string, stdout, stderr io.Writer) int
 }
 
 var commands = []command{
@@ -39,45 +54,34 @@ var commands = []command{
 		name:        "sources",
 		summary:     "List configured paper sources.",
 		description: "Inspect the source registry and source capabilities.",
-		run:         runPlaceholderCommand("sources", "Inspect the source registry and source capabilities."),
 	},
 	{
 		name:        "search",
 		summary:     "Search for papers across one or more sources.",
 		description: "Search registered sources and return normalized paper results.",
-		run:         runPlaceholderCommand("search", "Search registered sources and return normalized paper results."),
 	},
 	{
 		name:        "download",
 		summary:     "Download paper full text when supported.",
 		description: "Download source-native or fallback paper full text into a target directory.",
-		run:         runPlaceholderCommand("download", "Download source-native or fallback paper full text into a target directory."),
 	},
 	{
 		name:        "read",
 		summary:     "Read paper content when supported.",
 		description: "Fetch and extract paper content from a source-native or fallback retrieval path.",
-		run:         runPlaceholderCommand("read", "Fetch and extract paper content from a source-native or fallback retrieval path."),
 	},
 	{
 		name:        "version",
 		summary:     "Print the CLI version.",
 		description: "Print the concise CLI version string.",
-		run: func(args []string, stdout, stderr io.Writer) int {
-			if len(args) != 0 {
-				return writeInvalidUsage(stdout, "unknown arguments for version command", map[string]any{
-					"command": "version",
-					"args":    args,
-				})
-			}
-
-			_, _ = fmt.Fprintln(stdout, version)
-			return exitCodeOK
-		},
 	},
 }
 
 func Run(args []string, stdout, stderr io.Writer) int {
+	return runWithOptions(args, stdout, stderr, runOptions{})
+}
+
+func runWithOptions(args []string, stdout, stderr io.Writer, opts runOptions) int {
 	if stdout == nil {
 		stdout = io.Discard
 	}
@@ -125,7 +129,14 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		})
 	}
 
-	return cmd.run(remaining[1:], stdout, stderr)
+	switch cmd.name {
+	case "sources":
+		return runSourcesCommand(remaining[1:], stdout, stderr, opts)
+	case "version":
+		return runVersionCommand(remaining[1:], stdout)
+	default:
+		return runPlaceholderCommand(cmd.name, cmd.description)(remaining[1:], stdout, stderr)
+	}
 }
 
 func runHelp(args []string, stdout io.Writer) int {
@@ -185,6 +196,83 @@ func commandHelp(cmd command) string {
 	return b.String()
 }
 
+func runVersionCommand(args []string, stdout io.Writer) int {
+	if len(args) != 0 {
+		return writeInvalidUsage(stdout, "unknown arguments for version command", map[string]any{
+			"command": "version",
+			"args":    args,
+		})
+	}
+
+	_, _ = fmt.Fprintln(stdout, version)
+	return exitCodeOK
+}
+
+func runSourcesCommand(args []string, stdout, stderr io.Writer, opts runOptions) int {
+	flags := flag.NewFlagSet("sources", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+
+	format := flags.String("format", "json", "Output format: json or text.")
+	if err := flags.Parse(args); err != nil {
+		return writeInvalidUsage(stdout, normalizeFlagError(err), map[string]any{
+			"command": "sources",
+		})
+	}
+
+	if len(flags.Args()) != 0 {
+		return writeInvalidUsage(stdout, fmt.Sprintf("unknown argument %q for sources command", flags.Args()[0]), map[string]any{
+			"command": "sources",
+			"args":    flags.Args(),
+		})
+	}
+
+	switch *format {
+	case "json", "text":
+	default:
+		return writeInvalidUsage(stdout, fmt.Sprintf("unsupported format %q", *format), map[string]any{
+			"command":           "sources",
+			"supported_formats": []string{"json", "text"},
+		})
+	}
+
+	workingDir := opts.workingDir
+	if workingDir == "" {
+		var err error
+		workingDir, err = os.Getwd()
+		if err != nil {
+			return writeRuntimeError(stdout, "failed to determine working directory")
+		}
+	}
+
+	repositoryRoot := opts.repositoryRoot
+	if repositoryRoot == "" {
+		repositoryRoot = discoverRepositoryRoot(workingDir)
+	}
+
+	cfg, diagnostics, err := config.Load(config.LoadOptions{
+		Environ:        opts.environ,
+		WorkingDir:     workingDir,
+		RepositoryRoot: repositoryRoot,
+	})
+	if err != nil {
+		return writeRuntimeError(stdout, "failed to load configuration")
+	}
+
+	writeWarnings(stderr, diagnostics)
+
+	switch *format {
+	case "text":
+		_, _ = fmt.Fprintf(stdout, "Configuration loaded.\nSources are not implemented yet.\n")
+		return exitCodeOK
+	default:
+		_ = cfg
+		return writeJSON(stdout, sourcesResponse{
+			Status:  "ok",
+			Sources: []any{},
+		}, exitCodeOK)
+	}
+}
+
 func runPlaceholderCommand(name, description string) func(args []string, stdout, stderr io.Writer) int {
 	return func(args []string, stdout, stderr io.Writer) int {
 		if len(args) > 0 {
@@ -210,6 +298,12 @@ func placeholderCommandHelp(name, description string) string {
 		name:        name,
 		description: description,
 	})
+}
+
+func writeWarnings(stderr io.Writer, diagnostics config.Diagnostics) {
+	for _, warning := range diagnostics.Warnings {
+		_, _ = fmt.Fprintf(stderr, "warning: %s\n", warning.Message)
+	}
 }
 
 func normalizeFlagError(err error) string {
@@ -238,4 +332,50 @@ func writeInvalidUsage(stdout io.Writer, message string, details map[string]any)
 	encoder.SetEscapeHTML(false)
 	_ = encoder.Encode(response)
 	return exitCodeInvalidUsage
+}
+
+func writeRuntimeError(stdout io.Writer, message string) int {
+	response := errorResponse{Status: "error"}
+	response.Error.Code = "runtime_error"
+	response.Error.Message = message
+
+	encoder := json.NewEncoder(stdout)
+	encoder.SetEscapeHTML(false)
+	_ = encoder.Encode(response)
+	return exitCodeRuntimeError
+}
+
+func writeJSON(stdout io.Writer, payload any, exitCode int) int {
+	encoder := json.NewEncoder(stdout)
+	encoder.SetEscapeHTML(false)
+	_ = encoder.Encode(payload)
+	return exitCode
+}
+
+func discoverRepositoryRoot(workingDir string) string {
+	current := workingDir
+	for current != "" && current != string(filepath.Separator) {
+		if fileExists(filepath.Join(current, "go.mod")) && fileExists(filepath.Join(current, ".factory", "services.yaml")) {
+			return current
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+
+	if fileExists(filepath.Join(current, "go.mod")) && fileExists(filepath.Join(current, ".factory", "services.yaml")) {
+		return current
+	}
+	return ""
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
 }
