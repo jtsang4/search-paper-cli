@@ -25,20 +25,21 @@ None.
 
 1. Read the assigned feature plus `.factory/library/architecture.md`, `.factory/library/environment.md`, `.factory/library/source-capabilities.md`, and `.factory/library/user-testing.md`.
 2. Map the feature to specific source behavior classes before writing code.
-3. Write failing tests first:
+3. For parity-sensitive provider behavior, verify the intended endpoint/query semantics against the reference implementation and/or official provider docs before locking tests around them.
+4. Write failing tests first:
    - fixture-backed parser/normalization tests
    - `httptest`-based request/response tests
    - retrieval/fallback orchestration tests that verify winning stage and side effects
-4. Confirm the tests fail before implementing.
-5. Implement the connector or retrieval behavior with shared helpers where appropriate, but keep source-specific retry/backoff/parsing logic in the connector layer.
-6. Honor save-path rules and ensure unsupported/error flows do not create stray files.
-7. Run focused tests, then run manifest validators:
+5. Confirm the tests fail before implementing.
+6. Implement the connector or retrieval behavior with shared helpers where appropriate, but keep source-specific retry/backoff/parsing logic in the connector layer.
+7. Honor save-path rules and ensure unsupported/error flows do not create stray files.
+8. Run focused tests, then run manifest validators:
    - `typecheck`
    - `lint`
    - `test`
-8. If live-network smoke checks are feasible and safe, run the smallest representative smoke check needed for the feature. If live credentials are unavailable, document the deterministic coverage instead of guessing.
-9. Create the feature commit. If `git commit` fails only because author identity is missing, retry with `git -c user.name="Droid" -c user.email="local@factory.invalid" commit ...` instead of changing git config.
-10. Record the exact capability class and any upstream volatility in the handoff.
+9. If live-network smoke checks are feasible and safe, run the smallest representative smoke check needed for the feature. If live credentials are unavailable, document the deterministic coverage instead of guessing.
+10. Create the feature commit. If `git commit` fails only because author identity is missing, retry with `git -c user.name="Droid" -c user.email="local@factory.invalid" commit ...` instead of changing git config.
+11. Record the exact capability class and any upstream volatility in the handoff.
 
 ## Example Handoff
 

@@ -58,6 +58,7 @@ Rules:
 - `source_results` is pre-dedupe count per source.
 - `total` is post-dedupe merged count.
 - `invalid_sources` must be a machine-readable field when mixed valid/invalid source ids are supplied.
+- List-like fields in normalized paper records and search responses must serialize as empty arrays (`[]`), never `null`.
 
 ## Source listing success envelope
 
@@ -86,6 +87,8 @@ Capability state values:
 - `informational`
 - `unsupported`
 - `gated`
+
+If a user explicitly requests a gated source without required configuration, the CLI must return a machine-readable gated/unsupported result instead of silently omitting that source.
 
 ## Retrieval success envelope
 
