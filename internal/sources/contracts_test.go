@@ -63,6 +63,34 @@ func TestConnectorInterfaces(t *testing.T) {
 		if result.Papers[0].PaperID != "Paper-1" || result.Papers[0].Title != "Shared Contract" || result.Papers[0].Source != "stub" {
 			t.Fatalf("expected normalized paper output, got %#v", result.Papers[0])
 		}
+		if result.Papers[0].Authors == nil {
+			t.Fatalf("expected normalized paper authors to be a non-nil slice, got %#v", result.Papers[0])
+		}
+	})
+
+	t.Run("empty search results use empty paper slices", func(t *testing.T) {
+		helper := NewStubConnector(StubConnector{
+			DescriptorValue: Descriptor{
+				ID:      "stub",
+				Enabled: true,
+				Capabilities: Capabilities{
+					Search:   CapabilitySupported,
+					Download: CapabilityUnsupported,
+					Read:     CapabilityUnsupported,
+				},
+			},
+		})
+
+		result, err := helper.Search(SearchRequest{Query: "none", Limit: 5})
+		if err != nil {
+			t.Fatalf("Search() error = %v", err)
+		}
+		if result.Count != 0 {
+			t.Fatalf("expected count 0, got %d", result.Count)
+		}
+		if result.Papers == nil {
+			t.Fatalf("expected empty papers slice, got nil")
+		}
 	})
 
 	t.Run("descriptor enablement follows capability gating config", func(t *testing.T) {

@@ -157,7 +157,7 @@ func stripHTML(value string) string {
 func splitAuthors(value string) []string {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return nil
+		return []string{}
 	}
 	parts := strings.Split(value, ";")
 	authors := make([]string, 0, len(parts))
@@ -233,11 +233,11 @@ func stringSlice(value any) []string {
 		return out
 	case string:
 		if strings.TrimSpace(typed) == "" {
-			return nil
+			return []string{}
 		}
 		return []string{strings.TrimSpace(typed)}
 	default:
-		return nil
+		return []string{}
 	}
 }
 

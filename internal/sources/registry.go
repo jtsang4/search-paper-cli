@@ -270,7 +270,7 @@ func (s StubConnector) Read(ReadRequest) (RetrievalResult, error) {
 
 func normalizeSearchPapers(input []paper.Paper) []paper.Paper {
 	if len(input) == 0 {
-		return nil
+		return []paper.Paper{}
 	}
 
 	result := make([]paper.Paper, 0, len(input))

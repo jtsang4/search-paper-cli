@@ -21,6 +21,7 @@ func (p Paper) Normalized() Paper {
 	normalized := Paper{
 		PaperID:       normalizeSpace(p.PaperID),
 		Title:         normalizeSpace(p.Title),
+		Authors:       make([]string, 0, len(p.Authors)),
 		Abstract:      normalizeSpace(p.Abstract),
 		DOI:           normalizeDOI(p.DOI),
 		PublishedDate: normalizeSpace(p.PublishedDate),
@@ -30,7 +31,6 @@ func (p Paper) Normalized() Paper {
 	}
 
 	if len(p.Authors) != 0 {
-		normalized.Authors = make([]string, 0, len(p.Authors))
 		for _, author := range p.Authors {
 			author = normalizeSpace(author)
 			if author == "" {
@@ -66,7 +66,7 @@ func (p Paper) IdentityKey() string {
 
 func Dedupe(papers []Paper) []Paper {
 	if len(papers) == 0 {
-		return nil
+		return []Paper{}
 	}
 
 	result := make([]Paper, 0, len(papers))

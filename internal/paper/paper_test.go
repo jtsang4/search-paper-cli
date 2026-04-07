@@ -1,8 +1,10 @@
 package paper
 
 import (
+	"encoding/json"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -110,6 +112,26 @@ func TestPaperModel(t *testing.T) {
 
 		if !slices.Equal(got[0].Authors, []string{"Alice Smith", "Bob Jones"}) {
 			t.Fatalf("expected authors to remain normalized, got %#v", got[0].Authors)
+		}
+	})
+
+	t.Run("normalized paper json uses empty author arrays", func(t *testing.T) {
+		normalized := (Paper{
+			PaperID: "paper-1",
+			Title:   "No Authors",
+			Source:  "semantic",
+		}).Normalized()
+
+		data, err := json.Marshal(normalized)
+		if err != nil {
+			t.Fatalf("Marshal() error = %v", err)
+		}
+
+		if !strings.Contains(string(data), `"authors":[]`) {
+			t.Fatalf("expected empty authors array in json, got %s", data)
+		}
+		if strings.Contains(string(data), `"authors":null`) {
+			t.Fatalf("expected authors to avoid null in json, got %s", data)
 		}
 	})
 }

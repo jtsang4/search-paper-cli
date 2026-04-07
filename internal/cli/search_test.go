@@ -265,6 +265,83 @@ func TestSearchSchema(t *testing.T) {
 	}
 }
 
+func TestSearchJSONUsesEmptyArrays(t *testing.T) {
+	t.Parallel()
+
+	t.Run("zero results serialize papers and invalid sources as empty arrays", func(t *testing.T) {
+		t.Parallel()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"search", "--source", "semantic", "empty query"}, &stdout, &stderr, runOptions{
+			workingDir:     t.TempDir(),
+			repositoryRoot: t.TempDir(),
+			connectorFactory: func(id string, _ config.Config) (sources.Connector, error) {
+				return sources.NewStubConnector(sources.StubConnector{
+					DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+				}), nil
+			},
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+
+		payload := decodeSearchResponse(t, stdout.Bytes())
+		if payload.Papers == nil {
+			t.Fatalf("expected papers to be an empty slice, got nil in %#v", payload)
+		}
+		if payload.InvalidSources == nil {
+			t.Fatalf("expected invalid sources to be an empty slice, got nil in %#v", payload)
+		}
+		raw := stdout.String()
+		if !strings.Contains(raw, `"papers":[]`) || !strings.Contains(raw, `"invalid_sources":[]`) {
+			t.Fatalf("expected empty arrays in json, got %s", raw)
+		}
+		if strings.Contains(raw, `"papers":null`) || strings.Contains(raw, `"invalid_sources":null`) {
+			t.Fatalf("expected no null arrays in json, got %s", raw)
+		}
+	})
+
+	t.Run("paper with no authors serializes authors as empty array", func(t *testing.T) {
+		t.Parallel()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"search", "--source", "semantic", "authorless query"}, &stdout, &stderr, runOptions{
+			workingDir:     t.TempDir(),
+			repositoryRoot: t.TempDir(),
+			connectorFactory: func(id string, _ config.Config) (sources.Connector, error) {
+				return sources.NewStubConnector(sources.StubConnector{
+					DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+					SearchResults: []paper.Paper{{
+						PaperID: "authorless",
+						Title:   "Authorless Paper",
+						Source:  id,
+					}},
+				}), nil
+			},
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+
+		payload := decodeSearchResponse(t, stdout.Bytes())
+		if len(payload.Papers) != 1 {
+			t.Fatalf("expected one paper, got %#v", payload)
+		}
+		if payload.Papers[0].Authors == nil {
+			t.Fatalf("expected authors to be an empty slice, got nil in %#v", payload.Papers[0])
+		}
+		raw := stdout.String()
+		if !strings.Contains(raw, `"authors":[]`) {
+			t.Fatalf("expected empty authors array in json, got %s", raw)
+		}
+		if strings.Contains(raw, `"authors":null`) {
+			t.Fatalf("expected authors to avoid null in json, got %s", raw)
+		}
+	})
+}
+
 func TestSemanticYearFilter(t *testing.T) {
 	t.Parallel()
 
