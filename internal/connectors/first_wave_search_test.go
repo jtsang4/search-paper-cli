@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/jtsang4/search-paper-cli/internal/config"
 	"github.com/jtsang4/search-paper-cli/internal/paper"
@@ -67,43 +66,56 @@ func TestBioRxiv(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.URL.Query().Get("category"); got != "cell_biology" {
-			t.Fatalf("expected biorxiv category query, got %q", got)
+		if got := r.RequestURI; got != "/search/graph%20neural%20networks%20jcode:biorxiv?format_result=standard&numresults=1&sort=relevance-rank" {
+			t.Fatalf("expected biorxiv query search request, got %q", got)
 		}
-		if !strings.HasSuffix(r.URL.Path, "/2026-02-14/2026-03-16/0") {
-			t.Fatalf("unexpected biorxiv path %q", r.URL.Path)
+		if got := r.URL.Query().Get("category"); got != "" {
+			t.Fatalf("expected no biorxiv category param, got %q", got)
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
-  "collection": [
-    {
-      "doi": "10.1101/2026.01.01.123456",
-      "title": "  Bio   Paper ",
-      "authors": "Alice Smith; Bob Jones",
-      "abstract": "  Biology   abstract ",
-      "date": "2026-01-02",
-      "category": "cell_biology"
-    }
-  ]
-}`))
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<div class="highwire-search-results highwire-article-citation-list no-show-abstract">
+  <ul class="highwire-search-results-list">
+    <li class="first odd search-result result-jcode-biorxiv search-result-highwire-citation">
+      <div class="highwire-article-citation" data-pisa="biorxiv;2024.01.15.123456v2" data-pisa-master="biorxiv;2024.01.15.123456" data-apath="/biorxiv/early/2024/02/01/2024.01.15.123456.atom">
+        <div class="highwire-cite highwire-cite-highwire-article highwire-citation-biorxiv-article-pap-list clearfix">
+          <span class="highwire-cite-title">
+            <a href="/content/10.1101/2024.01.15.123456v2" class="highwire-cite-linked-title">
+              <span class="highwire-cite-title">  Older   Graph Neural   Networks Paper </span>
+            </a>
+          </span>
+          <div class="highwire-cite-authors"><span class="highwire-citation-authors"><span class="highwire-citation-author first"><span class="nlm-given-names">Alice</span> <span class="nlm-surname">Smith</span></span>, <span class="highwire-citation-author"><span class="nlm-given-names">Bob</span> <span class="nlm-surname">Jones</span></span></span></div>
+          <div class="highwire-cite-metadata"><span class="highwire-cite-metadata-journal highwire-cite-metadata">bioRxiv </span><span class="highwire-cite-metadata-pages highwire-cite-metadata">2024.01.15.123456; </span><span class="highwire-cite-metadata-doi highwire-cite-metadata"><span class="doi_label">doi:</span> https://doi.org/10.1101/2024.01.15.123456 </span></div>
+        </div>
+      </div>
+    </li>
+  </ul>
+</div>`))
 	}))
 	defer server.Close()
 
 	connector := NewBioRxiv()
-	connector.BaseURL = server.URL + "/details/biorxiv"
+	connector.BaseURL = server.URL + "/search"
 	connector.Client = server.Client()
-	connector.Now = func() time.Time { return time.Date(2026, 3, 16, 12, 0, 0, 0, time.UTC) }
 
-	result, err := connector.Search(sources.SearchRequest{Query: "cell biology", Limit: 1})
+	result, err := connector.Search(sources.SearchRequest{Query: "graph neural networks", Limit: 1})
 	if err != nil {
 		t.Fatalf("Search() error = %v", err)
 	}
 
 	got := singlePaper(t, result)
-	if got.Source != "biorxiv" || got.PaperID != "10.1101/2026.01.01.123456" {
+	if got.Source != "biorxiv" || got.PaperID != "10.1101/2024.01.15.123456" {
 		t.Fatalf("unexpected biorxiv identity %#v", got)
 	}
-	if got.PDFURL != "https://www.biorxiv.org/content/10.1101/2026.01.01.123456v1.full.pdf" {
+	if got.Title != "Older Graph Neural Networks Paper" || strings.Join(got.Authors, ",") != "Alice Smith,Bob Jones" {
+		t.Fatalf("unexpected biorxiv normalization %#v", got)
+	}
+	if got.PublishedDate != "2024-02-01" {
+		t.Fatalf("expected older biorxiv match date, got %#v", got)
+	}
+	if got.URL != server.URL+"/content/10.1101/2024.01.15.123456v2" {
+		t.Fatalf("unexpected biorxiv landing url %#v", got)
+	}
+	if got.PDFURL != server.URL+"/content/10.1101/2024.01.15.123456v2.full.pdf" {
 		t.Fatalf("unexpected biorxiv pdf url %#v", got)
 	}
 }
@@ -112,35 +124,53 @@ func TestMedRxiv(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
-  "collection": [
-    {
-      "doi": "10.1101/2026.02.02.654321",
-      "title": "Med Paper",
-      "authors": "Alice Smith; Bob Jones",
-      "abstract": "Med abstract",
-      "date": "2026-02-02",
-      "category": "infectious_diseases",
-      "version": "3"
-    }
-  ]
-}`))
+		if got := r.RequestURI; got != "/search/Alice%20Smith%20jcode:medrxiv?format_result=standard&numresults=1&sort=relevance-rank" {
+			t.Fatalf("expected medrxiv query search request, got %q", got)
+		}
+		if got := r.URL.Query().Get("category"); got != "" {
+			t.Fatalf("expected no medrxiv category param, got %q", got)
+		}
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<div class="highwire-search-results highwire-article-citation-list no-show-abstract">
+  <ul class="highwire-search-results-list">
+    <li class="first odd search-result result-jcode-medrxiv search-result-highwire-citation">
+      <div class="highwire-article-citation" data-pisa="medrxiv;2023.12.20.23299999v3" data-pisa-master="medrxiv;2023.12.20.23299999" data-apath="/medrxiv/early/2024/01/05/2023.12.20.23299999.atom">
+        <div class="highwire-cite highwire-cite-highwire-article highwire-citation-biorxiv-article-pap-list clearfix">
+          <span class="highwire-cite-title">
+            <a href="/content/10.1101/2023.12.20.23299999v3" class="highwire-cite-linked-title">
+              <span class="highwire-cite-title">Clinical Risk Forecasting with Graph Neural Networks</span>
+            </a>
+          </span>
+          <div class="highwire-cite-authors"><span class="highwire-citation-authors"><span class="highwire-citation-author first"><span class="nlm-given-names">Alice</span> <span class="nlm-surname">Smith</span></span>, <span class="highwire-citation-author"><span class="nlm-given-names">Carol</span> <span class="nlm-surname">Ng</span></span></span></div>
+          <div class="highwire-cite-metadata"><span class="highwire-cite-metadata-journal highwire-cite-metadata">medRxiv </span><span class="highwire-cite-metadata-pages highwire-cite-metadata">2023.12.20.23299999; </span><span class="highwire-cite-metadata-doi highwire-cite-metadata"><span class="doi_label">doi:</span> https://doi.org/10.1101/2023.12.20.23299999 </span></div>
+        </div>
+      </div>
+    </li>
+  </ul>
+</div>`))
 	}))
 	defer server.Close()
 
 	connector := NewMedRxiv()
-	connector.BaseURL = server.URL + "/details/medrxiv"
+	connector.BaseURL = server.URL + "/search"
 	connector.Client = server.Client()
-	connector.Now = func() time.Time { return time.Date(2026, 3, 16, 12, 0, 0, 0, time.UTC) }
 
-	result, err := connector.Search(sources.SearchRequest{Query: "infectious diseases", Limit: 1})
+	result, err := connector.Search(sources.SearchRequest{Query: "Alice Smith", Limit: 1})
 	if err != nil {
 		t.Fatalf("Search() error = %v", err)
 	}
 
 	got := singlePaper(t, result)
-	if got.Source != "medrxiv" || got.PDFURL != "https://www.medrxiv.org/content/10.1101/2026.02.02.654321v3.full.pdf" {
+	if got.Source != "medrxiv" || got.PaperID != "10.1101/2023.12.20.23299999" {
+		t.Fatalf("unexpected medrxiv paper %#v", got)
+	}
+	if got.Title != "Clinical Risk Forecasting with Graph Neural Networks" || strings.Join(got.Authors, ",") != "Alice Smith,Carol Ng" {
+		t.Fatalf("unexpected medrxiv normalization %#v", got)
+	}
+	if got.PublishedDate != "2024-01-05" || got.URL != server.URL+"/content/10.1101/2023.12.20.23299999v3" {
+		t.Fatalf("unexpected medrxiv metadata %#v", got)
+	}
+	if got.PDFURL != server.URL+"/content/10.1101/2023.12.20.23299999v3.full.pdf" {
 		t.Fatalf("unexpected medrxiv paper %#v", got)
 	}
 }

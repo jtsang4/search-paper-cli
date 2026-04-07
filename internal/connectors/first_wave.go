@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"html"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jtsang4/search-paper-cli/internal/config"
 	"github.com/jtsang4/search-paper-cli/internal/paper"
@@ -166,14 +166,12 @@ func (c *Arxiv) client() *http.Client {
 type BioRxiv struct {
 	BaseURL string
 	Client  *http.Client
-	Now     func() time.Time
 }
 
 func NewBioRxiv() *BioRxiv {
 	return &BioRxiv{
-		BaseURL: "https://api.biorxiv.org/details/biorxiv",
+		BaseURL: "https://www.biorxiv.org/search",
 		Client:  defaultHTTPClient(),
-		Now:     time.Now,
 	}
 }
 
@@ -204,14 +202,12 @@ func (c *BioRxiv) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
 type MedRxiv struct {
 	BaseURL string
 	Client  *http.Client
-	Now     func() time.Time
 }
 
 func NewMedRxiv() *MedRxiv {
 	return &MedRxiv{
-		BaseURL: "https://api.biorxiv.org/details/medrxiv",
+		BaseURL: "https://www.medrxiv.org/search",
 		Client:  defaultHTTPClient(),
-		Now:     time.Now,
 	}
 }
 
@@ -239,69 +235,34 @@ func (c *MedRxiv) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
 	return unsupportedRead("medrxiv")
 }
 
-type preprintRecord struct {
-	DOI      string `json:"doi"`
-	Title    string `json:"title"`
-	Authors  string `json:"authors"`
-	Abstract string `json:"abstract"`
-	Date     string `json:"date"`
-	Category string `json:"category"`
-	Version  string `json:"version"`
-}
-
-type preprintResponse struct {
-	Collection []preprintRecord `json:"collection"`
-}
-
 func (c *BioRxiv) searchPreprint(sourceID, landingBase string, request sources.SearchRequest) (sources.SearchResult, error) {
-	return searchPreprint(c.client(), c.now(), c.BaseURL, sourceID, landingBase, request)
+	return searchPreprint(c.client(), c.BaseURL, sourceID, landingBase, request)
 }
 
 func (c *MedRxiv) searchPreprint(sourceID, landingBase string, request sources.SearchRequest) (sources.SearchResult, error) {
-	return searchPreprint(c.client(), c.now(), c.BaseURL, sourceID, landingBase, request)
+	return searchPreprint(c.client(), c.BaseURL, sourceID, landingBase, request)
 }
 
-func searchPreprint(client *http.Client, now time.Time, baseURL, sourceID, landingBase string, request sources.SearchRequest) (sources.SearchResult, error) {
+func searchPreprint(client *http.Client, baseURL, sourceID, landingBase string, request sources.SearchRequest) (sources.SearchResult, error) {
 	if err := requireQuery(request.Query); err != nil {
 		return sources.SearchResult{}, err
 	}
 
-	startDate := now.AddDate(0, 0, -30).Format("2006-01-02")
-	endDate := now.Format("2006-01-02")
-	endpoint := fmt.Sprintf("%s/%s/%s/0", strings.TrimRight(baseURL, "/"), startDate, endDate)
+	endpoint, err := preprintSearchURL(baseURL, sourceID, request.Query, request.Limit)
+	if err != nil {
+		return sources.SearchResult{}, err
+	}
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, endpoint, nil)
 	if err != nil {
 		return sources.SearchResult{}, err
 	}
-	params := req.URL.Query()
-	params.Set("category", strings.ReplaceAll(strings.ToLower(strings.TrimSpace(request.Query)), " ", "_"))
-	req.URL.RawQuery = params.Encode()
 
-	var payload preprintResponse
-	if err := executeJSON(client, req, &payload); err != nil {
+	body, err := executeBytes(client, req)
+	if err != nil {
 		return sources.SearchResult{}, err
 	}
 
-	items := make([]paper.Paper, 0, len(payload.Collection))
-	for _, item := range payload.Collection {
-		version := strings.TrimSpace(item.Version)
-		if version == "" {
-			version = "1"
-		}
-		doi := extractDOI(item.DOI)
-		items = append(items, paper.Paper{
-			PaperID:       strings.TrimSpace(item.DOI),
-			Title:         item.Title,
-			Authors:       splitAuthors(item.Authors),
-			Abstract:      item.Abstract,
-			DOI:           doi,
-			PublishedDate: parseDate(item.Date),
-			PDFURL:        landingBase + strings.TrimSpace(item.DOI) + "v" + version + ".full.pdf",
-			URL:           landingBase + strings.TrimSpace(item.DOI) + "v" + version,
-			Source:        sourceID,
-		})
-	}
-
+	items := parsePreprintSearchResults(body, baseURL, landingBase, sourceID)
 	return searchResult(items, request.Limit), nil
 }
 
@@ -312,25 +273,11 @@ func (c *BioRxiv) client() *http.Client {
 	return defaultHTTPClient()
 }
 
-func (c *BioRxiv) now() time.Time {
-	if c.Now != nil {
-		return c.Now()
-	}
-	return time.Now()
-}
-
 func (c *MedRxiv) client() *http.Client {
 	if c.Client != nil {
 		return c.Client
 	}
 	return defaultHTTPClient()
-}
-
-func (c *MedRxiv) now() time.Time {
-	if c.Now != nil {
-		return c.Now()
-	}
-	return time.Now()
 }
 
 type PubMed struct {
@@ -1427,4 +1374,136 @@ func limitOrDefault(limit, fallback int) int {
 		return limit
 	}
 	return fallback
+}
+
+var (
+	preprintSearchResultPattern = regexp.MustCompile(`(?s)<li class="[^"]*\bsearch-result\b[^"]*".*?</li>`)
+	preprintTitlePattern        = regexp.MustCompile(`(?s)<a href="([^"]+)" class="highwire-cite-linked-title"[^>]*>\s*<span class="highwire-cite-title">(.*?)</span>`)
+	preprintAuthorPattern       = regexp.MustCompile(`(?s)<span class="highwire-citation-author(?:\s+first)?".*?<span class="nlm-given-names">(.*?)</span>\s*<span class="nlm-surname">(.*?)</span>`)
+	preprintPISAPattern         = regexp.MustCompile(`data-pisa="([^"]+)"`)
+	preprintAPATHPattern        = regexp.MustCompile(`data-apath="([^"]+)"`)
+	preprintDatePattern         = regexp.MustCompile(`/(?:biorxiv|medrxiv)/(?:early|content)/(\d{4})/(\d{2})/(\d{2})/`)
+	preprintVersionPattern      = regexp.MustCompile(`v(\d+)$`)
+	preprintVersionSuffix       = regexp.MustCompile(`(?i)v\d+$`)
+)
+
+func preprintSearchURL(baseURL, sourceID, query string, limit int) (string, error) {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		return "", fmt.Errorf("missing %s search base url", sourceID)
+	}
+
+	escapedQuery := url.PathEscape(strings.TrimSpace(query) + " jcode:" + sourceID)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/"+escapedQuery, nil)
+	if err != nil {
+		return "", err
+	}
+
+	params := req.URL.Query()
+	params.Set("sort", "relevance-rank")
+	params.Set("format_result", "standard")
+	params.Set("numresults", strconv.Itoa(limitOrDefault(limit, 10)))
+	req.URL.RawQuery = params.Encode()
+	return req.URL.String(), nil
+}
+
+func parsePreprintSearchResults(body []byte, baseURL, landingBase, sourceID string) []paper.Paper {
+	matches := preprintSearchResultPattern.FindAllString(string(body), -1)
+	items := make([]paper.Paper, 0, len(matches))
+	for _, match := range matches {
+		titleMatch := preprintTitlePattern.FindStringSubmatch(match)
+		if len(titleMatch) == 0 {
+			continue
+		}
+
+		href := resolveRelativeURL(baseURL, html.UnescapeString(groupValue(titleMatch, 1)))
+		title := html.UnescapeString(stripHTML(groupValue(titleMatch, 2)))
+		authors := extractPreprintAuthors(match)
+
+		doi := trimPreprintVersion(extractDOI(match))
+		if doi == "" {
+			doi = trimPreprintVersion(extractDOI(href))
+		}
+		paperID := doi
+		if paperID == "" {
+			paperID = preprintIdentifier(match)
+		}
+
+		version := preprintVersion(match, href)
+		if href == "" && paperID != "" {
+			href = strings.TrimRight(landingBase, "/") + "/" + paperID
+			if version != "" {
+				href += "v" + version
+			}
+		}
+
+		pdfURL := ""
+		if href != "" {
+			pdfURL = href + ".full.pdf"
+		}
+
+		items = append(items, paper.Paper{
+			PaperID:       paperID,
+			Title:         title,
+			Authors:       authors,
+			DOI:           doi,
+			PublishedDate: preprintPublishedDate(match),
+			PDFURL:        pdfURL,
+			URL:           href,
+			Source:        sourceID,
+		})
+	}
+	return items
+}
+
+func extractPreprintAuthors(block string) []string {
+	matches := preprintAuthorPattern.FindAllStringSubmatch(block, -1)
+	authors := make([]string, 0, len(matches))
+	for _, match := range matches {
+		name := strings.TrimSpace(spaceRegexp.ReplaceAllString(html.UnescapeString(groupValue(match, 1))+" "+html.UnescapeString(groupValue(match, 2)), " "))
+		if name != "" {
+			authors = append(authors, name)
+		}
+	}
+	return authors
+}
+
+func preprintIdentifier(block string) string {
+	if match := preprintPISAPattern.FindStringSubmatch(block); len(match) > 1 {
+		parts := strings.Split(strings.TrimSpace(match[1]), ";")
+		if len(parts) > 1 {
+			return trimPreprintVersion(parts[1])
+		}
+	}
+	return ""
+}
+
+func preprintPublishedDate(block string) string {
+	match := preprintAPATHPattern.FindStringSubmatch(block)
+	if len(match) < 2 {
+		return ""
+	}
+	parts := preprintDatePattern.FindStringSubmatch(match[1])
+	if len(parts) != 4 {
+		return ""
+	}
+	return parseDate(parts[1] + "-" + parts[2] + "-" + parts[3])
+}
+
+func preprintVersion(values ...string) string {
+	for _, value := range values {
+		match := preprintVersionPattern.FindStringSubmatch(strings.TrimSpace(value))
+		if len(match) > 1 {
+			return match[1]
+		}
+	}
+	return "1"
+}
+
+func trimPreprintVersion(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	return preprintVersionSuffix.ReplaceAllString(value, "")
 }
