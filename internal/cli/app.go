@@ -26,9 +26,10 @@ const defaultVersion = "search-paper-cli dev"
 var version = defaultVersion
 
 type runOptions struct {
-	environ        []string
-	workingDir     string
-	repositoryRoot string
+	environ          []string
+	workingDir       string
+	repositoryRoot   string
+	connectorFactory func(string, config.Config) (sources.Connector, error)
 }
 
 type errorResponse struct {
@@ -91,8 +92,9 @@ func runWithOptions(args []string, stdout, stderr io.Writer, opts runOptions) in
 		stderr = io.Discard
 	}
 
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
+	if len(args) > 0 {
+		switch args[0] {
+		case "--help", "-h":
 			_, _ = io.WriteString(stdout, rootHelp())
 			return exitCodeOK
 		}
@@ -134,6 +136,8 @@ func runWithOptions(args []string, stdout, stderr io.Writer, opts runOptions) in
 	switch cmd.name {
 	case "sources":
 		return runSourcesCommand(remaining[1:], stdout, stderr, opts)
+	case "search":
+		return runSearchCommand(remaining[1:], stdout, stderr, opts)
 	case "version":
 		return runVersionCommand(remaining[1:], stdout)
 	default:
