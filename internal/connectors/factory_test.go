@@ -10,18 +10,29 @@ func TestConnectorFactoryFirstWave(t *testing.T) {
 	t.Parallel()
 
 	for _, id := range []string{
+		"acm",
 		"arxiv",
 		"biorxiv",
+		"citeseerx",
 		"medrxiv",
-		"pubmed",
-		"iacr",
-		"pmc",
-		"europepmc",
 		"core",
+		"crossref",
+		"dblp",
 		"doaj",
+		"europepmc",
+		"google-scholar",
 		"base",
-		"zenodo",
 		"hal",
+		"iacr",
+		"ieee",
+		"openalex",
+		"openaire",
+		"pmc",
+		"pubmed",
+		"semantic",
+		"ssrn",
+		"unpaywall",
+		"zenodo",
 	} {
 		id := id
 		t.Run(id, func(t *testing.T) {

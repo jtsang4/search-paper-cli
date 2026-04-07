@@ -26,6 +26,28 @@ func New(id string, cfg config.Config) (sources.Connector, error) {
 		return NewEuropePMC(), nil
 	case "core":
 		return NewCORE(cfg), nil
+	case "semantic":
+		return NewSemantic(cfg), nil
+	case "crossref":
+		return NewCrossref(), nil
+	case "openalex":
+		return NewOpenAlex(), nil
+	case "google-scholar":
+		return NewGoogleScholar(cfg), nil
+	case "dblp":
+		return NewDBLP(), nil
+	case "openaire":
+		return NewOpenAIRE(), nil
+	case "citeseerx":
+		return NewCiteSeerX(), nil
+	case "ssrn":
+		return NewSSRN(), nil
+	case "unpaywall":
+		return NewUnpaywall(cfg), nil
+	case "ieee":
+		return NewIEEE(cfg), nil
+	case "acm":
+		return NewACM(cfg), nil
 	case "doaj":
 		return NewDOAJ(), nil
 	case "base":
