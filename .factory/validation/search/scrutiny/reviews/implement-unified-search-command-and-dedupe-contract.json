@@ -1,0 +1,22 @@
+{
+  "featureId": "implement-unified-search-command-and-dedupe-contract",
+  "reviewedAt": "2026-04-07T23:27:03Z",
+  "commitId": "29675c9fdfecc1e7f59656197862de0fb34c1cd6",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The unified search command mostly matches the requested envelope and dedupe behavior, but explicit requests for gated sources are silently dropped instead of producing a machine-readable unsupported/gated response.",
+    "issues": [
+      {
+        "file": "internal/cli/search.go",
+        "line": 208,
+        "severity": "blocking",
+        "description": "When a user explicitly requests a gated source such as IEEE/ACM without the required key, selectSearchSources treats the source as known but simply omits it from orderedValid because its search capability is not supported. runSearchCommand then returns a normal success payload (or silently searches only the remaining sources) rather than an exit-code-3 unsupported/gated error or explicit machine-readable gating result. This violates the output contract for gated sources and misses VAL-SEARCH-008's requirement that these sources are only selectable when configured."
+      }
+    ]
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Fail: explicitly requested gated sources are silently ignored. For example, requesting IEEE/ACM without credentials yields an ok/empty-or-partial search response instead of an explicit gated-source failure."
+}

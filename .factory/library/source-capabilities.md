@@ -63,3 +63,7 @@ Enabled only when keys are present, but still unimplemented for retrieval:
 
 - Unpaywall is DOI-centric metadata + OA URL resolution, not direct full-text retrieval.
 - Sci-Hub is optional, explicitly opt-in, and always last in the fallback chain.
+
+## Provider-specific search notes
+
+- OpenAIRE search behavior is format-sensitive. The legacy `https://api.openaire.eu/search/publications` endpoint returns XML by default; JSON callers must request `format=json`, and the reference implementation prefers the XML-first `/search/researchProducts` flow before any legacy fallback.
