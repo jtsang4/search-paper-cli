@@ -5,9 +5,21 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
+
+type sourceRegistryEntry struct {
+	ID            string `json:"id"`
+	Enabled       bool   `json:"enabled"`
+	DisableReason string `json:"disable_reason"`
+	Capabilities  struct {
+		Search   string `json:"search"`
+		Download string `json:"download"`
+		Read     string `json:"read"`
+	} `json:"capabilities"`
+}
 
 func TestRootHelp(t *testing.T) {
 	t.Parallel()
@@ -181,6 +193,292 @@ func TestSecretsAreRedacted(t *testing.T) {
 			t.Fatalf("expected secret to be redacted from output, got %q", output)
 		}
 	}
+}
+
+func TestSourcesJSON(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := runWithOptions([]string{"sources"}, &stdout, &stderr, runOptions{
+		environ:        []string{},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+
+	var payload struct {
+		Status  string                `json:"status"`
+		Sources []sourceRegistryEntry `json:"sources"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("expected valid json, got %q: %v", stdout.String(), err)
+	}
+
+	if payload.Status != "ok" {
+		t.Fatalf("expected ok status, got %#v", payload)
+	}
+
+	if len(payload.Sources) < 10 {
+		t.Fatalf("expected multiple canonical sources, got %#v", payload.Sources)
+	}
+
+	gotIDs := make([]string, 0, len(payload.Sources))
+	for _, source := range payload.Sources {
+		gotIDs = append(gotIDs, source.ID)
+	}
+
+	wantIDs := []string{
+		"acm",
+		"arxiv",
+		"base",
+		"biorxiv",
+		"citeseerx",
+		"core",
+		"crossref",
+		"dblp",
+		"doaj",
+		"europepmc",
+		"google-scholar",
+		"hal",
+		"iacr",
+		"ieee",
+		"medrxiv",
+		"openalex",
+		"openaire",
+		"pmc",
+		"pubmed",
+		"semantic",
+		"ssrn",
+		"unpaywall",
+		"zenodo",
+	}
+
+	if !slices.Equal(gotIDs, wantIDs) {
+		t.Fatalf("expected deterministic source ordering %v, got %v", wantIDs, gotIDs)
+	}
+}
+
+func TestSourcesText(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := runWithOptions([]string{"sources", "--format", "text"}, &stdout, &stderr, runOptions{
+		environ:        []string{},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+
+	output := stdout.String()
+	if strings.HasPrefix(strings.TrimSpace(output), "{") {
+		t.Fatalf("expected non-JSON text output, got %q", output)
+	}
+
+	for _, want := range []string{"acm", "ieee", "enabled:", "capabilities:"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected text output to contain %q, got %q", want, output)
+		}
+	}
+}
+
+func TestCapabilityRegistry(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := runWithOptions([]string{"sources"}, &stdout, &stderr, runOptions{
+		environ:        []string{},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	var payload struct {
+		Status  string                `json:"status"`
+		Sources []sourceRegistryEntry `json:"sources"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("expected valid json, got %q: %v", stdout.String(), err)
+	}
+
+	for _, source := range payload.Sources {
+		if source.Capabilities.Search == "" || source.Capabilities.Download == "" || source.Capabilities.Read == "" {
+			t.Fatalf("expected capability state for every source, got %#v", source)
+		}
+	}
+
+	assertSourceCapability(t, payload.Sources, "arxiv", true, "", "supported", "supported", "supported")
+	assertSourceCapability(t, payload.Sources, "crossref", true, "", "supported", "informational", "informational")
+	assertSourceCapability(t, payload.Sources, "dblp", true, "", "supported", "unsupported", "unsupported")
+	assertSourceCapability(t, payload.Sources, "ssrn", true, "", "supported", "record_dependent", "record_dependent")
+}
+
+func TestIEEEACMGating(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := runWithOptions([]string{"sources"}, &stdout, &stderr, runOptions{
+		environ:        []string{},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	var payload struct {
+		Sources []sourceRegistryEntry `json:"sources"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("expected valid json, got %q: %v", stdout.String(), err)
+	}
+
+	for _, id := range []string{"ieee", "acm"} {
+		source := findSource(t, payload.Sources, id)
+		if source.Enabled {
+			t.Fatalf("expected %s to be gated off by default, got %#v", id, source)
+		}
+		if !strings.Contains(strings.ToLower(source.DisableReason), "missing") {
+			t.Fatalf("expected missing-key disable reason for %s, got %#v", id, source)
+		}
+		if source.Capabilities.Search != "gated" || source.Capabilities.Download != "gated" || source.Capabilities.Read != "gated" {
+			t.Fatalf("expected all capabilities gated for %s, got %#v", id, source)
+		}
+	}
+}
+
+func TestInvalidSourceError(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := runWithOptions([]string{"sources", "--source", "nope"}, &stdout, &stderr, runOptions{
+		environ:        []string{},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+	})
+	if exitCode != 2 {
+		t.Fatalf("expected exit code 2, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	var payload struct {
+		Status string `json:"status"`
+		Error  struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+			Details struct {
+				InvalidSource string   `json:"invalid_source"`
+				ValidSources  []string `json:"valid_sources"`
+			} `json:"details"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("expected valid json error, got %q: %v", stdout.String(), err)
+	}
+
+	if payload.Status != "error" || payload.Error.Code != "invalid_source" {
+		t.Fatalf("expected invalid_source error, got %#v", payload)
+	}
+
+	if payload.Error.Details.InvalidSource != "nope" {
+		t.Fatalf("expected invalid source details, got %#v", payload)
+	}
+
+	if !slices.Contains(payload.Error.Details.ValidSources, "arxiv") || !slices.Contains(payload.Error.Details.ValidSources, "ieee") {
+		t.Fatalf("expected valid source set in details, got %#v", payload.Error.Details.ValidSources)
+	}
+}
+
+func TestInvalidFormat(t *testing.T) {
+	t.Parallel()
+
+	for _, args := range [][]string{
+		{"sources", "--format", "yaml"},
+		{"search", "--format", "yaml"},
+		{"download", "--format", "yaml"},
+		{"read", "--format", "yaml"},
+	} {
+		args := args
+		t.Run(strings.Join(args, "-"), func(t *testing.T) {
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+
+			exitCode := runWithOptions(args, &stdout, &stderr, runOptions{
+				environ:        []string{},
+				workingDir:     t.TempDir(),
+				repositoryRoot: t.TempDir(),
+			})
+			if exitCode != 2 {
+				t.Fatalf("expected exit code 2, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+			}
+
+			var payload struct {
+				Status string `json:"status"`
+				Error  struct {
+					Code    string `json:"code"`
+					Message string `json:"message"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+				t.Fatalf("expected valid json error, got %q: %v", stdout.String(), err)
+			}
+
+			if payload.Status != "error" || payload.Error.Code != "invalid_usage" {
+				t.Fatalf("expected invalid_usage response, got %#v", payload)
+			}
+
+			if !strings.Contains(payload.Error.Message, "unsupported format") {
+				t.Fatalf("expected unsupported format message, got %#v", payload)
+			}
+		})
+	}
+}
+
+func assertSourceCapability(t *testing.T, sources []sourceRegistryEntry, id string, enabled bool, disableReason string, search string, download string, read string) {
+	t.Helper()
+
+	source := findSource(t, sources, id)
+	if source.Enabled != enabled || source.DisableReason != disableReason {
+		t.Fatalf("unexpected enablement for %s: %#v", id, source)
+	}
+	if source.Capabilities.Search != search || source.Capabilities.Download != download || source.Capabilities.Read != read {
+		t.Fatalf("unexpected capabilities for %s: %#v", id, source)
+	}
+}
+
+func findSource(t *testing.T, sources []sourceRegistryEntry, id string) sourceRegistryEntry {
+	t.Helper()
+
+	for _, source := range sources {
+		if source.ID == id {
+			return source
+		}
+	}
+
+	t.Fatalf("expected to find source %q in %#v", id, sources)
+	return sourceRegistryEntry{}
 }
 
 func assertJSONInvalidUsage(t *testing.T, payload string, wantMessage string) {

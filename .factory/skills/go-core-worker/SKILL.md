@@ -38,7 +38,8 @@ None.
    - `.factory/services.yaml` `test`
 8. Perform manual CLI smoke verification for the changed command surface using either `go test` integration cases or `go run`/built binary execution.
 9. Ensure warnings stay on stderr and JSON mode remains parseable.
-10. In the handoff, include concrete command output observations, tests added, and any source behaviors or contract nuances discovered.
+10. Create the feature commit. If `git commit` fails only because author identity is missing, retry with `git -c user.name="Droid" -c user.email="local@factory.invalid" commit ...` instead of changing git config.
+11. In the handoff, include concrete command output observations, tests added, and any source behaviors or contract nuances discovered.
 
 ## Example Handoff
 

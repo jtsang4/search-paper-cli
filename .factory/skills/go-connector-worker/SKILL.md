@@ -37,7 +37,8 @@ None.
    - `lint`
    - `test`
 8. If live-network smoke checks are feasible and safe, run the smallest representative smoke check needed for the feature. If live credentials are unavailable, document the deterministic coverage instead of guessing.
-9. Record the exact capability class and any upstream volatility in the handoff.
+9. Create the feature commit. If `git commit` fails only because author identity is missing, retry with `git -c user.name="Droid" -c user.email="local@factory.invalid" commit ...` instead of changing git config.
+10. Record the exact capability class and any upstream volatility in the handoff.
 
 ## Example Handoff
 

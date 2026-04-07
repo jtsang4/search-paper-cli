@@ -32,7 +32,8 @@ None.
    - `build`
 5. Produce the required artifact outputs under `dist/`.
 6. Validate the built artifact outside the repository root using real CLI invocations.
-7. Capture artifact paths, exact smoke commands, and outside-repo observations in the handoff.
+7. Create the feature commit. If `git commit` fails only because author identity is missing, retry with `git -c user.name="Droid" -c user.email="local@factory.invalid" commit ...` instead of changing git config.
+8. Capture artifact paths, exact smoke commands, and outside-repo observations in the handoff.
 
 ## Example Handoff
 

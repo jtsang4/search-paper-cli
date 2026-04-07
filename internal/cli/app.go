@@ -11,11 +11,13 @@ import (
 	"strings"
 
 	"github.com/jtsang4/search-paper-cli/internal/config"
+	"github.com/jtsang4/search-paper-cli/internal/sources"
 )
 
 const (
 	exitCodeOK           = 0
 	exitCodeInvalidUsage = 2
+	exitCodeUnsupported  = 3
 	exitCodeRuntimeError = 4
 )
 
@@ -39,8 +41,8 @@ type errorResponse struct {
 }
 
 type sourcesResponse struct {
-	Status  string `json:"status"`
-	Sources []any  `json:"sources"`
+	Status  string               `json:"status"`
+	Sources []sources.Descriptor `json:"sources"`
 }
 
 type command struct {
@@ -212,7 +214,8 @@ func runSourcesCommand(args []string, stdout, stderr io.Writer, opts runOptions)
 	flags := flag.NewFlagSet("sources", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 
-	format := flags.String("format", "json", "Output format: json or text.")
+	format := addFormatFlag(flags)
+	selectedSources := flags.String("source", "", "Comma-separated source ids to inspect.")
 	if err := flags.Parse(args); err != nil {
 		return writeInvalidUsage(stdout, normalizeFlagError(err), map[string]any{
 			"command": "sources",
@@ -226,13 +229,10 @@ func runSourcesCommand(args []string, stdout, stderr io.Writer, opts runOptions)
 		})
 	}
 
-	switch *format {
-	case "json", "text":
-	default:
-		return writeInvalidUsage(stdout, fmt.Sprintf("unsupported format %q", *format), map[string]any{
-			"command":           "sources",
-			"supported_formats": []string{"json", "text"},
-		})
+	if !isSupportedFormat(*format) {
+		response := validateFormat(*format)
+		response.Error.Details["command"] = "sources"
+		return writeError(stdout, response, exitCodeInvalidUsage)
 	}
 
 	workingDir := opts.workingDir
@@ -260,32 +260,69 @@ func runSourcesCommand(args []string, stdout, stderr io.Writer, opts runOptions)
 
 	writeWarnings(stderr, diagnostics)
 
-	switch *format {
-	case "text":
-		_, _ = fmt.Fprintf(stdout, "Configuration loaded.\nSources are not implemented yet.\n")
-		return exitCodeOK
-	default:
-		_ = cfg
-		return writeJSON(stdout, sourcesResponse{
-			Status:  "ok",
-			Sources: []any{},
-		}, exitCodeOK)
+	registry, invalid := sources.Select(cfg, splitCSV(*selectedSources))
+	if len(invalid) != 0 {
+		details := map[string]any{
+			"invalid_source": invalid[0],
+			"valid_sources":  sources.ValidIDs(),
+		}
+		if len(invalid) > 1 {
+			details["invalid_sources"] = invalid
+		}
+		return writeError(stdout, errorResponse{
+			Status: "error",
+			Error: struct {
+				Code    string         `json:"code"`
+				Message string         `json:"message"`
+				Details map[string]any `json:"details,omitempty"`
+			}{
+				Code:    "invalid_source",
+				Message: fmt.Sprintf("unknown source %q", invalid[0]),
+				Details: details,
+			},
+		}, exitCodeInvalidUsage)
 	}
+
+	if outputFormat(*format) == formatText {
+		_, _ = io.WriteString(stdout, renderSourcesText(registry))
+		return exitCodeOK
+	}
+
+	return writeJSON(stdout, sourcesResponse{
+		Status:  "ok",
+		Sources: registry,
+	}, exitCodeOK)
 }
 
 func runPlaceholderCommand(name, description string) func(args []string, stdout, stderr io.Writer) int {
 	return func(args []string, stdout, stderr io.Writer) int {
-		if len(args) > 0 {
-			switch args[0] {
-			case "--help", "-h":
+		for _, arg := range args {
+			if arg == "--help" || arg == "-h" {
 				_, _ = io.WriteString(stdout, placeholderCommandHelp(name, description))
 				return exitCodeOK
-			default:
-				return writeInvalidUsage(stdout, fmt.Sprintf("unknown argument %q for %s command", args[0], name), map[string]any{
-					"command": name,
-					"args":    args,
-				})
 			}
+		}
+
+		flags := flag.NewFlagSet(name, flag.ContinueOnError)
+		flags.SetOutput(io.Discard)
+		format := addFormatFlag(flags)
+		if err := flags.Parse(args); err != nil {
+			return writeInvalidUsage(stdout, normalizeFlagError(err), map[string]any{
+				"command": name,
+			})
+		}
+
+		if !isSupportedFormat(*format) {
+			response := validateFormat(*format)
+			response.Error.Details["command"] = name
+			return writeError(stdout, response, exitCodeInvalidUsage)
+		}
+
+		if len(flags.Args()) > 0 {
+			return writeInvalidUsage(stdout, fmt.Sprintf("unknown argument %q for %s command", flags.Args()[0], name), map[string]any{
+				"command": name,
+				"args":    flags.Args(),
+			})
 		}
 
 		_, _ = io.WriteString(stderr, placeholderCommandHelp(name, description))
@@ -328,10 +365,26 @@ func writeInvalidUsage(stdout io.Writer, message string, details map[string]any)
 	response.Error.Message = message
 	response.Error.Details = details
 
+	return writeError(stdout, response, exitCodeInvalidUsage)
+}
+
+func writeError(stdout io.Writer, response errorResponse, exitCode int) int {
 	encoder := json.NewEncoder(stdout)
 	encoder.SetEscapeHTML(false)
 	_ = encoder.Encode(response)
-	return exitCodeInvalidUsage
+	return exitCode
+}
+
+func writeUnsupportedError(stdout io.Writer, code string, message string, details map[string]any) int {
+	response := errorResponse{Status: "error"}
+	response.Error.Code = code
+	response.Error.Message = message
+	response.Error.Details = details
+
+	encoder := json.NewEncoder(stdout)
+	encoder.SetEscapeHTML(false)
+	_ = encoder.Encode(response)
+	return exitCodeUnsupported
 }
 
 func writeRuntimeError(stdout io.Writer, message string) int {
@@ -339,10 +392,7 @@ func writeRuntimeError(stdout io.Writer, message string) int {
 	response.Error.Code = "runtime_error"
 	response.Error.Message = message
 
-	encoder := json.NewEncoder(stdout)
-	encoder.SetEscapeHTML(false)
-	_ = encoder.Encode(response)
-	return exitCodeRuntimeError
+	return writeError(stdout, response, exitCodeRuntimeError)
 }
 
 func writeJSON(stdout io.Writer, payload any, exitCode int) int {
@@ -378,4 +428,45 @@ func fileExists(path string) bool {
 		return false
 	}
 	return !info.IsDir()
+}
+
+func isSupportedFormat(value string) bool {
+	switch outputFormat(value) {
+	case formatJSON, formatText:
+		return true
+	default:
+		return false
+	}
+}
+
+func splitCSV(value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			result = append(result, part)
+		}
+	}
+	return result
+}
+
+func renderSourcesText(registry []sources.Descriptor) string {
+	var b strings.Builder
+	for _, source := range registry {
+		b.WriteString(fmt.Sprintf("%s\n", source.ID))
+		b.WriteString(fmt.Sprintf("  enabled: %t\n", source.Enabled))
+		if source.DisableReason != "" {
+			b.WriteString(fmt.Sprintf("  disable_reason: %s\n", source.DisableReason))
+		}
+		b.WriteString("  capabilities:\n")
+		b.WriteString(fmt.Sprintf("    search: %s\n", source.Capabilities.Search))
+		b.WriteString(fmt.Sprintf("    download: %s\n", source.Capabilities.Download))
+		b.WriteString(fmt.Sprintf("    read: %s\n", source.Capabilities.Read))
+	}
+	return b.String()
 }
