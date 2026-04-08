@@ -138,6 +138,10 @@ func runWithOptions(args []string, stdout, stderr io.Writer, opts runOptions) in
 		return runSourcesCommand(remaining[1:], stdout, stderr, opts)
 	case "search":
 		return runSearchCommand(remaining[1:], stdout, stderr, opts)
+	case "download":
+		return runDownloadCommand(remaining[1:], stdout, stderr, opts)
+	case "read":
+		return runReadCommand(remaining[1:], stdout, stderr, opts)
 	case "version":
 		return runVersionCommand(remaining[1:], stdout)
 	default:

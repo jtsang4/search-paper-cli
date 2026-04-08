@@ -106,12 +106,12 @@ func (c *Semantic) Search(request sources.SearchRequest) (sources.SearchResult, 
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *Semantic) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("semantic")
+func (c *Semantic) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("semantic", request)
 }
 
-func (c *Semantic) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("semantic")
+func (c *Semantic) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("semantic", request)
 }
 
 func (c *Semantic) client() *http.Client {
@@ -639,12 +639,12 @@ func (c *CiteSeerX) Search(request sources.SearchRequest) (sources.SearchResult,
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *CiteSeerX) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("citeseerx")
+func (c *CiteSeerX) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("citeseerx", request)
 }
 
-func (c *CiteSeerX) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("citeseerx")
+func (c *CiteSeerX) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("citeseerx", request)
 }
 
 func (c *CiteSeerX) client() *http.Client {
@@ -701,12 +701,12 @@ func (c *SSRN) Search(request sources.SearchRequest) (sources.SearchResult, erro
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *SSRN) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("ssrn")
+func (c *SSRN) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("ssrn", request)
 }
 
-func (c *SSRN) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("ssrn")
+func (c *SSRN) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("ssrn", request)
 }
 
 func (c *SSRN) client() *http.Client {

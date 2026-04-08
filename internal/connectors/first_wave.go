@@ -148,12 +148,12 @@ func (c *Arxiv) Search(request sources.SearchRequest) (sources.SearchResult, err
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *Arxiv) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("arxiv")
+func (c *Arxiv) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("arxiv", request)
 }
 
-func (c *Arxiv) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("arxiv")
+func (c *Arxiv) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("arxiv", request)
 }
 
 func (c *Arxiv) client() *http.Client {
@@ -191,12 +191,12 @@ func (c *BioRxiv) Search(request sources.SearchRequest) (sources.SearchResult, e
 	return c.searchPreprint("biorxiv", "https://www.biorxiv.org/content/", request)
 }
 
-func (c *BioRxiv) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("biorxiv")
+func (c *BioRxiv) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("biorxiv", request)
 }
 
-func (c *BioRxiv) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("biorxiv")
+func (c *BioRxiv) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("biorxiv", request)
 }
 
 type MedRxiv struct {
@@ -227,12 +227,12 @@ func (c *MedRxiv) Search(request sources.SearchRequest) (sources.SearchResult, e
 	return c.searchPreprint("medrxiv", "https://www.medrxiv.org/content/", request)
 }
 
-func (c *MedRxiv) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("medrxiv")
+func (c *MedRxiv) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("medrxiv", request)
 }
 
-func (c *MedRxiv) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("medrxiv")
+func (c *MedRxiv) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("medrxiv", request)
 }
 
 func (c *BioRxiv) searchPreprint(sourceID, landingBase string, request sources.SearchRequest) (sources.SearchResult, error) {
@@ -500,12 +500,12 @@ func (c *IACR) Search(request sources.SearchRequest) (sources.SearchResult, erro
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *IACR) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("iacr")
+func (c *IACR) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("iacr", request)
 }
 
-func (c *IACR) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("iacr")
+func (c *IACR) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("iacr", request)
 }
 
 func (c *IACR) client() *http.Client {
@@ -616,12 +616,12 @@ func (c *PMC) Search(request sources.SearchRequest) (sources.SearchResult, error
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *PMC) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("pmc")
+func (c *PMC) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("pmc", request)
 }
 
-func (c *PMC) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("pmc")
+func (c *PMC) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("pmc", request)
 }
 
 func (c *PMC) client() *http.Client {
@@ -745,12 +745,12 @@ func (c *EuropePMC) Search(request sources.SearchRequest) (sources.SearchResult,
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *EuropePMC) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("europepmc")
+func (c *EuropePMC) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("europepmc", request)
 }
 
-func (c *EuropePMC) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("europepmc")
+func (c *EuropePMC) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("europepmc", request)
 }
 
 func (c *EuropePMC) client() *http.Client {
@@ -871,12 +871,12 @@ func (c *CORE) Search(request sources.SearchRequest) (sources.SearchResult, erro
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *CORE) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("core")
+func (c *CORE) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("core", request)
 }
 
-func (c *CORE) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("core")
+func (c *CORE) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("core", request)
 }
 
 func (c *CORE) client() *http.Client {
@@ -946,12 +946,12 @@ func (c *DOAJ) Search(request sources.SearchRequest) (sources.SearchResult, erro
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *DOAJ) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("doaj")
+func (c *DOAJ) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("doaj", request)
 }
 
-func (c *DOAJ) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("doaj")
+func (c *DOAJ) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("doaj", request)
 }
 
 func (c *DOAJ) client() *http.Client {
@@ -1040,12 +1040,12 @@ func (c *BASE) Search(request sources.SearchRequest) (sources.SearchResult, erro
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *BASE) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("base")
+func (c *BASE) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("base", request)
 }
 
-func (c *BASE) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("base")
+func (c *BASE) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("base", request)
 }
 
 func (c *BASE) client() *http.Client {
@@ -1131,12 +1131,12 @@ func (c *Zenodo) Search(request sources.SearchRequest) (sources.SearchResult, er
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *Zenodo) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("zenodo")
+func (c *Zenodo) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("zenodo", request)
 }
 
-func (c *Zenodo) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("zenodo")
+func (c *Zenodo) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("zenodo", request)
 }
 
 func (c *Zenodo) client() *http.Client {
@@ -1208,12 +1208,12 @@ func (c *HAL) Search(request sources.SearchRequest) (sources.SearchResult, error
 	return searchResult(items, request.Limit), nil
 }
 
-func (c *HAL) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("hal")
+func (c *HAL) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	return nativeDownload("hal", request)
 }
 
-func (c *HAL) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("hal")
+func (c *HAL) Read(request sources.ReadRequest) (sources.RetrievalResult, error) {
+	return nativeRead("hal", request)
 }
 
 func (c *HAL) client() *http.Client {

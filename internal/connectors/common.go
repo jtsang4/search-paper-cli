@@ -7,10 +7,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jtsang4/search-paper-cli/internal/paper"
 	"github.com/jtsang4/search-paper-cli/internal/sources"
@@ -79,6 +82,36 @@ func unsupportedRead(sourceID string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
 		State:   sources.RetrievalStateUnsupported,
 		Message: fmt.Sprintf("source %q read is not implemented yet", sourceID),
+	}, nil
+}
+
+func nativeDownload(sourceID string, request sources.DownloadRequest) (sources.RetrievalResult, error) {
+	result, _, err := retrievePaperPDF(sourceID, request.Paper, request.SaveDir)
+	return result, err
+}
+
+func nativeRead(sourceID string, request sources.ReadRequest) (sources.RetrievalResult, error) {
+	result, body, err := retrievePaperPDF(sourceID, request.Paper, request.SaveDir)
+	if err != nil {
+		return sources.RetrievalResult{}, err
+	}
+	if result.State != sources.RetrievalStateDownloaded {
+		return result, nil
+	}
+
+	content := extractPDFText(body)
+	if content == "" {
+		return sources.RetrievalResult{
+			State:   sources.RetrievalStateDownloadedButNotExtractable,
+			Path:    result.Path,
+			Message: fmt.Sprintf("source %q downloaded a PDF but no extractable text was detected", sourceID),
+		}, nil
+	}
+
+	return sources.RetrievalResult{
+		State:   sources.RetrievalStateExtracted,
+		Path:    result.Path,
+		Content: content,
 	}, nil
 }
 
@@ -246,4 +279,175 @@ func requireQuery(query string) error {
 		return errors.New("query must not be empty")
 	}
 	return nil
+}
+
+func retrievePaperPDF(sourceID string, p paper.Paper, saveDir string) (sources.RetrievalResult, []byte, error) {
+	p = p.Normalized()
+
+	resolvedSaveDir := strings.TrimSpace(saveDir)
+	if resolvedSaveDir == "" {
+		resolvedSaveDir = "."
+	}
+	if err := os.MkdirAll(resolvedSaveDir, 0o755); err != nil {
+		return sources.RetrievalResult{}, nil, err
+	}
+
+	pdfURL := retrievalPDFURL(p)
+	if pdfURL == "" {
+		return sources.RetrievalResult{
+			State:   sources.RetrievalStateNotFound,
+			Message: fmt.Sprintf("source %q does not expose a public PDF for this record", sourceID),
+		}, nil, nil
+	}
+
+	req, err := http.NewRequest(http.MethodGet, pdfURL, nil)
+	if err != nil {
+		return sources.RetrievalResult{}, nil, err
+	}
+	resp, err := defaultHTTPClient().Do(req)
+	if err != nil {
+		return sources.RetrievalResult{}, nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return sources.RetrievalResult{}, nil, err
+	}
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusUnauthorized {
+		return sources.RetrievalResult{
+			State:   sources.RetrievalStateNotFound,
+			Message: fmt.Sprintf("source %q does not expose a public PDF for this record", sourceID),
+		}, nil, nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return sources.RetrievalResult{
+			State:   sources.RetrievalStateFailed,
+			Message: fmt.Sprintf("source %q returned unexpected status %d", sourceID, resp.StatusCode),
+		}, nil, nil
+	}
+	if !looksLikePDF(resp.Header.Get("Content-Type"), pdfURL, body) {
+		return sources.RetrievalResult{
+			State:   sources.RetrievalStateNotFound,
+			Message: fmt.Sprintf("source %q did not provide a public PDF for this record", sourceID),
+		}, nil, nil
+	}
+
+	filename := retrievalFilename(sourceID, p)
+	targetPath := filepath.Join(resolvedSaveDir, filename)
+	tmpPath := targetPath + ".tmp"
+	if err := os.WriteFile(tmpPath, body, 0o644); err != nil {
+		return sources.RetrievalResult{}, nil, err
+	}
+	if err := os.Rename(tmpPath, targetPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return sources.RetrievalResult{}, nil, err
+	}
+
+	return sources.RetrievalResult{
+		State: sources.RetrievalStateDownloaded,
+		Path:  targetPath,
+	}, body, nil
+}
+
+func retrievalPDFURL(p paper.Paper) string {
+	for _, candidate := range []string{p.PDFURL, p.URL} {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		lower := strings.ToLower(candidate)
+		if strings.HasSuffix(lower, ".pdf") || strings.Contains(lower, "/pdf") {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func looksLikePDF(contentType string, requestURL string, body []byte) bool {
+	if len(body) == 0 {
+		return false
+	}
+	trimmed := strings.TrimSpace(string(body))
+	if strings.HasPrefix(trimmed, "%PDF-") {
+		return true
+	}
+	lowerType := strings.ToLower(strings.TrimSpace(contentType))
+	if strings.Contains(lowerType, "application/pdf") {
+		return true
+	}
+	lowerURL := strings.ToLower(strings.TrimSpace(requestURL))
+	return strings.HasSuffix(lowerURL, ".pdf") && strings.HasPrefix(trimmed, "%PDF-")
+}
+
+func retrievalFilename(sourceID string, p paper.Paper) string {
+	base := sanitizeFilename(p.PaperID)
+	if base == "" {
+		base = sanitizeFilename(p.Title)
+	}
+	if base == "" {
+		base = sourceID + "-paper"
+	}
+	if !strings.HasSuffix(strings.ToLower(base), ".pdf") {
+		base += ".pdf"
+	}
+	return base
+}
+
+func sanitizeFilename(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	lastDash := false
+	for _, r := range value {
+		switch {
+		case unicode.IsLetter(r), unicode.IsDigit(r):
+			b.WriteRune(unicode.ToLower(r))
+			lastDash = false
+		case r == '.', r == '_', r == '-':
+			b.WriteRune(r)
+			lastDash = false
+		default:
+			if !lastDash {
+				b.WriteByte('-')
+				lastDash = true
+			}
+		}
+	}
+	result := strings.Trim(b.String(), "-.")
+	if result == "" {
+		return ""
+	}
+	return result
+}
+
+var pdfTextPattern = regexp.MustCompile(`\(([^()]|\\.)+\)\s*Tj`)
+
+func extractPDFText(body []byte) string {
+	matches := pdfTextPattern.FindAllString(string(body), -1)
+	if len(matches) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(matches))
+	for _, match := range matches {
+		start := strings.Index(match, "(")
+		end := strings.LastIndex(match, ")")
+		if start < 0 || end <= start {
+			continue
+		}
+		text := match[start+1 : end]
+		text = strings.ReplaceAll(text, `\(`, "(")
+		text = strings.ReplaceAll(text, `\)`, ")")
+		text = strings.ReplaceAll(text, `\\`, `\`)
+		text = strings.ReplaceAll(text, `\n`, " ")
+		text = strings.ReplaceAll(text, `\r`, " ")
+		text = strings.TrimSpace(text)
+		if text != "" {
+			parts = append(parts, text)
+		}
+	}
+	return strings.TrimSpace(strings.Join(parts, " "))
 }
