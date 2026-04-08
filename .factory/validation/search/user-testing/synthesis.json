@@ -1,0 +1,57 @@
+{
+  "milestone": "search",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 11,
+    "passed": 11,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-SEARCH-001",
+    "VAL-SEARCH-003",
+    "VAL-SEARCH-004",
+    "VAL-SEARCH-005",
+    "VAL-SEARCH-006",
+    "VAL-SEARCH-009",
+    "VAL-SEARCH-002",
+    "VAL-SEARCH-008",
+    "VAL-SEARCH-011",
+    "VAL-SEARCH-007",
+    "VAL-SEARCH-010"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added CLI flow validator isolation guidance covering use of the built artifact and per-validator temp directories.",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null,
+  "flowReports": [
+    ".factory/validation/search/user-testing/flows/core-behavior.json",
+    ".factory/validation/search/user-testing/flows/error-and-gating.json"
+  ],
+  "notes": {
+    "toolsUsed": [
+      "go test",
+      "shell/cli"
+    ],
+    "frictions": [
+      {
+        "description": "Live Semantic Scholar smoke requests returned HTTP 429 during this run, so deterministic targeted CLI tests were used for semantic-specific assertions to avoid provider-rate-limit noise.",
+        "resolved": true,
+        "resolution": "Validated semantic-related behaviors with existing targeted go test coverage and used Crossref-backed artifact smoke commands for observable CLI JSON behavior.",
+        "affectedAssertions": [
+          "VAL-SEARCH-001",
+          "VAL-SEARCH-003",
+          "VAL-SEARCH-006"
+        ]
+      }
+    ],
+    "blockers": []
+  }
+}

@@ -54,3 +54,12 @@ Validators should capture:
 - created file paths
 - artifact paths for release validation
 - stage/attempt details for fallback retrieval flows
+
+## Flow Validator Guidance: CLI
+
+- Use the built CLI at `.tmp/user-testing/search-paper-cli` as the primary user surface when validating commands directly.
+- Treat the repository checkout and built binary as read-only shared resources.
+- Use a dedicated temp working directory and output directory per validator group under `.tmp/user-testing/` to avoid cross-test `.env`, output, or file-creation interference.
+- Do not modify source files, `.env`, or shared validation artifacts outside your assigned flow report and evidence directory.
+- Prefer direct CLI command execution for observable behavior; use targeted `go test` command(s) only when an assertion depends on deterministic internal orchestration that cannot be observed reliably from live network output alone.
+- Keep stdout/stderr, exit codes, and any created files as evidence in the flow report.

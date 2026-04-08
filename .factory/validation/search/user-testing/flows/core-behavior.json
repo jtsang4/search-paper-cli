@@ -1,0 +1,148 @@
+{
+  "milestone": "search",
+  "groupId": "core-behavior",
+  "testedAt": "2026-04-08T00:41:40.593532Z",
+  "toolsUsed": [
+    "shell/cli",
+    "go test"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-SEARCH-001",
+      "status": "pass",
+      "reason": "Single-source search stayed within the selected source and respected the requested cap. Live artifact evidence was collected with Crossref because Semantic Scholar returned HTTP 429 during smoke testing; deterministic CLI coverage confirms the same limit/source behavior generically.",
+      "evidence": [
+        {
+          "label": "built-cli single-source smoke",
+          "command": "env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PAPER_SEARCH_MCP_ENV_FILE=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/core-behavior/.env \"/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli\" search --source crossref --limit 1 \"graph neural networks\"",
+          "exitCode": 0,
+          "observation": "JSON response contained exactly one paper, requested_sources/used_sources were [\"crossref\"], source_results.crossref was 1, and every returned paper source was crossref.",
+          "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-001-crossref-limit1.stdout",
+          "stderrPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-001-crossref-limit1.stderr",
+          "metaPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-001-crossref-limit1.json"
+        },
+        {
+          "label": "deterministic CLI test",
+          "command": "go test /root/workspace/github/jtsang4/search-paper-cli/internal/cli -run ^TestSingleSourceSearch$ -v",
+          "exitCode": 0,
+          "observation": "TestSingleSourceSearch passed and verifies single-source scoping plus per-source limit handling.",
+          "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-001-go-test.stdout",
+          "stderrPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-001-go-test.stderr",
+          "metaPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-001-go-test.json"
+        }
+      ]
+    },
+    {
+      "id": "VAL-SEARCH-003",
+      "status": "pass",
+      "reason": "Unified search returned one structured payload with query metadata, selected sources, per-source counts, per-source errors, total results, and normalized paper records while preserving usable results from the successful source.",
+      "evidence": [
+        {
+          "label": "built-cli partial-success smoke",
+          "command": "env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PAPER_SEARCH_MCP_ENV_FILE=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/core-behavior/.env \"/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli\" search --source crossref,semantic --limit 2 \"graph neural networks\"",
+          "exitCode": 0,
+          "observation": "Response stayed machine-readable with requested_sources=[\"crossref\",\"semantic\"], source_results.crossref=2, source_results.semantic=0, errors.semantic=\"unexpected status 429\", total=2, and normalized paper objects from Crossref.",
+          "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-003-crossref-semantic-partial.stdout",
+          "stderrPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-003-crossref-semantic-partial.stderr",
+          "metaPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-003-crossref-semantic-partial.json"
+        },
+        {
+          "label": "deterministic CLI test",
+          "command": "go test /root/workspace/github/jtsang4/search-paper-cli/internal/cli -run ^TestUnifiedPartialSuccess$ -v",
+          "exitCode": 0,
+          "observation": "TestUnifiedPartialSuccess passed and verifies mixed success returns one envelope with successful papers plus count-0/error entry for the failing source.",
+          "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-003-go-test.stdout",
+          "stderrPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-003-go-test.stderr",
+          "metaPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-003-go-test.json"
+        }
+      ]
+    },
+    {
+      "id": "VAL-SEARCH-004",
+      "status": "pass",
+      "reason": "Deterministic CLI coverage confirmed cross-source deduplication prefers DOI, then normalized title+authors, then paper_id, and preserves the first record according to merge order.",
+      "evidence": [
+        {
+          "label": "deterministic CLI test",
+          "command": "go test /root/workspace/github/jtsang4/search-paper-cli/internal/cli -run ^TestDedupeOrder$ -v",
+          "exitCode": 0,
+          "observation": "TestDedupeOrder passed with selected source order crossref,semantic,arxiv and asserted a total of 4 deduped papers with Crossref survivors winning duplicate collisions.",
+          "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-004-go-test.stdout",
+          "stderrPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-004-go-test.stderr",
+          "metaPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-004-go-test.json"
+        }
+      ]
+    },
+    {
+      "id": "VAL-SEARCH-005",
+      "status": "pass",
+      "reason": "Search results use the stable normalized paper schema with the required fields and consistent array serialization for authors.",
+      "evidence": [
+        {
+          "label": "deterministic CLI test",
+          "command": "go test /root/workspace/github/jtsang4/search-paper-cli/internal/cli -run ^TestSearchSchema$ -v",
+          "exitCode": 0,
+          "observation": "TestSearchSchema passed and asserted paper_id, title, authors, abstract, doi, published_date, pdf_url, url, and source are present on normalized results.",
+          "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-005-go-test.stdout",
+          "stderrPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-005-go-test.stderr",
+          "metaPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-005-go-test.json"
+        },
+        {
+          "label": "built-cli schema smoke",
+          "command": "env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PAPER_SEARCH_MCP_ENV_FILE=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/core-behavior/.env \"/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli\" search --source crossref --limit 1 \"graph neural networks\"",
+          "exitCode": 0,
+          "observation": "Live artifact JSON included the normalized top-level paper keys and authors serialized as an array.",
+          "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-001-crossref-limit1.stdout",
+          "stderrPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-001-crossref-limit1.stderr",
+          "metaPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-001-crossref-limit1.json"
+        }
+      ]
+    },
+    {
+      "id": "VAL-SEARCH-006",
+      "status": "pass",
+      "reason": "Deterministic CLI coverage verified the year filter is forwarded only to Semantic Scholar and omitted from other selected sources during multi-source search.",
+      "evidence": [
+        {
+          "label": "deterministic CLI test",
+          "command": "go test /root/workspace/github/jtsang4/search-paper-cli/internal/cli -run ^TestSemanticYearFilter$ -v",
+          "exitCode": 0,
+          "observation": "TestSemanticYearFilter passed; recorded search requests showed semantic received Year=\"2024-2025\" while crossref received an empty Year field.",
+          "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-006-go-test.stdout",
+          "stderrPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-006-go-test.stderr",
+          "metaPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-006-go-test.json"
+        }
+      ]
+    },
+    {
+      "id": "VAL-SEARCH-009",
+      "status": "pass",
+      "reason": "Deterministic CLI coverage confirmed per-source counts represent pre-dedupe hits and the final total is the merged post-dedupe count, never exceeding the summed source counts.",
+      "evidence": [
+        {
+          "label": "deterministic CLI test",
+          "command": "go test /root/workspace/github/jtsang4/search-paper-cli/internal/cli -run ^TestSearchCounts$ -v",
+          "exitCode": 0,
+          "observation": "TestSearchCounts passed and asserted semantic=2, crossref=2, merged total=3, and total <= semantic+crossref.",
+          "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-009-go-test.stdout",
+          "stderrPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-009-go-test.stderr",
+          "metaPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-009-go-test.json"
+        }
+      ]
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Live Semantic Scholar smoke requests returned HTTP 429 during this run, so deterministic targeted CLI tests were used for semantic-specific assertions to avoid provider-rate-limit noise.",
+      "resolved": true,
+      "resolution": "Validated semantic-related behaviors with existing targeted go test coverage and used Crossref-backed artifact smoke commands for observable CLI JSON behavior.",
+      "affectedAssertions": [
+        "VAL-SEARCH-001",
+        "VAL-SEARCH-003",
+        "VAL-SEARCH-006"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Validated 6 assertions for core CLI search behavior: 6 passed, 0 failed, 0 blocked. Built-artifact smoke checks confirmed single-source and partial-success JSON behavior; targeted CLI tests provided deterministic proof for dedupe, schema, year forwarding, and count semantics."
+}

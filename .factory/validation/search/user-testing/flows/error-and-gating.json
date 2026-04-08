@@ -1,0 +1,97 @@
+{
+  "milestone": "search",
+  "groupId": "error-and-gating",
+  "testedAt": "2026-04-08T00:40:39.716259+00:00",
+  "isolation": {
+    "repoRoot": "/root/workspace/github/jtsang4/search-paper-cli",
+    "cliArtifact": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+    "workingDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/error-and-gating",
+    "evidenceDirectory": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/error-and-gating"
+  },
+  "toolsUsed": [
+    "shell/cli",
+    "go test"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-SEARCH-002",
+      "status": "pass",
+      "reason": "Built CLI rejected an all-invalid --source selection with exit code 2 and machine-readable invalid_source JSON instead of broadening scope.",
+      "evidence": [
+        {
+          "file": "search/error-and-gating/val-search-002-invalid-only.json",
+          "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source typo-only transformers",
+          "exitCode": 2,
+          "observation": "stdout contained status=error with error.code=invalid_source and no paper results."
+        }
+      ]
+    },
+    {
+      "id": "VAL-SEARCH-008",
+      "status": "pass",
+      "reason": "Built CLI listed IEEE/ACM as gated without keys, rejected clean-env IEEE search with a gated_source error, and switched both sources to searchable when key env vars were supplied.",
+      "evidence": [
+        {
+          "file": "search/error-and-gating/val-search-008-clean-sources.json",
+          "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
+          "exitCode": 0,
+          "observation": "Clean-env source listing showed ieee/acm enabled=false with capabilities.search=gated."
+        },
+        {
+          "file": "search/error-and-gating/val-search-008-clean-ieee-search.json",
+          "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source ieee 'gated search'",
+          "exitCode": 3,
+          "observation": "Clean-env ieee search exited 3 with error.code=gated_source and blocked_sources entry for ieee."
+        },
+        {
+          "file": "search/error-and-gating/val-search-008-keyed-sources.json",
+          "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
+          "exitCode": 0,
+          "observation": "Keyed source listing showed ieee/acm enabled=true with capabilities.search=supported."
+        }
+      ]
+    },
+    {
+      "id": "VAL-SEARCH-011",
+      "status": "pass",
+      "reason": "Built CLI executed the valid subset and preserved invalid ids in the machine-readable invalid_sources field.",
+      "evidence": [
+        {
+          "file": "search/error-and-gating/val-search-011-mixed-valid-invalid.json",
+          "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source unpaywall,typo 'plain text search'",
+          "exitCode": 0,
+          "observation": "Response kept used_sources=[\"unpaywall\"] and invalid_sources=[\"typo\"] with a successful JSON envelope."
+        }
+      ]
+    },
+    {
+      "id": "VAL-SEARCH-007",
+      "status": "pass",
+      "reason": "Targeted CLI test passed for both DOI-only Unpaywall search and the free-text soft-fail path.",
+      "evidence": [
+        {
+          "file": "search/error-and-gating/val-search-007-go-test.json",
+          "command": "go test ./internal/cli -run '^TestUnpaywallDOIOnly$' -count=1 -v",
+          "exitCode": 0,
+          "observation": "Passing subtests covered DOI query => one normalized unpaywall result and free-text query => zero results without crash."
+        }
+      ]
+    },
+    {
+      "id": "VAL-SEARCH-010",
+      "status": "pass",
+      "reason": "Targeted CLI test confirmed the all-selected-sources failure path stays machine-readable with zero counts and explicit per-source errors.",
+      "evidence": [
+        {
+          "file": "search/error-and-gating/val-search-010-go-test.json",
+          "command": "go test ./internal/cli -run '^TestAllSourcesFail$' -count=1 -v",
+          "exitCode": 0,
+          "observation": "Passing test asserts exit code 4, total=0, zero source counts, and explicit source error entries when every selected source fails."
+        }
+      ]
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 5 passed, 0 failed, 0 blocked, 0 skipped."
+}
