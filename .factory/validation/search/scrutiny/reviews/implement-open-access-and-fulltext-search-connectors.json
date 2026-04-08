@@ -1,34 +1,22 @@
 {
   "featureId": "implement-open-access-and-fulltext-search-connectors",
-  "reviewedAt": "2026-04-07T23:29:52.965224+00:00",
-  "commitId": "dcf65092bb4c95724ae36a6630443e0fb0fd12c9",
+  "reviewedAt": "2026-04-08T00:17:55.632822+00:00",
+  "commitId": "3c1a34fda4cd57489c0f82146d656b4534ec9ac0",
   "transcriptSkeletonReviewed": true,
   "diffReviewed": true,
-  "status": "fail",
+  "status": "pass",
   "codeReview": {
-    "summary": "The feature adds the requested first-wave connector set and broad deterministic coverage, but bioRxiv/medRxiv search is implemented as a last-30-days category browse rather than a real query search, so the feature does not fully satisfy the shared search-connector contract.",
+    "summary": "The prior blocking bioRxiv/medRxiv issue is resolved: the connectors now construct provider-style query searches against the public search pages and the regression tests cover older and query-based matches. I did not find any remaining blocking defects in the fix, but one pre-existing capability-metadata mismatch remains.",
     "issues": [
       {
-        "file": "internal/connectors/first_wave.go",
-        "line": 269,
-        "severity": "blocking",
-        "description": "`searchPreprint` hard-codes bioRxiv/medRxiv requests to the last 30 days and maps the user query to `category=<query_with_underscores>` instead of performing a provider text search. Queries for titles/authors/keywords outside a category name, or matching older preprints, will be missed entirely, so these connectors do not expose the requested provider search behavior through the shared contract. The current tests only lock in this category/date-window behavior (`internal/connectors/first_wave_search_test.go:66` and `:111`) and would not catch the missing free-text search semantics."
-      },
-      {
-        "file": "internal/connectors/first_wave.go",
-        "line": 49,
+        "file": "internal/sources/registry.go",
+        "line": 90,
         "severity": "non_blocking",
-        "description": "Several connectors advertise `download`/`read` as `supported` in `Descriptor()` but still return `unsupported` from their `Download`/`Read` methods (for example arXiv at lines 49-57 vs. 151-156, with the same pattern repeated for bioRxiv, medRxiv, IACR, PMC, Europe PMC, and CORE). That makes the shared connector contract self-contradictory for callers that trust connector descriptors."
+        "description": "The canonical source registry still reports several first-wave sources as `download`/`read` `supported` (for example arXiv at lines 90 and bioRxiv at line 92, with the same pattern for medRxiv, CORE, IACR, PMC, and Europe PMC), but their connector methods still return explicit `unsupported` results (`internal/connectors/first_wave.go`: 152-156, 195-199, 231-235, 504-508, 620-624, 749-753, 875-879). This keeps `sources` output inconsistent with actual runtime retrieval behavior for those providers."
       }
     ]
   },
-  "sharedStateObservations": [
-    {
-      "area": "skills",
-      "observation": "The `go-connector-worker` skill does not explicitly tell workers to verify parity-sensitive provider behavior against the reference repo or official API docs before locking tests around an endpoint/query shape.",
-      "evidence": "Transcript skeleton for worker session `945913c3-9c5b-48b8-a321-66fe2a055cb1` shows multiple WebSearch calls plus direct `curl` fetches of `openags/paper-search-mcp` connector files before implementation, indicating the worker had to discover that guidance ad hoc."
-    }
-  ],
-  "addressesFailureFrom": null,
-  "summary": "Review failed. The main blocking issue is that bioRxiv/medRxiv are wired as a 30-day category feed lookup instead of true query search, so those connectors will miss many valid searches. I also noted a non-blocking descriptor/method capability mismatch for several full-text-oriented connectors."
+  "sharedStateObservations": [],
+  "addressesFailureFrom": "/root/workspace/github/jtsang4/search-paper-cli/.factory/validation/search/scrutiny/reviews/implement-open-access-and-fulltext-search-connectors.json",
+  "summary": "Review passed. The fix replaces the last-30-days category approximation with provider-style bioRxiv/medRxiv query search and adds regression coverage for older and author/query-based matches. The only remaining issue I found is the existing non-blocking mismatch between registry capability metadata and current retrieval implementation for several first-wave sources."
 }

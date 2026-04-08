@@ -1,28 +1,15 @@
 {
   "featureId": "implement-metadata-scraping-and-gated-search-connectors",
-  "reviewedAt": "2026-04-07T23:29:56.555390+00:00",
-  "commitId": "e1af961271ac75d058f672d459735cf28387690a",
+  "reviewedAt": "2026-04-08T08:27:00Z",
+  "commitId": "fd7e6a6b5634c1d8c4a147587b89e8b6ceba25a7",
   "transcriptSkeletonReviewed": true,
   "diffReviewed": true,
-  "status": "fail",
+  "status": "pass",
   "codeReview": {
-    "summary": "Review found one blocking correctness issue in the OpenAIRE connector. The implementation hard-codes the legacy /search/publications endpoint and unconditionally decodes JSON, but the real OpenAIRE API returns XML by default there, so live OpenAIRE searches fail instead of producing normalized records.",
-    "issues": [
-      {
-        "file": "internal/connectors/second_wave.go",
-        "line": 464,
-        "severity": "blocking",
-        "description": "The OpenAIRE connector points at https://api.openaire.eu/search/publications and then calls executeJSON on the response (lines 464-500). In practice that endpoint returns XML by default, even when sent Accept: application/json, so real searches fail with a JSON decode error and the feature does not make OpenAIRE 'reachable through the shared connector contract' as required. The added test only mocks a JSON payload for this endpoint (internal/connectors/second_wave_search_test.go:267-290), so it masks the production failure. The reference implementation handles OpenAIRE via an XML-first search flow and only uses the legacy publications endpoint as a fallback with explicit format=json."
-      }
-    ]
+    "summary": "The prior OpenAIRE blocking issue is resolved. The connector now uses an XML-first `/search/researchProducts` flow with explicit legacy `/search/publications?format=json` fallback, and the feature still matches the expected behavior for DOI-centric Unpaywall and env-gated IEEE/ACM skeleton search surfaces. No remaining high-confidence actionable bugs were identified in the reviewed scope.",
+    "issues": []
   },
-  "sharedStateObservations": [
-    {
-      "area": "knowledge",
-      "observation": "Mission shared state does not capture that OpenAIRE search responses are format-sensitive: the legacy /search/publications endpoint returns XML by default, and the reference implementation uses an XML-first flow before any JSON fallback.",
-      "evidence": "internal/connectors/second_wave.go:464-500 assumes JSON from /search/publications; a live GET to https://api.openaire.eu/search/publications?keywords=climate+science&size=1 returned content-type application/xml during review; openags/paper-search-mcp/paper_search_mcp/academic_platforms/openaire.py uses /search/researchProducts XML parsing first and only falls back to /search/publications with format=json."
-    }
-  ],
-  "addressesFailureFrom": null,
-  "summary": "Failed review: the OpenAIRE connector is not production-correct because it expects JSON from an endpoint that serves XML by default, so OpenAIRE searches will fail outside the mocked test setup."
+  "sharedStateObservations": [],
+  "addressesFailureFrom": "/root/workspace/github/jtsang4/search-paper-cli/.factory/validation/search/scrutiny/reviews/implement-metadata-scraping-and-gated-search-connectors.json",
+  "summary": "Pass: re-review confirms the OpenAIRE production fix is in place, regression coverage now exercises both XML-first and legacy fallback paths, and no additional actionable issues were found for this feature."
 }

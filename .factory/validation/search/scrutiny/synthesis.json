@@ -1,6 +1,6 @@
 {
   "milestone": "search",
-  "round": 1,
+  "round": 2,
   "status": "fail",
   "validatorsRun": {
     "test": {
@@ -21,52 +21,21 @@
   },
   "reviewsSummary": {
     "total": 4,
-    "passed": 0,
-    "failed": 4,
+    "passed": 3,
+    "failed": 1,
     "failedFeatures": [
-      "build-shared-paper-model-and-connector-interfaces",
-      "implement-open-access-and-fulltext-search-connectors",
-      "implement-metadata-scraping-and-gated-search-connectors",
-      "implement-unified-search-command-and-dedupe-contract"
+      "build-shared-paper-model-and-connector-interfaces"
     ]
   },
   "blockingIssues": [
     {
       "featureId": "build-shared-paper-model-and-connector-interfaces",
       "severity": "blocking",
-      "description": "`internal/paper/paper.go` allows `papers` and `authors` slices to serialize as `null`, breaking the stable machine-readable schema expected by unified search responses."
-    },
-    {
-      "featureId": "implement-open-access-and-fulltext-search-connectors",
-      "severity": "blocking",
-      "description": "bioRxiv and medRxiv search are implemented as a last-30-days category feed lookup instead of real query search, so valid keyword/title/author searches and older matches are missed."
-    },
-    {
-      "featureId": "implement-metadata-scraping-and-gated-search-connectors",
-      "severity": "blocking",
-      "description": "The OpenAIRE connector targets `/search/publications` and unconditionally decodes JSON even though the live endpoint returns XML by default, causing production searches to fail."
-    },
-    {
-      "featureId": "implement-unified-search-command-and-dedupe-contract",
-      "severity": "blocking",
-      "description": "Explicitly requested gated sources such as IEEE/ACM are silently dropped from search instead of returning an explicit machine-readable gated/unsupported response."
+      "description": "Default multi-source search still allows `invalid_sources` to serialize as `null`: `selectSearchSources` returns a nil invalid slice when `--source` is omitted (`internal/cli/search.go`), and `runSearchCommand` forwards it directly into the JSON response, violating the stable contract that list-like search fields must serialize as empty arrays."
     }
   ],
-  "appliedUpdates": [
-    {
-      "target": "library",
-      "description": "Documented OpenAIRE's format-sensitive search behavior and the XML-first expectation for future workers.",
-      "sourceFeature": "implement-metadata-scraping-and-gated-search-connectors"
-    }
-  ],
-  "suggestedGuidanceUpdates": [
-    {
-      "target": "go-connector-worker skill",
-      "suggestion": "Add explicit guidance to verify parity-sensitive provider behavior against the reference implementation or official provider docs before codifying tests around endpoint/query semantics.",
-      "evidence": "The first-wave connector review found bioRxiv/medRxiv tests locking in a category-feed approximation rather than true query search behavior, and the worker transcript shows that provider-parity research had to be discovered ad hoc.",
-      "isSystemic": false
-    }
-  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [],
   "rejectedObservations": [],
-  "previousRound": null
+  "previousRound": ".factory/validation/search/scrutiny/synthesis.round1.json"
 }

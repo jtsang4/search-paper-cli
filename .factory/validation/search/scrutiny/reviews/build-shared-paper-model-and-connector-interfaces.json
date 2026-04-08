@@ -1,28 +1,22 @@
 {
   "featureId": "build-shared-paper-model-and-connector-interfaces",
-  "reviewedAt": "2026-04-07T23:28:46.462114+00:00",
-  "commitId": "7c03ae77b69501391ea6223a47bf4a6b6c2bb2fd",
+  "reviewedAt": "2026-04-08T00:16:41.357905+00:00",
+  "commitId": "2838301a9b0ae81c2c2d0ed67e9bd70527797524",
   "transcriptSkeletonReviewed": true,
   "diffReviewed": true,
   "status": "fail",
   "codeReview": {
-    "summary": "The feature establishes the shared paper and connector contracts, but it does not keep JSON list fields stable: zero-result searches can serialize `papers` as `null`, and missing author lists can serialize as `null` instead of a consistent empty array.",
+    "summary": "The fix resolves the original `authors` and zero-result `papers` null-array problems, but the shared search envelope still allows `invalid_sources` to serialize as `null` on the default search path, so the stable empty-array contract is not fully restored.",
     "issues": [
       {
-        "file": "internal/paper/paper.go",
-        "line": 68,
+        "file": "internal/cli/search.go",
+        "line": 206,
         "severity": "blocking",
-        "description": "`Dedupe` returns `nil` for an empty input slice. `runSearchCommand` uses that return value directly in the JSON response (`internal/cli/search.go:150`), so any zero-result or all-failing search can emit `\"papers\": null` instead of an empty array. The validation contract for `VAL-SEARCH-005` requires consistent serialization for list-like fields in the shared paper/output path, so this breaks the stable search schema downstream consumers rely on."
-      },
-      {
-        "file": "internal/paper/paper.go",
-        "line": 32,
-        "severity": "blocking",
-        "description": "`Paper.Normalized` only allocates `Authors` when the input slice length is non-zero. Records with no authors therefore keep a `nil` slice and serialize as `\"authors\": null`, while logically equivalent records that start with blank author entries serialize as `[]`. That makes the shared normalized paper model non-deterministic for the same 'no authors' state, violating the feature's goal of one stable normalized output shape."
+        "description": "When `--source` is omitted, `selectSearchSources` returns `nil` for the invalid-source slice (`return filtered, nil, nil`), and `runSearchCommand` forwards that value directly into `searchResponse.InvalidSources` (`internal/cli/search.go:176`). Successful default searches therefore serialize `\"invalid_sources\": null` instead of `[]`, which still violates the output-contract rule that list-like fields in search responses must always use empty arrays rather than null."
       }
     ]
   },
   "sharedStateObservations": [],
-  "addressesFailureFrom": null,
-  "summary": "Reviewed the feature handoff, transcript skeleton, commit diff, and the resulting shared model/connector code. The implementation is close, but it fails review because the new shared paper/output contracts still allow `null` list fields where the mission contract expects a stable machine-readable schema."
+  "addressesFailureFrom": "/root/workspace/github/jtsang4/search-paper-cli/.factory/validation/search/scrutiny/reviews/build-shared-paper-model-and-connector-interfaces.json",
+  "summary": "Reviewed the rework handoff, transcript skeleton, commit diff, prior scrutiny report, and the current shared paper/search implementation. The original `authors` and zero-result `papers` issues are fixed, but the feature still fails because the default search response path leaves `invalid_sources` nil and serializes it as `null`, so the shared search JSON contract remains inconsistent."
 }
