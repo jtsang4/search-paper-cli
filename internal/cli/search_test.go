@@ -516,6 +516,99 @@ func TestMixedValidInvalidSources(t *testing.T) {
 	}
 }
 
+func TestGatedSearchSources(t *testing.T) {
+	t.Parallel()
+
+	t.Run("only gated sources return unsupported machine-readable error", func(t *testing.T) {
+		t.Parallel()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"search", "--source", "ieee", "gated query"}, &stdout, &stderr, runOptions{
+			environ:        []string{},
+			workingDir:     t.TempDir(),
+			repositoryRoot: t.TempDir(),
+		})
+		if exitCode != 3 {
+			t.Fatalf("expected exit code 3, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+		if stderr.Len() != 0 {
+			t.Fatalf("expected empty stderr, got %q", stderr.String())
+		}
+
+		var payload struct {
+			Status string `json:"status"`
+			Error  struct {
+				Code    string         `json:"code"`
+				Message string         `json:"message"`
+				Details map[string]any `json:"details"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+			t.Fatalf("expected json error, got %q: %v", stdout.String(), err)
+		}
+		if payload.Status != "error" || payload.Error.Code != "gated_source" {
+			t.Fatalf("unexpected gated source payload %#v", payload)
+		}
+		blocked, ok := payload.Error.Details["blocked_sources"].([]any)
+		if !ok || len(blocked) != 1 {
+			t.Fatalf("expected one blocked source entry, got %#v", payload.Error.Details)
+		}
+		entry, ok := blocked[0].(map[string]any)
+		if !ok {
+			t.Fatalf("expected blocked source map, got %#v", blocked[0])
+		}
+		if entry["id"] != "ieee" || entry["capability"] != "gated" {
+			t.Fatalf("expected ieee gated entry, got %#v", entry)
+		}
+		if reason, _ := entry["reason"].(string); !strings.Contains(strings.ToLower(reason), "missing required credential") {
+			t.Fatalf("expected missing credential reason, got %#v", entry)
+		}
+	})
+
+	t.Run("mixed valid and gated sources keep partial success explicit", func(t *testing.T) {
+		t.Parallel()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"search", "--source", "semantic,ieee", "mixed gated query"}, &stdout, &stderr, runOptions{
+			environ:        []string{},
+			workingDir:     t.TempDir(),
+			repositoryRoot: t.TempDir(),
+			connectorFactory: func(id string, _ config.Config) (sources.Connector, error) {
+				if id != "semantic" {
+					t.Fatalf("unexpected connector %q", id)
+				}
+				return sources.NewStubConnector(sources.StubConnector{
+					DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+					SearchResults: []paper.Paper{
+						{PaperID: "semantic-1", Title: "Semantic", Source: id},
+					},
+				}), nil
+			},
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+		payload := decodeSearchResponse(t, stdout.Bytes())
+		if !slices.Equal(payload.RequestedSources, []string{"semantic", "ieee"}) {
+			t.Fatalf("expected requested sources to preserve gated request, got %#v", payload)
+		}
+		if !slices.Equal(payload.UsedSources, []string{"semantic"}) {
+			t.Fatalf("expected only supported source to run, got %#v", payload)
+		}
+		if payload.SourceResults["ieee"] != 0 {
+			t.Fatalf("expected gated source count to remain zero, got %#v", payload.SourceResults)
+		}
+		if !strings.Contains(strings.ToLower(payload.Errors["ieee"]), "missing required credential") {
+			t.Fatalf("expected gated source error to be machine-readable, got %#v", payload.Errors)
+		}
+		if payload.Total != 1 || len(payload.Papers) != 1 || payload.Papers[0].Source != "semantic" {
+			t.Fatalf("expected semantic results to remain available, got %#v", payload)
+		}
+	})
+}
+
 func decodeSearchResponse(t *testing.T, data []byte) searchCommandResponse {
 	t.Helper()
 

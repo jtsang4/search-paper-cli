@@ -26,6 +26,12 @@ type searchResponse struct {
 	Papers           []paper.Paper     `json:"papers"`
 }
 
+type blockedSearchSource struct {
+	ID         string                  `json:"id"`
+	Capability sources.CapabilityState `json:"capability"`
+	Reason     string                  `json:"reason"`
+}
+
 func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) int {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
@@ -88,7 +94,7 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 	writeWarnings(stderr, diagnostics)
 
 	requested := splitCSV(*selectedSources)
-	registry, invalid := selectSearchSources(cfg, requested)
+	registry, invalid, blocked := selectSearchSources(cfg, requested)
 	if len(registry) == 0 && len(invalid) != 0 {
 		details := map[string]any{
 			"invalid_source": invalid[0],
@@ -110,6 +116,13 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 			},
 		}, exitCodeInvalidUsage)
 	}
+	if len(registry) == 0 && len(blocked) != 0 {
+		details := map[string]any{
+			"requested_sources": requestedSearchSources(requested, registry, invalid),
+			"blocked_sources":   blockedSearchSourceDetails(blocked),
+		}
+		return writeUnsupportedError(stdout, blockedSearchErrorCode(blocked), blockedSearchErrorMessage(blocked), details)
+	}
 
 	factory := opts.connectorFactory
 	if factory == nil {
@@ -117,15 +130,21 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 	}
 
 	usedSources := make([]string, 0, len(registry))
-	sourceResults := make(map[string]int, len(registry))
+	sourceResults := make(map[string]int, len(registry)+len(blocked))
 	sourceErrors := map[string]string{}
+	for _, item := range blocked {
+		sourceResults[item.ID] = 0
+		sourceErrors[item.ID] = item.Reason
+	}
 	allPapers := make([]paper.Paper, 0)
+	runtimeFailures := 0
 	for _, descriptor := range registry {
 		usedSources = append(usedSources, descriptor.ID)
 		connector, err := factory(descriptor.ID, cfg)
 		if err != nil {
 			sourceResults[descriptor.ID] = 0
 			sourceErrors[descriptor.ID] = err.Error()
+			runtimeFailures++
 			continue
 		}
 
@@ -141,6 +160,7 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 		if err != nil {
 			sourceResults[descriptor.ID] = 0
 			sourceErrors[descriptor.ID] = err.Error()
+			runtimeFailures++
 			continue
 		}
 		sourceResults[descriptor.ID] = result.Count
@@ -162,19 +182,19 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 
 	if outputFormat(*format) == formatText {
 		_, _ = io.WriteString(stdout, renderSearchText(response))
-		if len(sourceErrors) == len(registry) && len(registry) > 0 {
+		if len(registry) > 0 && runtimeFailures == len(registry) {
 			return exitCodeRuntimeError
 		}
 		return exitCodeOK
 	}
 
-	if len(sourceErrors) == len(registry) && len(registry) > 0 {
+	if len(registry) > 0 && runtimeFailures == len(registry) {
 		return writeJSON(stdout, response, exitCodeRuntimeError)
 	}
 	return writeJSON(stdout, response, exitCodeOK)
 }
 
-func selectSearchSources(cfg config.Config, requested []string) ([]sources.Descriptor, []string) {
+func selectSearchSources(cfg config.Config, requested []string) ([]sources.Descriptor, []string, []blockedSearchSource) {
 	registry := sources.List(cfg)
 	if len(requested) == 0 {
 		filtered := make([]sources.Descriptor, 0, len(registry))
@@ -183,7 +203,7 @@ func selectSearchSources(cfg config.Config, requested []string) ([]sources.Descr
 				filtered = append(filtered, descriptor)
 			}
 		}
-		return filtered, nil
+		return filtered, nil, nil
 	}
 
 	validDescriptors := map[string]sources.Descriptor{}
@@ -194,6 +214,7 @@ func selectSearchSources(cfg config.Config, requested []string) ([]sources.Descr
 	seenRequested := map[string]struct{}{}
 	orderedValid := make([]sources.Descriptor, 0, len(requested))
 	invalid := make([]string, 0)
+	blocked := make([]blockedSearchSource, 0)
 	seenInvalid := map[string]struct{}{}
 	for _, raw := range requested {
 		id := strings.ToLower(strings.TrimSpace(raw))
@@ -207,6 +228,12 @@ func selectSearchSources(cfg config.Config, requested []string) ([]sources.Descr
 			seenRequested[id] = struct{}{}
 			if descriptor.Capabilities.Search == sources.CapabilitySupported {
 				orderedValid = append(orderedValid, descriptor)
+			} else {
+				blocked = append(blocked, blockedSearchSource{
+					ID:         descriptor.ID,
+					Capability: descriptor.Capabilities.Search,
+					Reason:     blockedSearchReason(descriptor),
+				})
 			}
 			continue
 		}
@@ -216,7 +243,7 @@ func selectSearchSources(cfg config.Config, requested []string) ([]sources.Descr
 		}
 	}
 
-	return orderedValid, invalid
+	return orderedValid, invalid, blocked
 }
 
 func requestedSearchSources(requested []string, used []sources.Descriptor, invalid []string) []string {
@@ -289,4 +316,53 @@ func limitOrZero(limit int) int {
 		return 0
 	}
 	return limit
+}
+
+func blockedSearchReason(descriptor sources.Descriptor) string {
+	if descriptor.DisableReason != "" {
+		return descriptor.DisableReason
+	}
+	switch descriptor.Capabilities.Search {
+	case sources.CapabilityGated:
+		return fmt.Sprintf("source %q is gated for search", descriptor.ID)
+	case sources.CapabilityUnsupported:
+		return fmt.Sprintf("source %q does not support search", descriptor.ID)
+	case sources.CapabilityInformational:
+		return fmt.Sprintf("source %q is informational only for search", descriptor.ID)
+	case sources.CapabilityRecordDependent:
+		return fmt.Sprintf("source %q does not support direct search", descriptor.ID)
+	default:
+		return fmt.Sprintf("source %q is unavailable for search", descriptor.ID)
+	}
+}
+
+func blockedSearchSourceDetails(blocked []blockedSearchSource) []map[string]any {
+	result := make([]map[string]any, 0, len(blocked))
+	for _, item := range blocked {
+		result = append(result, map[string]any{
+			"id":         item.ID,
+			"capability": item.Capability,
+			"reason":     item.Reason,
+		})
+	}
+	return result
+}
+
+func blockedSearchErrorCode(blocked []blockedSearchSource) string {
+	for _, item := range blocked {
+		if item.Capability == sources.CapabilityGated {
+			return "gated_source"
+		}
+	}
+	return "unsupported_source"
+}
+
+func blockedSearchErrorMessage(blocked []blockedSearchSource) string {
+	if len(blocked) == 1 {
+		if blocked[0].Capability == sources.CapabilityGated {
+			return fmt.Sprintf("requested source %q is gated for search", blocked[0].ID)
+		}
+		return fmt.Sprintf("requested source %q is unavailable for search", blocked[0].ID)
+	}
+	return "requested sources are unavailable for search"
 }
