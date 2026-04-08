@@ -74,14 +74,42 @@ func searchResult(items []paper.Paper, limit int) sources.SearchResult {
 func unsupportedDownload(sourceID string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
 		State:   sources.RetrievalStateUnsupported,
-		Message: fmt.Sprintf("source %q download is not implemented yet", sourceID),
+		Message: fmt.Sprintf("source %q direct download is not supported", sourceID),
 	}, nil
 }
 
 func unsupportedRead(sourceID string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
 		State:   sources.RetrievalStateUnsupported,
-		Message: fmt.Sprintf("source %q read is not implemented yet", sourceID),
+		Message: fmt.Sprintf("source %q direct read is not supported", sourceID),
+	}, nil
+}
+
+func metadataOnlyUnsupportedDownload(sourceID string) (sources.RetrievalResult, error) {
+	return sources.RetrievalResult{
+		State:   sources.RetrievalStateUnsupported,
+		Message: fmt.Sprintf("source %q exposes metadata and OA link hints only; direct download is not supported", sourceID),
+	}, nil
+}
+
+func metadataOnlyUnsupportedRead(sourceID string) (sources.RetrievalResult, error) {
+	return sources.RetrievalResult{
+		State:   sources.RetrievalStateUnsupported,
+		Message: fmt.Sprintf("source %q exposes metadata and OA link hints only; direct read is not supported", sourceID),
+	}, nil
+}
+
+func gatedSkeletonDownload(sourceID string) (sources.RetrievalResult, error) {
+	return sources.RetrievalResult{
+		State:   sources.RetrievalStateUnsupported,
+		Message: fmt.Sprintf("source %q retrieval is an env-gated skeleton and direct download is not implemented yet", sourceID),
+	}, nil
+}
+
+func gatedSkeletonRead(sourceID string) (sources.RetrievalResult, error) {
+	return sources.RetrievalResult{
+		State:   sources.RetrievalStateUnsupported,
+		Message: fmt.Sprintf("source %q retrieval is an env-gated skeleton and direct read is not implemented yet", sourceID),
 	}, nil
 }
 

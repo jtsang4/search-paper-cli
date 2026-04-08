@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,7 +12,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jtsang4/search-paper-cli/internal/config"
 	"github.com/jtsang4/search-paper-cli/internal/connectors"
+	"github.com/jtsang4/search-paper-cli/internal/sources"
 )
 
 type retrievalCommandResponse struct {
@@ -304,6 +307,315 @@ func TestSSRNBestEffort(t *testing.T) {
 	}
 }
 
+func TestInformationalRetrieval(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		sourceID  string
+		operation string
+		wantText  string
+	}{
+		{name: "pubmed-download", sourceID: "pubmed", operation: "download", wantText: "does not provide direct download"},
+		{name: "pubmed-read", sourceID: "pubmed", operation: "read", wantText: "only exposes metadata"},
+		{name: "crossref-download", sourceID: "crossref", operation: "download", wantText: "does not provide direct download"},
+		{name: "openalex-read", sourceID: "openalex", operation: "read", wantText: "only exposes metadata"},
+		{name: "google-scholar-download", sourceID: "google-scholar", operation: "download", wantText: "does not provide direct download"},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			saveDir := filepath.Join(t.TempDir(), "informational")
+			if err := os.MkdirAll(saveDir, 0o755); err != nil {
+				t.Fatalf("mkdir save dir: %v", err)
+			}
+
+			paperJSON := `{"paper_id":"info-1","title":"Metadata only","source":"` + tc.sourceID + `"}`
+
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			exitCode := runWithOptions([]string{tc.operation, "--source", tc.sourceID, "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
+				workingDir:       t.TempDir(),
+				repositoryRoot:   t.TempDir(),
+				connectorFactory: connectors.New,
+			})
+			if exitCode != exitCodeUnsupported {
+				t.Fatalf("expected exit code %d, got %d with stdout=%q stderr=%q", exitCodeUnsupported, exitCode, stdout.String(), stderr.String())
+			}
+
+			payload := decodeRetrievalResponse(t, stdout.Bytes())
+			if payload.Status != "ok" || payload.State != "informational" {
+				t.Fatalf("expected informational retrieval payload, got %#v", payload)
+			}
+			if payload.Path != "" || payload.Content != "" {
+				t.Fatalf("expected no file/content side effects, got %#v", payload)
+			}
+			if !strings.Contains(strings.ToLower(payload.Message), strings.ToLower(tc.wantText)) {
+				t.Fatalf("expected informational message to contain %q, got %#v", tc.wantText, payload)
+			}
+
+			entries, err := os.ReadDir(saveDir)
+			if err != nil {
+				t.Fatalf("expected save dir to exist, got %v", err)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("expected no stray files, got %#v", entries)
+			}
+		})
+	}
+}
+
+func TestUnsupportedRetrieval(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		sourceID  string
+		operation string
+	}{
+		{name: "dblp-download", sourceID: "dblp", operation: "download"},
+		{name: "dblp-read", sourceID: "dblp", operation: "read"},
+		{name: "openaire-download", sourceID: "openaire", operation: "download"},
+		{name: "openaire-read", sourceID: "openaire", operation: "read"},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			saveDir := filepath.Join(t.TempDir(), "unsupported")
+			if err := os.MkdirAll(saveDir, 0o755); err != nil {
+				t.Fatalf("mkdir save dir: %v", err)
+			}
+
+			paperJSON := `{"paper_id":"unsupported-1","title":"Unsupported","source":"` + tc.sourceID + `"}`
+
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			exitCode := runWithOptions([]string{tc.operation, "--source", tc.sourceID, "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
+				workingDir:       t.TempDir(),
+				repositoryRoot:   t.TempDir(),
+				connectorFactory: connectors.New,
+			})
+			if exitCode != exitCodeUnsupported {
+				t.Fatalf("expected exit code %d, got %d with stdout=%q stderr=%q", exitCodeUnsupported, exitCode, stdout.String(), stderr.String())
+			}
+
+			payload := decodeRetrievalResponse(t, stdout.Bytes())
+			if payload.Status != "ok" || payload.State != "unsupported" {
+				t.Fatalf("expected unsupported retrieval payload, got %#v", payload)
+			}
+			if payload.Path != "" || payload.Content != "" {
+				t.Fatalf("expected no file/content side effects, got %#v", payload)
+			}
+			if !strings.Contains(strings.ToLower(payload.Message), "not supported") {
+				t.Fatalf("expected unsupported message, got %#v", payload)
+			}
+
+			entries, err := os.ReadDir(saveDir)
+			if err != nil {
+				t.Fatalf("expected save dir to exist, got %v", err)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("expected no stray files, got %#v", entries)
+			}
+		})
+	}
+}
+
+func TestUnpaywallStandaloneLimits(t *testing.T) {
+	t.Parallel()
+
+	t.Run("search requires configured email but remains metadata-only when configured", func(t *testing.T) {
+		t.Parallel()
+
+		connectorFactory := func(id string, cfg config.Config) (sources.Connector, error) {
+			connector, err := connectors.New(id, cfg)
+			if err != nil {
+				return nil, err
+			}
+			unpaywall, ok := connector.(*connectors.Unpaywall)
+			if ok {
+				unpaywall.BaseURL = "http://example.invalid/unpaywall"
+				unpaywall.Client = &http.Client{
+					Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+						body := `{"doi":"10.1000/UNPAYWALL-1","title":"Unpaywall Metadata","published_date":"2024-04-08","best_oa_location":{"url":"https://publisher.example/paper","url_for_pdf":"https://publisher.example/paper.pdf"},"z_authors":[{"given":"Ada","family":"Lovelace"}]}`
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Header:     make(http.Header),
+							Body:       io.NopCloser(strings.NewReader(body)),
+							Request:    req,
+						}, nil
+					}),
+				}
+			}
+			return connector, nil
+		}
+
+		var cleanStdout bytes.Buffer
+		var cleanStderr bytes.Buffer
+		exitCode := runWithOptions([]string{"search", "--source", "unpaywall", "doi:10.1000/unpaywall-1"}, &cleanStdout, &cleanStderr, runOptions{
+			workingDir:       t.TempDir(),
+			repositoryRoot:   t.TempDir(),
+			connectorFactory: connectorFactory,
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, cleanStdout.String(), cleanStderr.String())
+		}
+
+		cleanPayload := decodeSearchResponse(t, cleanStdout.Bytes())
+		if cleanPayload.Total != 0 || len(cleanPayload.Papers) != 0 {
+			t.Fatalf("expected unconfigured unpaywall search to return no results, got %#v", cleanPayload)
+		}
+
+		var configuredStdout bytes.Buffer
+		var configuredStderr bytes.Buffer
+		exitCode = runWithOptions([]string{"search", "--source", "unpaywall", "doi:10.1000/unpaywall-1"}, &configuredStdout, &configuredStderr, runOptions{
+			environ:          []string{"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com"},
+			workingDir:       t.TempDir(),
+			repositoryRoot:   t.TempDir(),
+			connectorFactory: connectorFactory,
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, configuredStdout.String(), configuredStderr.String())
+		}
+
+		configuredPayload := decodeSearchResponse(t, configuredStdout.Bytes())
+		if configuredPayload.Total != 1 || len(configuredPayload.Papers) != 1 {
+			t.Fatalf("expected configured unpaywall search to return one metadata result, got %#v", configuredPayload)
+		}
+		if configuredPayload.Papers[0].Source != "unpaywall" || configuredPayload.Papers[0].PDFURL == "" {
+			t.Fatalf("expected metadata-only unpaywall record, got %#v", configuredPayload.Papers[0])
+		}
+	})
+
+	for _, operation := range []string{"download", "read"} {
+		operation := operation
+		t.Run(operation+" remains unsupported", func(t *testing.T) {
+			t.Parallel()
+
+			saveDir := filepath.Join(t.TempDir(), "unpaywall")
+			if err := os.MkdirAll(saveDir, 0o755); err != nil {
+				t.Fatalf("mkdir save dir: %v", err)
+			}
+
+			paperJSON := `{"paper_id":"10.1000/unpaywall-1","title":"Unpaywall Metadata","doi":"10.1000/unpaywall-1","pdf_url":"https://publisher.example/paper.pdf","source":"unpaywall"}`
+
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			exitCode := runWithOptions([]string{operation, "--source", "unpaywall", "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
+				environ:          []string{"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com"},
+				workingDir:       t.TempDir(),
+				repositoryRoot:   t.TempDir(),
+				connectorFactory: connectors.New,
+			})
+			if exitCode != exitCodeUnsupported {
+				t.Fatalf("expected exit code %d, got %d with stdout=%q stderr=%q", exitCodeUnsupported, exitCode, stdout.String(), stderr.String())
+			}
+
+			payload := decodeRetrievalResponse(t, stdout.Bytes())
+			if payload.State != "unsupported" {
+				t.Fatalf("expected unsupported unpaywall retrieval, got %#v", payload)
+			}
+			if !strings.Contains(strings.ToLower(payload.Message), "metadata") {
+				t.Fatalf("expected metadata-only explanation, got %#v", payload)
+			}
+			entries, err := os.ReadDir(saveDir)
+			if err != nil {
+				t.Fatalf("expected save dir to exist, got %v", err)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("expected no stray files, got %#v", entries)
+			}
+		})
+	}
+}
+
+func TestIEEEACMRetrievalSkeletons(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		sourceID string
+		envVar   string
+	}{
+		{name: "ieee", sourceID: "ieee", envVar: "PAPER_SEARCH_MCP_IEEE_API_KEY=ieee-key"},
+		{name: "acm", sourceID: "acm", envVar: "PAPER_SEARCH_MCP_ACM_API_KEY=acm-key"},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var sourcesStdout bytes.Buffer
+			var sourcesStderr bytes.Buffer
+			exitCode := runWithOptions([]string{"sources"}, &sourcesStdout, &sourcesStderr, runOptions{
+				environ:        []string{tc.envVar},
+				workingDir:     t.TempDir(),
+				repositoryRoot: t.TempDir(),
+			})
+			if exitCode != 0 {
+				t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, sourcesStdout.String(), sourcesStderr.String())
+			}
+
+			var listing struct {
+				Sources []sourceRegistryEntry `json:"sources"`
+			}
+			if err := json.Unmarshal(sourcesStdout.Bytes(), &listing); err != nil {
+				t.Fatalf("expected valid json, got %q: %v", sourcesStdout.String(), err)
+			}
+			entry := findSource(t, listing.Sources, tc.sourceID)
+			if !entry.Enabled {
+				t.Fatalf("expected %s to be enabled with credential, got %#v", tc.sourceID, entry)
+			}
+			if entry.Capabilities.Download != "unsupported" || entry.Capabilities.Read != "unsupported" {
+				t.Fatalf("expected unsupported retrieval capabilities for %s, got %#v", tc.sourceID, entry)
+			}
+
+			for _, operation := range []string{"download", "read"} {
+				operation := operation
+				t.Run(operation, func(t *testing.T) {
+					t.Parallel()
+
+					saveDir := filepath.Join(t.TempDir(), "skeleton")
+					if err := os.MkdirAll(saveDir, 0o755); err != nil {
+						t.Fatalf("mkdir save dir: %v", err)
+					}
+
+					paperJSON := `{"paper_id":"skeleton-1","title":"Gated Skeleton","source":"` + tc.sourceID + `"}`
+
+					var stdout bytes.Buffer
+					var stderr bytes.Buffer
+					exitCode := runWithOptions([]string{operation, "--source", tc.sourceID, "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
+						environ:          []string{tc.envVar},
+						workingDir:       t.TempDir(),
+						repositoryRoot:   t.TempDir(),
+						connectorFactory: connectors.New,
+					})
+					if exitCode != exitCodeUnsupported {
+						t.Fatalf("expected exit code %d, got %d with stdout=%q stderr=%q", exitCodeUnsupported, exitCode, stdout.String(), stderr.String())
+					}
+
+					payload := decodeRetrievalResponse(t, stdout.Bytes())
+					if payload.State != "unsupported" {
+						t.Fatalf("expected unsupported skeleton retrieval, got %#v", payload)
+					}
+					if !strings.Contains(strings.ToLower(payload.Message), "skeleton") || !strings.Contains(strings.ToLower(payload.Message), "not implemented") {
+						t.Fatalf("expected skeleton explanation, got %#v", payload)
+					}
+
+					entries, err := os.ReadDir(saveDir)
+					if err != nil {
+						t.Fatalf("expected save dir to exist, got %v", err)
+					}
+					if len(entries) != 0 {
+						t.Fatalf("expected no stray files, got %#v", entries)
+					}
+				})
+			}
+		})
+	}
+}
+
 func decodeRetrievalResponse(t *testing.T, data []byte) retrievalCommandResponse {
 	t.Helper()
 
@@ -312,6 +624,12 @@ func decodeRetrievalResponse(t *testing.T, data []byte) retrievalCommandResponse
 		t.Fatalf("expected valid json, got %q: %v", string(data), err)
 	}
 	return payload
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
 
 func minimalPDF(text string) []byte {

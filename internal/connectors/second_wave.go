@@ -799,11 +799,11 @@ func (c *Unpaywall) Search(request sources.SearchRequest) (sources.SearchResult,
 }
 
 func (c *Unpaywall) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("unpaywall")
+	return metadataOnlyUnsupportedDownload("unpaywall")
 }
 
 func (c *Unpaywall) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("unpaywall")
+	return metadataOnlyUnsupportedRead("unpaywall")
 }
 
 func (c *Unpaywall) client() *http.Client {
@@ -838,11 +838,11 @@ func (c *IEEE) Search(sources.SearchRequest) (sources.SearchResult, error) {
 }
 
 func (c *IEEE) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("ieee")
+	return gatedSkeletonDownload("ieee")
 }
 
 func (c *IEEE) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("ieee")
+	return gatedSkeletonRead("ieee")
 }
 
 type ACM struct {
@@ -870,11 +870,11 @@ func (c *ACM) Search(sources.SearchRequest) (sources.SearchResult, error) {
 }
 
 func (c *ACM) Download(sources.DownloadRequest) (sources.RetrievalResult, error) {
-	return unsupportedDownload("acm")
+	return gatedSkeletonDownload("acm")
 }
 
 func (c *ACM) Read(sources.ReadRequest) (sources.RetrievalResult, error) {
-	return unsupportedRead("acm")
+	return gatedSkeletonRead("acm")
 }
 
 type openaireXMLElement struct {

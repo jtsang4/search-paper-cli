@@ -279,7 +279,7 @@ func capabilityForOperation(descriptor sources.Descriptor, operation string) sou
 
 func retrievalExitCode(state sources.RetrievalState) int {
 	switch state {
-	case sources.RetrievalStateUnsupported:
+	case sources.RetrievalStateInformational, sources.RetrievalStateUnsupported:
 		return exitCodeUnsupported
 	case sources.RetrievalStateFailed:
 		return exitCodeRuntimeError
