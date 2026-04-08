@@ -4,5 +4,6 @@ commands:
   build: GOMAXPROCS=8 go build ./...
   test: GOMAXPROCS=8 go test -count=1 -p 8 ./...
   lint: test -z "$(gofmt -l .)"
+  package_release: ./scripts/package-release.sh
 
 services: {}
