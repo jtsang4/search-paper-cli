@@ -12,6 +12,7 @@ sh scripts/run-search-paper-cli.sh <command> [args...]
 
 - `sources` — inspect available sources, capability states, and whether credentials have enabled gated providers
 - `search` — search one or more sources and return normalized paper results
+  - returns `mode: degraded` plus failed-source metadata when some requested sources fail
 - `download` — fetch paper full text when a source or fallback path supports downloading
 - `read` — fetch and extract readable paper content when supported
 - `version` — print the CLI version
@@ -44,10 +45,16 @@ Typical flags:
 
 - `--source <csv>` chooses one or more sources
 - `--limit <n>` caps requested results per source
-- `--year <value>` is forwarded to Semantic Scholar searches
+- `--year <value>` must be `YYYY` or `YYYY-YYYY`; it is forwarded to Semantic Scholar and also enforced locally on final results
 - final positional argument is the search query
 
-Search output includes normalized papers plus metadata like requested sources, used sources, per-source result counts, and errors.
+Search output includes normalized papers plus metadata like requested sources, used sources, per-source result counts, failed sources, and errors.
+
+When some requested sources fail but others succeed, the response still returns successful papers but switches to degraded mode. Always inspect:
+
+- `mode`
+- `failed_sources`
+- `errors`
 
 ## Download a paper
 

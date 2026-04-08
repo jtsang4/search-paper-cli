@@ -15,10 +15,12 @@ import (
 
 type searchCommandResponse struct {
 	Status           string            `json:"status"`
+	Mode             string            `json:"mode"`
 	Query            string            `json:"query"`
 	RequestedSources []string          `json:"requested_sources"`
 	UsedSources      []string          `json:"used_sources"`
 	InvalidSources   []string          `json:"invalid_sources"`
+	FailedSources    []string          `json:"failed_sources"`
 	SourceResults    map[string]int    `json:"source_results"`
 	Errors           map[string]string `json:"errors"`
 	Total            int               `json:"total"`
@@ -164,8 +166,14 @@ func TestUnifiedPartialSuccess(t *testing.T) {
 	if payload.Total != 1 || len(payload.Papers) != 1 {
 		t.Fatalf("expected one surviving paper, got %#v", payload)
 	}
+	if payload.Mode != "degraded" {
+		t.Fatalf("expected degraded mode, got %#v", payload)
+	}
 	if payload.SourceResults["semantic"] != 1 || payload.SourceResults["crossref"] != 0 {
 		t.Fatalf("unexpected source counts %#v", payload.SourceResults)
+	}
+	if !slices.Equal(payload.FailedSources, []string{"crossref"}) {
+		t.Fatalf("unexpected failed sources %#v", payload.FailedSources)
 	}
 	if payload.Errors["crossref"] != "crossref upstream failure" {
 		t.Fatalf("unexpected source errors %#v", payload.Errors)
@@ -402,6 +410,84 @@ func TestSemanticYearFilter(t *testing.T) {
 			t.Fatalf("expected non-semantic sources to receive empty year, got %#v", requests)
 		}
 	})
+
+	t.Run("year is enforced on final json results for all sources", func(t *testing.T) {
+		t.Parallel()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"search", "--source", "semantic,crossref", "--year", "2024", "filtered results"}, &stdout, &stderr, runOptions{
+			workingDir:     t.TempDir(),
+			repositoryRoot: t.TempDir(),
+			connectorFactory: func(id string, _ config.Config) (sources.Connector, error) {
+				switch id {
+				case "semantic":
+					return sources.NewStubConnector(sources.StubConnector{
+						DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+						SearchResults: []paper.Paper{
+							{PaperID: "semantic-2024", Title: "Semantic 2024", PublishedDate: "2024-06-01", Source: id},
+							{PaperID: "semantic-2023", Title: "Semantic 2023", PublishedDate: "2023-06-01", Source: id},
+						},
+					}), nil
+				case "crossref":
+					return sources.NewStubConnector(sources.StubConnector{
+						DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+						SearchResults: []paper.Paper{
+							{PaperID: "crossref-2024", Title: "Crossref 2024", PublishedDate: "2024-01-05", Source: id},
+							{PaperID: "crossref-2022", Title: "Crossref 2022", PublishedDate: "2022-01-05", Source: id},
+						},
+					}), nil
+				default:
+					return nil, errors.New("unexpected connector")
+				}
+			},
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+
+		payload := decodeSearchResponse(t, stdout.Bytes())
+		if payload.Total != 2 || len(payload.Papers) != 2 {
+			t.Fatalf("expected two 2024 papers, got %#v", payload)
+		}
+		if payload.SourceResults["semantic"] != 1 || payload.SourceResults["crossref"] != 1 {
+			t.Fatalf("expected post-filter source counts, got %#v", payload.SourceResults)
+		}
+		for _, item := range payload.Papers {
+			if !strings.HasPrefix(item.PublishedDate, "2024") {
+				t.Fatalf("expected only 2024 papers after local filter, got %#v", payload.Papers)
+			}
+		}
+	})
+
+	t.Run("invalid year format returns invalid usage", func(t *testing.T) {
+		t.Parallel()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"search", "--source", "semantic", "--year", "2024/2025", "bad year"}, &stdout, &stderr, runOptions{
+			workingDir:     t.TempDir(),
+			repositoryRoot: t.TempDir(),
+		})
+		if exitCode != 2 {
+			t.Fatalf("expected exit code 2, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+
+		var payload struct {
+			Status string `json:"status"`
+			Error  struct {
+				Code    string         `json:"code"`
+				Message string         `json:"message"`
+				Details map[string]any `json:"details"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+			t.Fatalf("expected json error, got %q: %v", stdout.String(), err)
+		}
+		if payload.Error.Code != "invalid_usage" || !strings.Contains(payload.Error.Message, "YYYY or YYYY-YYYY") {
+			t.Fatalf("unexpected invalid year payload %#v", payload)
+		}
+	})
 }
 
 func TestUnpaywallDOIOnly(t *testing.T) {
@@ -510,8 +596,11 @@ func TestAllSourcesFail(t *testing.T) {
 		t.Fatalf("expected exit code 4, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
 	}
 	payload := decodeSearchResponse(t, stdout.Bytes())
-	if payload.Status != "ok" || payload.Total != 0 || len(payload.Errors) != 2 || payload.SourceResults["semantic"] != 0 || payload.SourceResults["crossref"] != 0 {
+	if payload.Status != "ok" || payload.Mode != "degraded" || payload.Total != 0 || len(payload.Errors) != 2 || payload.SourceResults["semantic"] != 0 || payload.SourceResults["crossref"] != 0 {
 		t.Fatalf("unexpected all-failed payload %#v", payload)
+	}
+	if !slices.Equal(payload.FailedSources, []string{"semantic", "crossref"}) {
+		t.Fatalf("expected failed sources list, got %#v", payload)
 	}
 }
 

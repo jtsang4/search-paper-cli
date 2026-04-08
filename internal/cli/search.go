@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/jtsang4/search-paper-cli/internal/config"
@@ -16,10 +18,12 @@ import (
 
 type searchResponse struct {
 	Status           string            `json:"status"`
+	Mode             string            `json:"mode"`
 	Query            string            `json:"query"`
 	RequestedSources []string          `json:"requested_sources"`
 	UsedSources      []string          `json:"used_sources"`
 	InvalidSources   []string          `json:"invalid_sources"`
+	FailedSources    []string          `json:"failed_sources,omitempty"`
 	SourceResults    map[string]int    `json:"source_results"`
 	Errors           map[string]string `json:"errors,omitempty"`
 	Total            int               `json:"total"`
@@ -31,6 +35,13 @@ type blockedSearchSource struct {
 	Capability sources.CapabilityState `json:"capability"`
 	Reason     string                  `json:"reason"`
 }
+
+type yearConstraint struct {
+	start int
+	end   int
+}
+
+var publishedYearPattern = regexp.MustCompile(`\b(19|20)\d{2}\b`)
 
 func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) int {
 	for _, arg := range args {
@@ -49,7 +60,7 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 	format := addFormatFlag(flags)
 	selectedSources := flags.String("source", "", "Comma-separated source ids to search.")
 	limit := flags.Int("limit", 10, "Maximum number of results to request from each source.")
-	year := flags.String("year", "", "Optional year or year range forwarded to Semantic Scholar only.")
+	year := flags.String("year", "", "Optional year filter in YYYY or YYYY-YYYY form. Forwarded upstream to Semantic Scholar and enforced locally on final results.")
 	if err := flags.Parse(args); err != nil {
 		return writeInvalidUsage(stdout, normalizeFlagError(err), map[string]any{
 			"command": "search",
@@ -66,6 +77,16 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 	if query == "" {
 		return writeInvalidUsage(stdout, "search query is required", map[string]any{
 			"command": "search",
+		})
+	}
+
+	yearFilter, yearValue, yearErr := parseYearConstraint(strings.TrimSpace(*year))
+	if yearErr != nil {
+		return writeInvalidUsage(stdout, yearErr.Error(), map[string]any{
+			"command": "search",
+			"flag":    "year",
+			"format":  "YYYY or YYYY-YYYY",
+			"example": "2024 or 2022-2024",
 		})
 	}
 
@@ -130,6 +151,7 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 	}
 
 	usedSources := make([]string, 0, len(registry))
+	failedSources := make([]string, 0)
 	sourceResults := make(map[string]int, len(registry)+len(blocked))
 	sourceErrors := map[string]string{}
 	for _, item := range blocked {
@@ -144,6 +166,7 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 		if err != nil {
 			sourceResults[descriptor.ID] = 0
 			sourceErrors[descriptor.ID] = err.Error()
+			failedSources = append(failedSources, descriptor.ID)
 			runtimeFailures++
 			continue
 		}
@@ -153,27 +176,39 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 			Limit: limitOrZero(*limit),
 		}
 		if descriptor.ID == "semantic" {
-			request.Year = strings.TrimSpace(*year)
+			request.Year = yearValue
 		}
 
 		result, err := connector.Search(request)
 		if err != nil {
 			sourceResults[descriptor.ID] = 0
 			sourceErrors[descriptor.ID] = err.Error()
+			failedSources = append(failedSources, descriptor.ID)
 			runtimeFailures++
 			continue
 		}
-		sourceResults[descriptor.ID] = result.Count
-		allPapers = append(allPapers, result.Papers...)
+		filteredPapers := filterPapersByYear(result.Papers, yearFilter)
+		if yearFilter != nil {
+			sourceResults[descriptor.ID] = len(filteredPapers)
+		} else {
+			sourceResults[descriptor.ID] = result.Count
+		}
+		allPapers = append(allPapers, filteredPapers...)
 	}
 
 	deduped := paper.Dedupe(allPapers)
+	mode := "complete"
+	if len(failedSources) != 0 {
+		mode = "degraded"
+	}
 	response := searchResponse{
 		Status:           "ok",
+		Mode:             mode,
 		Query:            query,
 		RequestedSources: requestedSearchSources(requested, registry, invalid),
 		UsedSources:      usedSources,
 		InvalidSources:   invalid,
+		FailedSources:    failedSources,
 		SourceResults:    sourceResults,
 		Errors:           sourceErrors,
 		Total:            len(deduped),
@@ -278,11 +313,15 @@ func requestedSearchSources(requested []string, used []sources.Descriptor, inval
 
 func renderSearchText(response searchResponse) string {
 	var b strings.Builder
+	b.WriteString(fmt.Sprintf("mode: %s\n", response.Mode))
 	b.WriteString(fmt.Sprintf("query: %s\n", response.Query))
 	b.WriteString(fmt.Sprintf("requested_sources: %s\n", strings.Join(response.RequestedSources, ", ")))
 	b.WriteString(fmt.Sprintf("used_sources: %s\n", strings.Join(response.UsedSources, ", ")))
 	if len(response.InvalidSources) != 0 {
 		b.WriteString(fmt.Sprintf("invalid_sources: %s\n", strings.Join(response.InvalidSources, ", ")))
+	}
+	if len(response.FailedSources) != 0 {
+		b.WriteString(fmt.Sprintf("failed_sources: %s\n", strings.Join(response.FailedSources, ", ")))
 	}
 	ids := make([]string, 0, len(response.SourceResults))
 	for id := range response.SourceResults {
@@ -365,4 +404,81 @@ func blockedSearchErrorMessage(blocked []blockedSearchSource) string {
 		return fmt.Sprintf("requested source %q is unavailable for search", blocked[0].ID)
 	}
 	return "requested sources are unavailable for search"
+}
+
+func parseYearConstraint(value string) (*yearConstraint, string, error) {
+	if value == "" {
+		return nil, "", nil
+	}
+
+	rangeParts := strings.Split(value, "-")
+	switch len(rangeParts) {
+	case 1:
+		year, err := parseYearValue(rangeParts[0])
+		if err != nil {
+			return nil, "", err
+		}
+		return &yearConstraint{start: year, end: year}, strconv.Itoa(year), nil
+	case 2:
+		start, err := parseYearValue(rangeParts[0])
+		if err != nil {
+			return nil, "", err
+		}
+		end, err := parseYearValue(rangeParts[1])
+		if err != nil {
+			return nil, "", err
+		}
+		if start > end {
+			return nil, "", fmt.Errorf("search --year must be YYYY or YYYY-YYYY with an ascending range")
+		}
+		return &yearConstraint{start: start, end: end}, fmt.Sprintf("%04d-%04d", start, end), nil
+	default:
+		return nil, "", fmt.Errorf("search --year must be YYYY or YYYY-YYYY")
+	}
+}
+
+func parseYearValue(value string) (int, error) {
+	value = strings.TrimSpace(value)
+	if len(value) != 4 {
+		return 0, fmt.Errorf("search --year must be YYYY or YYYY-YYYY")
+	}
+	year, err := strconv.Atoi(value)
+	if err != nil || year < 1900 || year > 2099 {
+		return 0, fmt.Errorf("search --year must be YYYY or YYYY-YYYY")
+	}
+	return year, nil
+}
+
+func filterPapersByYear(papers []paper.Paper, constraint *yearConstraint) []paper.Paper {
+	if constraint == nil {
+		return papers
+	}
+	if len(papers) == 0 {
+		return []paper.Paper{}
+	}
+
+	filtered := make([]paper.Paper, 0, len(papers))
+	for _, item := range papers {
+		year, ok := extractPublishedYear(item.PublishedDate)
+		if !ok {
+			continue
+		}
+		if year < constraint.start || year > constraint.end {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	return filtered
+}
+
+func extractPublishedYear(value string) (int, bool) {
+	match := publishedYearPattern.FindString(strings.TrimSpace(value))
+	if match == "" {
+		return 0, false
+	}
+	year, err := strconv.Atoi(match)
+	if err != nil {
+		return 0, false
+	}
+	return year, true
 }

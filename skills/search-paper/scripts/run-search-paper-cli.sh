@@ -9,6 +9,10 @@ Run search-paper-cli with SEARCH_PAPER_ENV_FILE pointing to this skill directory
 Required configuration:
   SEARCH_PAPER_UNPAYWALL_EMAIL
 
+This skill only recognizes SEARCH_PAPER_-prefixed variables.
+Example:
+  SEARCH_PAPER_UNPAYWALL_EMAIL=you@example.com
+
 If the required configuration is missing, create .env next to .env.example in this skill directory and rerun the command.
 USAGE
 }
@@ -68,6 +72,8 @@ require_value() {
   fi
 
   printf 'error: missing required environment variable %s.\n' "$key" >&2
+  printf 'error: this skill only recognizes SEARCH_PAPER_-prefixed variables; legacy or fuzzy-matched names are ignored.\n' >&2
+  printf 'error: example: %s=you@example.com\n' "$key" >&2
   printf 'error: create %s from %s and fill in the required values.\n' "$ENV_FILE" "$ENV_EXAMPLE" >&2
   exit 1
 }

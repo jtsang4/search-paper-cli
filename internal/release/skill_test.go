@@ -110,3 +110,38 @@ func TestSkillEnsureScriptInstallsCLIWhenMissing(t *testing.T) {
 		t.Fatalf("expected installed binary at %q", wantPath)
 	}
 }
+
+func TestSkillRunScriptRequiresExactPrefixedEnvVariable(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := findRepoRoot(t)
+	skillRoot := filepath.Join(t.TempDir(), "search-paper")
+	if err := os.MkdirAll(filepath.Join(skillRoot, "scripts"), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+
+	copyFile(t, filepath.Join(repoRoot, "skills", "search-paper", "scripts", "run-search-paper-cli.sh"), filepath.Join(skillRoot, "scripts", "run-search-paper-cli.sh"))
+	writeFile(t, filepath.Join(skillRoot, ".env.example"), "SEARCH_PAPER_UNPAYWALL_EMAIL=you@example.com\n")
+	writeFile(t, filepath.Join(skillRoot, ".env"), "UNPAYWALL_EMAIL=legacy@example.com\n")
+
+	cmd := exec.Command("/bin/sh", filepath.Join(skillRoot, "scripts", "run-search-paper-cli.sh"), "sources")
+	cmd.Dir = t.TempDir()
+	cmd.Env = filteredEnv()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err == nil {
+		t.Fatalf("expected missing exact prefixed env variable to fail")
+	}
+
+	if !strings.Contains(stderr.String(), "only recognizes SEARCH_PAPER_-prefixed variables") {
+		t.Fatalf("expected explicit prefixed env warning, got stderr=%q", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "SEARCH_PAPER_UNPAYWALL_EMAIL=you@example.com") {
+		t.Fatalf("expected concrete env example, got stderr=%q", stderr.String())
+	}
+}
