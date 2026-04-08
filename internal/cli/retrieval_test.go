@@ -510,7 +510,7 @@ func TestUnpaywallStandaloneLimits(t *testing.T) {
 		var configuredStdout bytes.Buffer
 		var configuredStderr bytes.Buffer
 		exitCode = runWithOptions([]string{"search", "--source", "unpaywall", "doi:10.1000/unpaywall-1"}, &configuredStdout, &configuredStderr, runOptions{
-			environ:          []string{"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com"},
+			environ:          []string{"SEARCH_PAPER_UNPAYWALL_EMAIL=tester@example.com"},
 			workingDir:       t.TempDir(),
 			repositoryRoot:   t.TempDir(),
 			connectorFactory: connectorFactory,
@@ -543,7 +543,7 @@ func TestUnpaywallStandaloneLimits(t *testing.T) {
 			var stdout bytes.Buffer
 			var stderr bytes.Buffer
 			exitCode := runWithOptions([]string{operation, "--source", "unpaywall", "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
-				environ:          []string{"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com"},
+				environ:          []string{"SEARCH_PAPER_UNPAYWALL_EMAIL=tester@example.com"},
 				workingDir:       t.TempDir(),
 				repositoryRoot:   t.TempDir(),
 				connectorFactory: connectors.New,
@@ -578,8 +578,8 @@ func TestIEEEACMRetrievalSkeletons(t *testing.T) {
 		sourceID string
 		envVar   string
 	}{
-		{name: "ieee", sourceID: "ieee", envVar: "PAPER_SEARCH_MCP_IEEE_API_KEY=ieee-key"},
-		{name: "acm", sourceID: "acm", envVar: "PAPER_SEARCH_MCP_ACM_API_KEY=acm-key"},
+		{name: "ieee", sourceID: "ieee", envVar: "SEARCH_PAPER_IEEE_API_KEY=ieee-key"},
+		{name: "acm", sourceID: "acm", envVar: "SEARCH_PAPER_ACM_API_KEY=acm-key"},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -771,7 +771,7 @@ func TestUnpaywallAfterRepositoryMiss(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	exitCode := runWithOptions([]string{"download", "--fallback", "--source", "arxiv", "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
-		environ:          []string{"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com"},
+		environ:          []string{"SEARCH_PAPER_UNPAYWALL_EMAIL=tester@example.com"},
 		workingDir:       t.TempDir(),
 		repositoryRoot:   t.TempDir(),
 		connectorFactory: connectorFactory,
@@ -817,7 +817,7 @@ func TestSciHubDisabledStopsChain(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	exitCode := runWithOptions([]string{"download", "--fallback", "--source", "arxiv", "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
-		environ:          []string{"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com"},
+		environ:          []string{"SEARCH_PAPER_UNPAYWALL_EMAIL=tester@example.com"},
 		workingDir:       t.TempDir(),
 		repositoryRoot:   t.TempDir(),
 		connectorFactory: connectorFactory,
@@ -995,7 +995,7 @@ func TestSciHubFallbackTransportFailureNormalized(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	exitCode := runWithOptions([]string{"download", "--fallback", "--allow-scihub", "--source", "arxiv", "--save-dir", saveDir, "--paper-json", paperJSON, "--scihub-base-url", baseURL}, &stdout, &stderr, runOptions{
-		environ:          []string{"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com"},
+		environ:          []string{"SEARCH_PAPER_UNPAYWALL_EMAIL=tester@example.com"},
 		workingDir:       t.TempDir(),
 		repositoryRoot:   t.TempDir(),
 		connectorFactory: connectorFactory,

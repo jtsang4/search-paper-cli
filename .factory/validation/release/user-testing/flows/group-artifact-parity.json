@@ -23,7 +23,7 @@
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
           "expected": "Clean-env built artifact source listing shows default public sources with IEEE/ACM disabled.",
-          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
         },
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
@@ -51,7 +51,7 @@
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source arxiv,ieee artifact parity partial",
           "expected": "Built artifact search returns one JSON payload with results, per-source counts, and an error for the failed/gated source.",
-          "observed": "exit 0; stdout='{\"status\":\"ok\",\"query\":\"artifact parity partial\",\"requested_sources\":[\"arxiv\",\"ieee\"],\"used_sources\":[\"arxiv\"],\"invalid_sources\":[],\"source_results\":{\"arxiv\":1,\"ieee\":0},\"errors\":{\"ieee\":\"missing required credential: PAPER_SEARCH_MCP_IEEE_A'; stderr=''"
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"query\":\"artifact parity partial\",\"requested_sources\":[\"arxiv\",\"ieee\"],\"used_sources\":[\"arxiv\"],\"invalid_sources\":[],\"source_results\":{\"arxiv\":1,\"ieee\":0},\"errors\":{\"ieee\":\"missing required credential: SEARCH_PAPER_IEEE_A'; stderr=''"
         }
       ],
       "evidence": {
@@ -73,7 +73,7 @@
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
           "expected": "Built artifact source listing exposes informational vs unsupported retrieval capability states.",
-          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
         },
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli download --source crossref --paper-json {\"paper_id\":\"10.1000/crossref\",\"title\":\"Crossref Metadata\",\"source\":\"crossref\"}",
@@ -107,7 +107,7 @@
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
           "expected": "Current-working-directory .env enables IEEE while leaving ACM disabled.",
-          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
         },
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
@@ -151,8 +151,8 @@
           "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-parity/cwd-env/.env"
         ],
         "repoEnvKeys": [
-          "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL",
-          "PAPER_SEARCH_MCP_CORE_API_KEY"
+          "SEARCH_PAPER_UNPAYWALL_EMAIL",
+          "SEARCH_PAPER_CORE_API_KEY"
         ]
       },
       "issues": null
@@ -190,7 +190,7 @@
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/dist/search-paper-cli_linux_amd64/search-paper-cli sources",
           "expected": "Standalone dist binary runs successfully.",
-          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
         },
         {
           "action": "inspect dist/search-paper-cli_linux_amd64 and dist/search-paper-cli_linux_amd64.tar.gz",

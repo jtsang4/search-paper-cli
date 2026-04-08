@@ -6,7 +6,7 @@
     "workingDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
     "outputDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/output",
     "builtCli": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
-    "envMode": "clean env via env -i equivalent with PATH, HOME, TMPDIR, PAPER_SEARCH_MCP_ENV_FILE=/dev/null only"
+    "envMode": "clean env via env -i equivalent with PATH, HOME, TMPDIR, SEARCH_PAPER_ENV_FILE=/dev/null only"
   },
   "toolsUsed": [
     "shell/cli"
@@ -25,7 +25,7 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "--help"
           ],
@@ -70,7 +70,7 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "version"
           ],
@@ -85,7 +85,7 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "--version"
           ],
@@ -128,7 +128,7 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "sources"
           ],
@@ -143,7 +143,7 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "sources"
           ],
@@ -234,14 +234,14 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "sources",
             "--format",
             "text"
           ],
           "expected": "Exit 0 with readable text output instead of JSON while showing source ids, enabled state, and capabilities",
-          "observed": "exit=0; output starts with ['acm', '  enabled: false', '  disable_reason: missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY', '  capabilities:', '    search: gated', '    download: gated', '    read: gated', 'arxiv']; valid_json=False; stderr=empty"
+          "observed": "exit=0; output starts with ['acm', '  enabled: false', '  disable_reason: missing required credential: SEARCH_PAPER_ACM_API_KEY', '  capabilities:', '    search: gated', '    download: gated', '    read: gated', 'arxiv']; valid_json=False; stderr=empty"
         }
       ],
       "evidence": {
@@ -252,7 +252,7 @@
         "textPreview": [
           "acm",
           "  enabled: false",
-          "  disable_reason: missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY",
+          "  disable_reason: missing required credential: SEARCH_PAPER_ACM_API_KEY",
           "  capabilities:",
           "    search: gated",
           "    download: gated",
@@ -298,7 +298,7 @@
           "acm": {
             "id": "acm",
             "enabled": false,
-            "disable_reason": "missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY",
+            "disable_reason": "missing required credential: SEARCH_PAPER_ACM_API_KEY",
             "capabilities": {
               "search": "gated",
               "download": "gated",
@@ -338,7 +338,7 @@
         {
           "action": "Inspect clean-env sources JSON for ACM and IEEE entries",
           "expected": "Both sources are disabled without API keys and include explicit missing-key gating reasons",
-          "observed": "acm enabled=False disable_reason='missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY'; ieee enabled=False disable_reason='missing required credential: PAPER_SEARCH_MCP_IEEE_API_KEY'"
+          "observed": "acm enabled=False disable_reason='missing required credential: SEARCH_PAPER_ACM_API_KEY'; ieee enabled=False disable_reason='missing required credential: SEARCH_PAPER_IEEE_API_KEY'"
         }
       ],
       "evidence": {
@@ -348,7 +348,7 @@
         "acm": {
           "id": "acm",
           "enabled": false,
-          "disable_reason": "missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY",
+          "disable_reason": "missing required credential: SEARCH_PAPER_ACM_API_KEY",
           "capabilities": {
             "search": "gated",
             "download": "gated",
@@ -358,7 +358,7 @@
         "ieee": {
           "id": "ieee",
           "enabled": false,
-          "disable_reason": "missing required credential: PAPER_SEARCH_MCP_IEEE_API_KEY",
+          "disable_reason": "missing required credential: SEARCH_PAPER_IEEE_API_KEY",
           "capabilities": {
             "search": "gated",
             "download": "gated",

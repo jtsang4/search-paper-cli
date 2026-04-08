@@ -22,7 +22,7 @@
       "status": "pass",
       "steps": [
         {
-          "action": "Run built CLI search with PAPER_SEARCH_MCP_ARXIV_BASE_URL=http://127.0.0.1:18361/arxiv",
+          "action": "Run built CLI search with SEARCH_PAPER_ARXIV_BASE_URL=http://127.0.0.1:18361/arxiv",
           "expected": "One normalized arxiv paper object is returned with source=arxiv and paper_id=1234.5678v1.",
           "observed": "exit 0; returned 1 paper with normalized fields source=arxiv paper_id=1234.5678v1 pdf_url=http://127.0.0.1:18361/pdf/1234.5678v1.pdf."
         },
@@ -58,7 +58,7 @@
       "status": "pass",
       "steps": [
         {
-          "action": "Run built CLI search with PAPER_SEARCH_MCP_ARXIV_BASE_URL=http://127.0.0.1:18361/arxiv for a record that only exposes DOI/title metadata.",
+          "action": "Run built CLI search with SEARCH_PAPER_ARXIV_BASE_URL=http://127.0.0.1:18361/arxiv for a record that only exposes DOI/title metadata.",
           "expected": "Unified search returns a normalized paper object whose doi/title can be reused directly.",
           "observed": "exit 0; returned DOI 10.1000/artifact-fallback-1 and title Artifact Fallback Retrieval with no pdf_url."
         },

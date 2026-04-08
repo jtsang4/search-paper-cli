@@ -13,7 +13,7 @@
     {
       "area": "knowledge",
       "observation": "The connector endpoint override environment variables introduced for deterministic built-artifact and local end-to-end testing are implemented but not documented in the shared environment guidance, so future workers would need to rediscover them from code and tests.",
-      "evidence": ".factory/library/environment.md documents optional integrations and .env precedence but does not mention PAPER_SEARCH_MCP_ARXIV_BASE_URL, PAPER_SEARCH_MCP_OPENAIRE_BASE_URL, PAPER_SEARCH_MCP_CORE_BASE_URL, PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL, PAPER_SEARCH_MCP_PMC_SEARCH_URL, PAPER_SEARCH_MCP_PMC_SUMMARY_URL, or PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL; compare internal/config/config.go:110-152 and internal/release/release_test.go:130-225,316-324 where those overrides are required for deterministic artifact e2e coverage."
+      "evidence": ".factory/library/environment.md documents optional integrations and .env precedence but does not mention SEARCH_PAPER_ARXIV_BASE_URL, SEARCH_PAPER_OPENAIRE_BASE_URL, SEARCH_PAPER_CORE_BASE_URL, SEARCH_PAPER_EUROPEPMC_BASE_URL, SEARCH_PAPER_PMC_SEARCH_URL, SEARCH_PAPER_PMC_SUMMARY_URL, or SEARCH_PAPER_UNPAYWALL_BASE_URL; compare internal/config/config.go:110-152 and internal/release/release_test.go:130-225,316-324 where those overrides are required for deterministic artifact e2e coverage."
     }
   ],
   "addressesFailureFrom": null,

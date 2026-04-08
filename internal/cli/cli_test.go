@@ -133,7 +133,7 @@ func TestWarningsStayOnStderr(t *testing.T) {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(cwd, ".env"), []byte("MALFORMED sentinel-secret\nPAPER_SEARCH_MCP_UNPAYWALL_EMAIL=ok@example.com\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(cwd, ".env"), []byte("MALFORMED sentinel-secret\nSEARCH_PAPER_UNPAYWALL_EMAIL=ok@example.com\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
@@ -173,14 +173,14 @@ func TestSecretsAreRedacted(t *testing.T) {
 	}
 
 	secret := "sentinel-secret-value"
-	if err := os.WriteFile(filepath.Join(cwd, ".env"), []byte("BROKEN "+secret+"\nPAPER_SEARCH_MCP_CORE_API_KEY="+secret+"\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(cwd, ".env"), []byte("BROKEN "+secret+"\nSEARCH_PAPER_CORE_API_KEY="+secret+"\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	exitCode := runWithOptions([]string{"sources", "--format", "json"}, &stdout, &stderr, runOptions{
-		environ:        []string{"PAPER_SEARCH_MCP_IEEE_API_KEY=" + secret},
+		environ:        []string{"SEARCH_PAPER_IEEE_API_KEY=" + secret},
 		workingDir:     cwd,
 		repositoryRoot: repoRoot,
 	})

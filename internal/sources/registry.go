@@ -96,7 +96,7 @@ type definition struct {
 }
 
 var definitions = []definition{
-	{id: "acm", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityUnsupported, Read: CapabilityUnsupported}, gatedWhenMissing: func(cfg config.Config) bool { return strings.TrimSpace(cfg.ACMAPIKey) == "" }, missingRequirement: "PAPER_SEARCH_MCP_ACM_API_KEY"},
+	{id: "acm", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityUnsupported, Read: CapabilityUnsupported}, gatedWhenMissing: func(cfg config.Config) bool { return strings.TrimSpace(cfg.ACMAPIKey) == "" }, missingRequirement: "SEARCH_PAPER_ACM_API_KEY"},
 	{id: "arxiv", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilitySupported, Read: CapabilitySupported}},
 	{id: "base", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityRecordDependent, Read: CapabilityRecordDependent}},
 	{id: "biorxiv", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilitySupported, Read: CapabilitySupported}},
@@ -109,7 +109,7 @@ var definitions = []definition{
 	{id: "google-scholar", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityInformational, Read: CapabilityInformational}},
 	{id: "hal", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityRecordDependent, Read: CapabilityRecordDependent}},
 	{id: "iacr", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilitySupported, Read: CapabilitySupported}},
-	{id: "ieee", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityUnsupported, Read: CapabilityUnsupported}, gatedWhenMissing: func(cfg config.Config) bool { return strings.TrimSpace(cfg.IEEEAPIKey) == "" }, missingRequirement: "PAPER_SEARCH_MCP_IEEE_API_KEY"},
+	{id: "ieee", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityUnsupported, Read: CapabilityUnsupported}, gatedWhenMissing: func(cfg config.Config) bool { return strings.TrimSpace(cfg.IEEEAPIKey) == "" }, missingRequirement: "SEARCH_PAPER_IEEE_API_KEY"},
 	{id: "medrxiv", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilitySupported, Read: CapabilitySupported}},
 	{id: "openalex", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityInformational, Read: CapabilityInformational}},
 	{id: "openaire", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityUnsupported, Read: CapabilityUnsupported}},

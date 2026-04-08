@@ -57,99 +57,99 @@ type binding struct {
 
 var bindings = []binding{
 	{
-		prefixed: "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL",
+		prefixed: "SEARCH_PAPER_UNPAYWALL_EMAIL",
 		legacy:   "UNPAYWALL_EMAIL",
 		assign: func(cfg *Config, value string) {
 			cfg.UnpaywallEmail = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_CORE_API_KEY",
+		prefixed: "SEARCH_PAPER_CORE_API_KEY",
 		legacy:   "CORE_API_KEY",
 		assign: func(cfg *Config, value string) {
 			cfg.CoreAPIKey = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY",
+		prefixed: "SEARCH_PAPER_SEMANTIC_SCHOLAR_API_KEY",
 		assign: func(cfg *Config, value string) {
 			cfg.SemanticScholarAPIKey = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL",
+		prefixed: "SEARCH_PAPER_GOOGLE_SCHOLAR_PROXY_URL",
 		assign: func(cfg *Config, value string) {
 			cfg.GoogleScholarProxyURL = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_DOAJ_API_KEY",
+		prefixed: "SEARCH_PAPER_DOAJ_API_KEY",
 		assign: func(cfg *Config, value string) {
 			cfg.DOAJAPIKey = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN",
+		prefixed: "SEARCH_PAPER_ZENODO_ACCESS_TOKEN",
 		assign: func(cfg *Config, value string) {
 			cfg.ZenodoAccessToken = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_IEEE_API_KEY",
+		prefixed: "SEARCH_PAPER_IEEE_API_KEY",
 		assign: func(cfg *Config, value string) {
 			cfg.IEEEAPIKey = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_ACM_API_KEY",
+		prefixed: "SEARCH_PAPER_ACM_API_KEY",
 		assign: func(cfg *Config, value string) {
 			cfg.ACMAPIKey = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_ARXIV_BASE_URL",
+		prefixed: "SEARCH_PAPER_ARXIV_BASE_URL",
 		assign: func(cfg *Config, value string) {
 			cfg.ArxivBaseURL = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_OPENAIRE_BASE_URL",
+		prefixed: "SEARCH_PAPER_OPENAIRE_BASE_URL",
 		assign: func(cfg *Config, value string) {
 			cfg.OpenAIREBaseURL = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_OPENAIRE_LEGACY_BASE_URL",
+		prefixed: "SEARCH_PAPER_OPENAIRE_LEGACY_BASE_URL",
 		assign: func(cfg *Config, value string) {
 			cfg.OpenAIRELegacyBaseURL = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_CORE_BASE_URL",
+		prefixed: "SEARCH_PAPER_CORE_BASE_URL",
 		assign: func(cfg *Config, value string) {
 			cfg.CoreBaseURL = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL",
+		prefixed: "SEARCH_PAPER_EUROPEPMC_BASE_URL",
 		assign: func(cfg *Config, value string) {
 			cfg.EuropePMCBaseURL = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_PMC_SEARCH_URL",
+		prefixed: "SEARCH_PAPER_PMC_SEARCH_URL",
 		assign: func(cfg *Config, value string) {
 			cfg.PMCSearchURL = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_PMC_SUMMARY_URL",
+		prefixed: "SEARCH_PAPER_PMC_SUMMARY_URL",
 		assign: func(cfg *Config, value string) {
 			cfg.PMCSummaryURL = value
 		},
 	},
 	{
-		prefixed: "PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL",
+		prefixed: "SEARCH_PAPER_UNPAYWALL_BASE_URL",
 		assign: func(cfg *Config, value string) {
 			cfg.UnpaywallBaseURL = value
 		},
@@ -218,7 +218,7 @@ func Load(opts LoadOptions) (Config, Diagnostics, error) {
 }
 
 func selectEnvFile(env map[string]envValue, workingDir, repositoryRoot string) (string, bool) {
-	if value, ok := env["PAPER_SEARCH_MCP_ENV_FILE"]; ok {
+	if value, ok := env["SEARCH_PAPER_ENV_FILE"]; ok {
 		if value.value == "" || filepath.IsAbs(value.value) || workingDir == "" {
 			return value.value, true
 		}

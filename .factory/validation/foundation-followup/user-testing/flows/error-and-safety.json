@@ -95,12 +95,12 @@
         {
           "action": "Run `search-paper-cli sources` with default format.",
           "expected": "Command exits 0 and emits JSON on stdout.",
-          "observed": "Exit 0; stdout={\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"en...; stderr="
+          "observed": "Exit 0; stdout={\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"en...; stderr="
         },
         {
           "action": "Run `search-paper-cli sources --format text`.",
           "expected": "Command exits 0 and emits human-readable text instead of JSON.",
-          "observed": "Exit 0; stdout=acm\\n  enabled: false\\n  disable_reason: missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\\n  capabilities:\\n    search: gated\\n    download: gated\\n    read: gated\\narxiv\\n  enabled: true\\n  capabilities:\\n  ...; stderr="
+          "observed": "Exit 0; stdout=acm\\n  enabled: false\\n  disable_reason: missing required credential: SEARCH_PAPER_ACM_API_KEY\\n  capabilities:\\n    search: gated\\n    download: gated\\n    read: gated\\narxiv\\n  enabled: true\\n  capabilities:\\n  ...; stderr="
         },
         {
           "action": "Run representative commands with invalid formats: `search --format yaml`, `download --format yaml`, and `read --format yaml`.",
@@ -120,13 +120,13 @@
           {
             "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
             "exitCode": 0,
-            "stdoutObservation": "{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"en...",
+            "stdoutObservation": "{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"en...",
             "stderrObservation": ""
           },
           {
             "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources --format text",
             "exitCode": 0,
-            "stdoutObservation": "acm\\n  enabled: false\\n  disable_reason: missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\\n  capabilities:\\n    search: gated\\n    download: gated\\n    read: gated\\narxiv\\n  enabled: true\\n  capabilities:\\n  ...",
+            "stdoutObservation": "acm\\n  enabled: false\\n  disable_reason: missing required credential: SEARCH_PAPER_ACM_API_KEY\\n  capabilities:\\n    search: gated\\n    download: gated\\n    read: gated\\narxiv\\n  enabled: true\\n  capabilities:\\n  ...",
             "stderrObservation": ""
           },
           {

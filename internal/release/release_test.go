@@ -41,21 +41,21 @@ func TestBuiltArtifactPreservesEnvLoadingRules(t *testing.T) {
 	assertSourceEnabled(t, cleanPayload.Sources, "ieee", false)
 	assertSourceEnabled(t, cleanPayload.Sources, "acm", false)
 
-	writeFile(t, filepath.Join(outsideDir, ".env"), "PAPER_SEARCH_MCP_IEEE_API_KEY=ieee-from-cwd\n")
+	writeFile(t, filepath.Join(outsideDir, ".env"), "SEARCH_PAPER_IEEE_API_KEY=ieee-from-cwd\n")
 	cwdPayload := runSourcesArtifact(t, binaryPath, outsideDir, nil)
 	assertSourceEnabled(t, cwdPayload.Sources, "ieee", true)
 	assertSourceEnabled(t, cwdPayload.Sources, "acm", false)
 
 	explicitEnvFile := filepath.Join(t.TempDir(), "explicit.env")
-	writeFile(t, explicitEnvFile, "PAPER_SEARCH_MCP_ACM_API_KEY=acm-from-explicit\n")
-	explicitPayload := runSourcesArtifact(t, binaryPath, outsideDir, []string{"PAPER_SEARCH_MCP_ENV_FILE=" + explicitEnvFile})
+	writeFile(t, explicitEnvFile, "SEARCH_PAPER_ACM_API_KEY=acm-from-explicit\n")
+	explicitPayload := runSourcesArtifact(t, binaryPath, outsideDir, []string{"SEARCH_PAPER_ENV_FILE=" + explicitEnvFile})
 	assertSourceEnabled(t, explicitPayload.Sources, "ieee", false)
 	assertSourceEnabled(t, explicitPayload.Sources, "acm", true)
 
 	fakeRepoRoot := t.TempDir()
 	writeFile(t, filepath.Join(fakeRepoRoot, "go.mod"), "module example.com/fake\n\ngo 1.26\n")
 	writeFile(t, filepath.Join(fakeRepoRoot, ".factory", "services.yaml"), "commands: {}\nservices: {}\n")
-	writeFile(t, filepath.Join(fakeRepoRoot, ".env"), "PAPER_SEARCH_MCP_IEEE_API_KEY=ieee-from-repo-root\n")
+	writeFile(t, filepath.Join(fakeRepoRoot, ".env"), "SEARCH_PAPER_IEEE_API_KEY=ieee-from-repo-root\n")
 	nestedDir := filepath.Join(fakeRepoRoot, "nested", "workspace")
 	if err := os.MkdirAll(nestedDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
@@ -127,7 +127,7 @@ func TestArtifactSearchToNativeRetrieval(t *testing.T) {
 	defer server.Close()
 
 	searchPayload := runSearchArtifact(t, binaryPath, artifactDir, []string{
-		"PAPER_SEARCH_MCP_ARXIV_BASE_URL=" + server.URL + "/arxiv",
+		"SEARCH_PAPER_ARXIV_BASE_URL=" + server.URL + "/arxiv",
 	}, "artifact native flow")
 	if len(searchPayload.Papers) != 1 {
 		t.Fatalf("expected one search paper, got %#v", searchPayload)
@@ -207,7 +207,7 @@ func TestArtifactSearchToFallbackRetrieval(t *testing.T) {
 	defer server.Close()
 
 	searchPayload := runSearchArtifact(t, binaryPath, artifactDir, []string{
-		"PAPER_SEARCH_MCP_ARXIV_BASE_URL=" + server.URL + "/arxiv",
+		"SEARCH_PAPER_ARXIV_BASE_URL=" + server.URL + "/arxiv",
 	}, "artifact fallback flow")
 	if len(searchPayload.Papers) != 1 {
 		t.Fatalf("expected one search paper, got %#v", searchPayload)
@@ -215,14 +215,14 @@ func TestArtifactSearchToFallbackRetrieval(t *testing.T) {
 	paperJSON := marshalJSON(t, searchPayload.Papers[0])
 	saveDir := filepath.Join(workDir, "fallback-downloads")
 	response := runArtifactCommand(t, binaryPath, artifactDir, []string{
-		"PAPER_SEARCH_MCP_OPENAIRE_BASE_URL=" + server.URL + "/openaire/search/researchProducts",
-		"PAPER_SEARCH_MCP_OPENAIRE_LEGACY_BASE_URL=" + server.URL + "/openaire/search/publications",
-		"PAPER_SEARCH_MCP_CORE_BASE_URL=" + server.URL + "/core",
-		"PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL=" + server.URL + "/europepmc",
-		"PAPER_SEARCH_MCP_PMC_SEARCH_URL=" + server.URL + "/pmc/esearch.fcgi",
-		"PAPER_SEARCH_MCP_PMC_SUMMARY_URL=" + server.URL + "/pmc/esummary.fcgi",
-		"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com",
-		"PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL=" + server.URL + "/unpaywall",
+		"SEARCH_PAPER_OPENAIRE_BASE_URL=" + server.URL + "/openaire/search/researchProducts",
+		"SEARCH_PAPER_OPENAIRE_LEGACY_BASE_URL=" + server.URL + "/openaire/search/publications",
+		"SEARCH_PAPER_CORE_BASE_URL=" + server.URL + "/core",
+		"SEARCH_PAPER_EUROPEPMC_BASE_URL=" + server.URL + "/europepmc",
+		"SEARCH_PAPER_PMC_SEARCH_URL=" + server.URL + "/pmc/esearch.fcgi",
+		"SEARCH_PAPER_PMC_SUMMARY_URL=" + server.URL + "/pmc/esummary.fcgi",
+		"SEARCH_PAPER_UNPAYWALL_EMAIL=tester@example.com",
+		"SEARCH_PAPER_UNPAYWALL_BASE_URL=" + server.URL + "/unpaywall",
 	}, "download", "--fallback", "--save-dir", saveDir, "--paper-json", paperJSON)
 	if response.ExitCode != 0 {
 		t.Fatalf("expected fallback retrieval exit code 0, got %d stdout=%q stderr=%q", response.ExitCode, response.Stdout, response.Stderr)
@@ -313,15 +313,15 @@ func TestArtifactOutsideRepoFlow(t *testing.T) {
 
 	envFile := filepath.Join(outsideDir, ".env")
 	writeFile(t, envFile, strings.Join([]string{
-		"PAPER_SEARCH_MCP_ARXIV_BASE_URL=" + server.URL + "/arxiv",
-		"PAPER_SEARCH_MCP_OPENAIRE_BASE_URL=" + server.URL + "/openaire/search/researchProducts",
-		"PAPER_SEARCH_MCP_OPENAIRE_LEGACY_BASE_URL=" + server.URL + "/openaire/search/publications",
-		"PAPER_SEARCH_MCP_CORE_BASE_URL=" + server.URL + "/core",
-		"PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL=" + server.URL + "/europepmc",
-		"PAPER_SEARCH_MCP_PMC_SEARCH_URL=" + server.URL + "/pmc/esearch.fcgi",
-		"PAPER_SEARCH_MCP_PMC_SUMMARY_URL=" + server.URL + "/pmc/esummary.fcgi",
-		"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com",
-		"PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL=" + server.URL + "/unpaywall",
+		"SEARCH_PAPER_ARXIV_BASE_URL=" + server.URL + "/arxiv",
+		"SEARCH_PAPER_OPENAIRE_BASE_URL=" + server.URL + "/openaire/search/researchProducts",
+		"SEARCH_PAPER_OPENAIRE_LEGACY_BASE_URL=" + server.URL + "/openaire/search/publications",
+		"SEARCH_PAPER_CORE_BASE_URL=" + server.URL + "/core",
+		"SEARCH_PAPER_EUROPEPMC_BASE_URL=" + server.URL + "/europepmc",
+		"SEARCH_PAPER_PMC_SEARCH_URL=" + server.URL + "/pmc/esearch.fcgi",
+		"SEARCH_PAPER_PMC_SUMMARY_URL=" + server.URL + "/pmc/esummary.fcgi",
+		"SEARCH_PAPER_UNPAYWALL_EMAIL=tester@example.com",
+		"SEARCH_PAPER_UNPAYWALL_BASE_URL=" + server.URL + "/unpaywall",
 		"",
 	}, "\n"))
 
@@ -519,7 +519,7 @@ func filteredEnv() []string {
 	filtered := make([]string, 0, len(env))
 	for _, entry := range env {
 		switch {
-		case strings.HasPrefix(entry, "PAPER_SEARCH_MCP_"):
+		case strings.HasPrefix(entry, "SEARCH_PAPER_"):
 		case strings.HasPrefix(entry, "UNPAYWALL_EMAIL="):
 		case strings.HasPrefix(entry, "CORE_API_KEY="):
 		default:

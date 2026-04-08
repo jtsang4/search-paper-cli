@@ -78,33 +78,33 @@ semantic, scihub, ssrn, unpaywall, zenodo
 
 Common runtime variables:
 
-- `PAPER_SEARCH_MCP_UNPAYWALL_EMAIL` (`UNPAYWALL_EMAIL` legacy alias): enables Unpaywall DOI/OA lookup
-- `PAPER_SEARCH_MCP_CORE_API_KEY` (`CORE_API_KEY` legacy alias): recommended for CORE reliability/rate limits
-- `PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY`
-- `PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL`
-- `PAPER_SEARCH_MCP_DOAJ_API_KEY`
-- `PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN`
-- `PAPER_SEARCH_MCP_IEEE_API_KEY`
-- `PAPER_SEARCH_MCP_ACM_API_KEY`
+- `SEARCH_PAPER_UNPAYWALL_EMAIL` (`UNPAYWALL_EMAIL` legacy alias): enables Unpaywall DOI/OA lookup
+- `SEARCH_PAPER_CORE_API_KEY` (`CORE_API_KEY` legacy alias): recommended for CORE reliability/rate limits
+- `SEARCH_PAPER_SEMANTIC_SCHOLAR_API_KEY`
+- `SEARCH_PAPER_GOOGLE_SCHOLAR_PROXY_URL`
+- `SEARCH_PAPER_DOAJ_API_KEY`
+- `SEARCH_PAPER_ZENODO_ACCESS_TOKEN`
+- `SEARCH_PAPER_IEEE_API_KEY`
+- `SEARCH_PAPER_ACM_API_KEY`
 
 Optional endpoint overrides for deterministic tests and artifact validation:
 
-- `PAPER_SEARCH_MCP_ARXIV_BASE_URL`
-- `PAPER_SEARCH_MCP_OPENAIRE_BASE_URL`
-- `PAPER_SEARCH_MCP_OPENAIRE_LEGACY_BASE_URL`
-- `PAPER_SEARCH_MCP_CORE_BASE_URL`
-- `PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL`
-- `PAPER_SEARCH_MCP_PMC_SEARCH_URL`
-- `PAPER_SEARCH_MCP_PMC_SUMMARY_URL`
-- `PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL`
+- `SEARCH_PAPER_ARXIV_BASE_URL`
+- `SEARCH_PAPER_OPENAIRE_BASE_URL`
+- `SEARCH_PAPER_OPENAIRE_LEGACY_BASE_URL`
+- `SEARCH_PAPER_CORE_BASE_URL`
+- `SEARCH_PAPER_EUROPEPMC_BASE_URL`
+- `SEARCH_PAPER_PMC_SEARCH_URL`
+- `SEARCH_PAPER_PMC_SUMMARY_URL`
+- `SEARCH_PAPER_UNPAYWALL_BASE_URL`
 
 `.env` loading order:
 
-1. `PAPER_SEARCH_MCP_ENV_FILE`
+1. `SEARCH_PAPER_ENV_FILE`
 2. `./.env` in the current working directory
 3. Repository-root `.env` when running inside the source tree
 
-Prefixed `PAPER_SEARCH_MCP_*` variables override legacy aliases, and an explicitly empty prefixed value blocks fallback.
+Prefixed `SEARCH_PAPER_*` variables override legacy aliases, and an explicitly empty prefixed value blocks fallback.
 
 ## Testing / packaging
 

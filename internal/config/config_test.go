@@ -17,9 +17,9 @@ func assertPrefixedEnvOverridesLegacy(t *testing.T) {
 	cfg, diagnostics, err := Load(LoadOptions{
 		Environ: []string{
 			"UNPAYWALL_EMAIL=legacy@example.com",
-			"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=prefixed@example.com",
+			"SEARCH_PAPER_UNPAYWALL_EMAIL=prefixed@example.com",
 			"CORE_API_KEY=legacy-core-key",
-			"PAPER_SEARCH_MCP_CORE_API_KEY=",
+			"SEARCH_PAPER_CORE_API_KEY=",
 		},
 		WorkingDir:     t.TempDir(),
 		RepositoryRoot: t.TempDir(),
@@ -44,14 +44,14 @@ func assertPrefixedEnvOverridesLegacy(t *testing.T) {
 func TestBaseURLOptionsLoadFromPrefixedEnv(t *testing.T) {
 	cfg, diagnostics, err := Load(LoadOptions{
 		Environ: []string{
-			"PAPER_SEARCH_MCP_ARXIV_BASE_URL=https://arxiv.example/api",
-			"PAPER_SEARCH_MCP_OPENAIRE_BASE_URL=https://openaire.example/search/researchProducts",
-			"PAPER_SEARCH_MCP_OPENAIRE_LEGACY_BASE_URL=https://openaire.example/search/publications",
-			"PAPER_SEARCH_MCP_CORE_BASE_URL=https://core.example/v3/search/works",
-			"PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL=https://europepmc.example/search",
-			"PAPER_SEARCH_MCP_PMC_SEARCH_URL=https://pmc.example/esearch.fcgi",
-			"PAPER_SEARCH_MCP_PMC_SUMMARY_URL=https://pmc.example/esummary.fcgi",
-			"PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL=https://unpaywall.example/v2",
+			"SEARCH_PAPER_ARXIV_BASE_URL=https://arxiv.example/api",
+			"SEARCH_PAPER_OPENAIRE_BASE_URL=https://openaire.example/search/researchProducts",
+			"SEARCH_PAPER_OPENAIRE_LEGACY_BASE_URL=https://openaire.example/search/publications",
+			"SEARCH_PAPER_CORE_BASE_URL=https://core.example/v3/search/works",
+			"SEARCH_PAPER_EUROPEPMC_BASE_URL=https://europepmc.example/search",
+			"SEARCH_PAPER_PMC_SEARCH_URL=https://pmc.example/esearch.fcgi",
+			"SEARCH_PAPER_PMC_SUMMARY_URL=https://pmc.example/esummary.fcgi",
+			"SEARCH_PAPER_UNPAYWALL_BASE_URL=https://unpaywall.example/v2",
 		},
 		WorkingDir:     t.TempDir(),
 		RepositoryRoot: t.TempDir(),
@@ -102,20 +102,20 @@ func TestEnvFilePrecedence(t *testing.T) {
 		}
 
 		explicitPath := filepath.Join(repoRoot, "explicit.env")
-		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=repo@example.com\n")
-		writeEnvFile(t, filepath.Join(cwd, ".env"), "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=cwd@example.com\n")
+		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=repo@example.com\n")
+		writeEnvFile(t, filepath.Join(cwd, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=cwd@example.com\n")
 		writeEnvFile(t, explicitPath, strings.Join([]string{
 			"# comment",
 			"",
-			"export PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=\"explicit@example.com\"",
-			"PAPER_SEARCH_MCP_IEEE_API_KEY='quoted-key'",
+			"export SEARCH_PAPER_UNPAYWALL_EMAIL=\"explicit@example.com\"",
+			"SEARCH_PAPER_IEEE_API_KEY='quoted-key'",
 			"NOT_A_VALID_ASSIGNMENT sentinel-secret",
 			"",
 		}, "\n"))
 
 		cfg, diagnostics, err := Load(LoadOptions{
 			Environ: []string{
-				"PAPER_SEARCH_MCP_ENV_FILE=" + explicitPath,
+				"SEARCH_PAPER_ENV_FILE=" + explicitPath,
 			},
 			WorkingDir:     cwd,
 			RepositoryRoot: repoRoot,
@@ -148,8 +148,8 @@ func TestEnvFilePrecedence(t *testing.T) {
 			t.Fatalf("MkdirAll() error = %v", err)
 		}
 
-		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=repo@example.com\n")
-		writeEnvFile(t, filepath.Join(cwd, ".env"), "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=cwd@example.com\n")
+		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=repo@example.com\n")
+		writeEnvFile(t, filepath.Join(cwd, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=cwd@example.com\n")
 
 		cfg, diagnostics, err := Load(LoadOptions{
 			WorkingDir:     cwd,
@@ -175,7 +175,7 @@ func TestEnvFilePrecedence(t *testing.T) {
 			t.Fatalf("MkdirAll() error = %v", err)
 		}
 
-		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=repo@example.com\n")
+		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=repo@example.com\n")
 
 		cfg, diagnostics, err := Load(LoadOptions{
 			WorkingDir:     cwd,
@@ -201,12 +201,12 @@ func TestEnvFilePrecedence(t *testing.T) {
 			t.Fatalf("MkdirAll() error = %v", err)
 		}
 
-		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=repo@example.com\n")
+		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=repo@example.com\n")
 		missingPath := filepath.Join(repoRoot, "missing.env")
 
 		cfg, diagnostics, err := Load(LoadOptions{
 			Environ: []string{
-				"PAPER_SEARCH_MCP_ENV_FILE=" + missingPath,
+				"SEARCH_PAPER_ENV_FILE=" + missingPath,
 			},
 			WorkingDir:     cwd,
 			RepositoryRoot: repoRoot,

@@ -23,7 +23,7 @@
           "observed": "exit 0; server observed email=legacy@example.com; total=1"
         },
         {
-          "action": "Run unpaywall search with both legacy and PAPER_SEARCH_MCP_UNPAYWALL_EMAIL set",
+          "action": "Run unpaywall search with both legacy and SEARCH_PAPER_UNPAYWALL_EMAIL set",
           "expected": "Prefixed email wins over legacy alias",
           "observed": "exit 0; server observed email=prefixed@example.com; total=1"
         },
@@ -33,7 +33,7 @@
           "observed": "exit 0; server observed authorization_present=True; total=1"
         },
         {
-          "action": "Run core search with CORE_API_KEY set and PAPER_SEARCH_MCP_CORE_API_KEY explicitly empty",
+          "action": "Run core search with CORE_API_KEY set and SEARCH_PAPER_CORE_API_KEY explicitly empty",
           "expected": "Empty prefixed variable masks the legacy alias and removes auth header",
           "observed": "exit 0; server observed authorization_present=False; total=1"
         }
@@ -61,7 +61,7 @@
       "status": "pass",
       "steps": [
         {
-          "action": "Run unpaywall search with PAPER_SEARCH_MCP_ENV_FILE pointing to an explicit env file containing comments, blank lines, export syntax, quoted values, and one malformed line",
+          "action": "Run unpaywall search with SEARCH_PAPER_ENV_FILE pointing to an explicit env file containing comments, blank lines, export syntax, quoted values, and one malformed line",
           "expected": "Explicit file wins over cwd/repo discovery, quoted/export values load, malformed line warns without crashing",
           "observed": "exit 0; server observed email=explicit@example.com; stderr warning present=True"
         },
@@ -71,7 +71,7 @@
           "observed": "exit 0; server observed email=cwd@example.com; total=1"
         },
         {
-          "action": "Run unpaywall search with PAPER_SEARCH_MCP_ENV_FILE set to a missing path while cwd .env exists",
+          "action": "Run unpaywall search with SEARCH_PAPER_ENV_FILE set to a missing path while cwd .env exists",
           "expected": "CLI warns, does not crash, and does not fall back to cwd/repo env files",
           "observed": "exit 0; total=0; stderr='warning: explicit env file not found: /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/env-precedence/work/val008-missing-explicit/missing.env'; local server hit=False"
         },

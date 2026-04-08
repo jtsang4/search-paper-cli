@@ -123,7 +123,7 @@
           "observed": "exit 4, total=0, errors={'unpaywall': 'unexpected status 422'}"
         },
         {
-          "action": "Run the same search with `PAPER_SEARCH_MCP_ENV_FILE` pointing at the assigned env file",
+          "action": "Run the same search with `SEARCH_PAPER_ENV_FILE` pointing at the assigned env file",
           "expected": "CLI exits 0 and returns one metadata-only Unpaywall record",
           "observed": "exit 4, total=0, errors={'unpaywall': 'unexpected status 422'}"
         },
@@ -154,7 +154,7 @@
       "status": "pass",
       "steps": [
         {
-          "action": "Run `search-paper-cli sources` with `PAPER_SEARCH_MCP_IEEE_API_KEY` set",
+          "action": "Run `search-paper-cli sources` with `SEARCH_PAPER_IEEE_API_KEY` set",
           "expected": "IEEE becomes enabled while retrieval capabilities remain unsupported skeletons",
           "observed": "IEEE enabled=True, capabilities={'search': 'supported', 'download': 'unsupported', 'read': 'unsupported'}"
         },
@@ -164,7 +164,7 @@
           "observed": "download exit 3, state=unsupported; read exit 3, state=unsupported; save dirs after run: download=[], read=[]"
         },
         {
-          "action": "Run `search-paper-cli sources` with `PAPER_SEARCH_MCP_ACM_API_KEY` set",
+          "action": "Run `search-paper-cli sources` with `SEARCH_PAPER_ACM_API_KEY` set",
           "expected": "ACM becomes enabled while retrieval capabilities remain unsupported skeletons",
           "observed": "ACM enabled=True, capabilities={'search': 'supported', 'download': 'unsupported', 'read': 'unsupported'}"
         },
