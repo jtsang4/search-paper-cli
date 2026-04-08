@@ -1,7 +1,7 @@
 {
   "milestone": "search",
-  "round": 2,
-  "status": "fail",
+  "round": 3,
+  "status": "pass",
   "validatorsRun": {
     "test": {
       "passed": true,
@@ -21,21 +21,13 @@
   },
   "reviewsSummary": {
     "total": 4,
-    "passed": 3,
-    "failed": 1,
-    "failedFeatures": [
-      "build-shared-paper-model-and-connector-interfaces"
-    ]
+    "passed": 4,
+    "failed": 0,
+    "failedFeatures": []
   },
-  "blockingIssues": [
-    {
-      "featureId": "build-shared-paper-model-and-connector-interfaces",
-      "severity": "blocking",
-      "description": "Default multi-source search still allows `invalid_sources` to serialize as `null`: `selectSearchSources` returns a nil invalid slice when `--source` is omitted (`internal/cli/search.go`), and `runSearchCommand` forwards it directly into the JSON response, violating the stable contract that list-like search fields must serialize as empty arrays."
-    }
-  ],
+  "blockingIssues": [],
   "appliedUpdates": [],
   "suggestedGuidanceUpdates": [],
   "rejectedObservations": [],
-  "previousRound": ".factory/validation/search/scrutiny/synthesis.round1.json"
+  "previousRound": ".factory/validation/search/scrutiny/synthesis.round2.json"
 }

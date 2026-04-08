@@ -1,0 +1,41 @@
+{
+  "milestone": "search",
+  "round": 2,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go test -count=1 -p 8 ./...",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go test -run '^$' -p 8 ./...",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "test -z \"$(gofmt -l .)\"",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 4,
+    "passed": 3,
+    "failed": 1,
+    "failedFeatures": [
+      "build-shared-paper-model-and-connector-interfaces"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "build-shared-paper-model-and-connector-interfaces",
+      "severity": "blocking",
+      "description": "Default multi-source search still allows `invalid_sources` to serialize as `null`: `selectSearchSources` returns a nil invalid slice when `--source` is omitted (`internal/cli/search.go`), and `runSearchCommand` forwards it directly into the JSON response, violating the stable contract that list-like search fields must serialize as empty arrays."
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [],
+  "rejectedObservations": [],
+  "previousRound": ".factory/validation/search/scrutiny/synthesis.round1.json"
+}

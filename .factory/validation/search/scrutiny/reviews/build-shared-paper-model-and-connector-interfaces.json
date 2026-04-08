@@ -1,22 +1,15 @@
 {
   "featureId": "build-shared-paper-model-and-connector-interfaces",
-  "reviewedAt": "2026-04-08T00:16:41.357905+00:00",
-  "commitId": "2838301a9b0ae81c2c2d0ed67e9bd70527797524",
+  "reviewedAt": "2026-04-08T00:28:47.313317+00:00",
+  "commitId": "b55dd59254c630ab87b7be16e2a953f573926c50",
   "transcriptSkeletonReviewed": true,
   "diffReviewed": true,
-  "status": "fail",
+  "status": "pass",
   "codeReview": {
-    "summary": "The fix resolves the original `authors` and zero-result `papers` null-array problems, but the shared search envelope still allows `invalid_sources` to serialize as `null` on the default search path, so the stable empty-array contract is not fully restored.",
-    "issues": [
-      {
-        "file": "internal/cli/search.go",
-        "line": 206,
-        "severity": "blocking",
-        "description": "When `--source` is omitted, `selectSearchSources` returns `nil` for the invalid-source slice (`return filtered, nil, nil`), and `runSearchCommand` forwards that value directly into `searchResponse.InvalidSources` (`internal/cli/search.go:176`). Successful default searches therefore serialize `\"invalid_sources\": null` instead of `[]`, which still violates the output-contract rule that list-like fields in search responses must always use empty arrays rather than null."
-      }
-    ]
+    "summary": "Reviewed the follow-up fix commit and supporting mission artifacts. The default search path now initializes `invalid_sources` to an empty slice when no explicit source filter is provided, and the added regression test exercises the exact `[]` vs `null` behavior alongside the earlier `papers` and `authors` empty-array coverage.",
+    "issues": []
   },
   "sharedStateObservations": [],
   "addressesFailureFrom": "/root/workspace/github/jtsang4/search-paper-cli/.factory/validation/search/scrutiny/reviews/build-shared-paper-model-and-connector-interfaces.json",
-  "summary": "Reviewed the rework handoff, transcript skeleton, commit diff, prior scrutiny report, and the current shared paper/search implementation. The original `authors` and zero-result `papers` issues are fixed, but the feature still fails because the default search response path leaves `invalid_sources` nil and serializes it as `null`, so the shared search JSON contract remains inconsistent."
+  "summary": "Pass: the re-review confirms the original scrutiny failure is fixed. `internal/cli/search.go` now returns initialized empty slices for the default-source path, so successful default search responses serialize `invalid_sources` as `[]`, and `internal/cli/search_test.go` adds targeted regression coverage for that case without revealing new blocking issues."
 }
