@@ -203,7 +203,7 @@ func selectSearchSources(cfg config.Config, requested []string) ([]sources.Descr
 				filtered = append(filtered, descriptor)
 			}
 		}
-		return filtered, nil, nil
+		return filtered, []string{}, []blockedSearchSource{}
 	}
 
 	validDescriptors := map[string]sources.Descriptor{}

@@ -268,6 +268,37 @@ func TestSearchSchema(t *testing.T) {
 func TestSearchJSONUsesEmptyArrays(t *testing.T) {
 	t.Parallel()
 
+	t.Run("default search serializes invalid sources as empty array", func(t *testing.T) {
+		t.Parallel()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"search", "default sources query"}, &stdout, &stderr, runOptions{
+			workingDir:     t.TempDir(),
+			repositoryRoot: t.TempDir(),
+			connectorFactory: func(id string, _ config.Config) (sources.Connector, error) {
+				return sources.NewStubConnector(sources.StubConnector{
+					DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+				}), nil
+			},
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+
+		payload := decodeSearchResponse(t, stdout.Bytes())
+		if payload.InvalidSources == nil {
+			t.Fatalf("expected invalid sources to be an empty slice, got nil in %#v", payload)
+		}
+		raw := stdout.String()
+		if !strings.Contains(raw, `"invalid_sources":[]`) {
+			t.Fatalf("expected invalid sources empty array in json, got %s", raw)
+		}
+		if strings.Contains(raw, `"invalid_sources":null`) {
+			t.Fatalf("expected invalid sources to avoid null in json, got %s", raw)
+		}
+	})
+
 	t.Run("zero results serialize papers and invalid sources as empty arrays", func(t *testing.T) {
 		t.Parallel()
 
