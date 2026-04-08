@@ -268,6 +268,42 @@ func TestRecordDependentRetrieval(t *testing.T) {
 			t.Fatalf("expected no stray files, got %#v", entries)
 		}
 	})
+
+	t.Run("mislabeled non-PDF body does not count as success", func(t *testing.T) {
+		t.Parallel()
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write([]byte("<html><body>login required</body></html>"))
+		}))
+		defer server.Close()
+
+		saveDir := filepath.Join(t.TempDir(), "semantic-mislabeled")
+		paperJSON := `{"paper_id":"semantic-3","title":"Semantic Mislabeled","pdf_url":"` + server.URL + `/paper.pdf","source":"semantic"}`
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"download", "--source", "semantic", "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
+			workingDir:       t.TempDir(),
+			repositoryRoot:   t.TempDir(),
+			connectorFactory: connectors.New,
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+
+		payload := decodeRetrievalResponse(t, stdout.Bytes())
+		if payload.State != "not_found" || payload.Path != "" {
+			t.Fatalf("expected explicit not_found without file path, got %#v", payload)
+		}
+		entries, err := os.ReadDir(saveDir)
+		if err != nil {
+			t.Fatalf("expected save dir to exist, got %v", err)
+		}
+		if len(entries) != 0 {
+			t.Fatalf("expected no stray files, got %#v", entries)
+		}
+	})
 }
 
 func TestSSRNBestEffort(t *testing.T) {

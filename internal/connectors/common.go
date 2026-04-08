@@ -1,6 +1,7 @@
 package connectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -418,20 +419,15 @@ func retrievalPDFURL(p paper.Paper) string {
 	return ""
 }
 
-func looksLikePDF(contentType string, requestURL string, body []byte) bool {
+func looksLikePDF(_ string, _ string, body []byte) bool {
 	if len(body) == 0 {
 		return false
 	}
-	trimmed := strings.TrimSpace(string(body))
-	if strings.HasPrefix(trimmed, "%PDF-") {
+	trimmed := bytes.TrimSpace(body)
+	if bytes.HasPrefix(trimmed, []byte("%PDF-")) {
 		return true
 	}
-	lowerType := strings.ToLower(strings.TrimSpace(contentType))
-	if strings.Contains(lowerType, "application/pdf") {
-		return true
-	}
-	lowerURL := strings.ToLower(strings.TrimSpace(requestURL))
-	return strings.HasSuffix(lowerURL, ".pdf") && strings.HasPrefix(trimmed, "%PDF-")
+	return false
 }
 
 func retrievalFilename(sourceID string, p paper.Paper) string {
