@@ -1,0 +1,241 @@
+{
+  "groupId": "group-artifact-parity",
+  "testedAt": "2026-04-08T04:09:31Z",
+  "isolation": {
+    "workingArea": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-parity",
+    "primaryBinary": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+    "distBinary": "/root/workspace/github/jtsang4/search-paper-cli/dist/search-paper-cli_linux_amd64/search-paper-cli",
+    "archive": "/root/workspace/github/jtsang4/search-paper-cli/dist/search-paper-cli_linux_amd64.tar.gz",
+    "outsideRepoCwd": "/root/workspace/github/jtsang4",
+    "evidenceDir": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/release/group-artifact-parity",
+    "reportPath": "/root/workspace/github/jtsang4/search-paper-cli/.factory/validation/release/user-testing/flows/group-artifact-parity.json"
+  },
+  "toolsUsed": [
+    "shell/cli",
+    "python3"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-001",
+      "title": "Built artifact preserves runtime source activation behavior",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
+          "expected": "Clean-env built artifact source listing shows default public sources with IEEE/ACM disabled.",
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
+        },
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
+          "expected": "Keyed built artifact source listing enables IEEE and ACM when env vars are supplied.",
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"support'; stderr=''"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "release/group-artifact-parity/VAL-CROSS-001-clean-sources.log",
+          "release/group-artifact-parity/VAL-CROSS-001-keyed-sources.log"
+        ],
+        "network": "none",
+        "artifactPaths": [
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "title": "Built artifact search remains machine-readable under partial failure",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source arxiv,ieee artifact parity partial",
+          "expected": "Built artifact search returns one JSON payload with results, per-source counts, and an error for the failed/gated source.",
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"query\":\"artifact parity partial\",\"requested_sources\":[\"arxiv\",\"ieee\"],\"used_sources\":[\"arxiv\"],\"invalid_sources\":[],\"source_results\":{\"arxiv\":1,\"ieee\":0},\"errors\":{\"ieee\":\"missing required credential: PAPER_SEARCH_MCP_IEEE_A'; stderr=''"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "release/group-artifact-parity/VAL-CROSS-002-partial-search.log"
+        ],
+        "network": "GET http://127.0.0.1:30637/arxiv -> 200; server requests logged in release/group-artifact-parity/server-requests.json",
+        "artifactPaths": [
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-005",
+      "title": "Built artifact preserves capability consistency across listing and retrieval",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
+          "expected": "Built artifact source listing exposes informational vs unsupported retrieval capability states.",
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
+        },
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli download --source crossref --paper-json {\"paper_id\":\"10.1000/crossref\",\"title\":\"Crossref Metadata\",\"source\":\"crossref\"}",
+          "expected": "Crossref direct retrieval returns informational non-success consistent with listing capabilities.",
+          "observed": "exit 3; stdout='{\"status\":\"ok\",\"operation\":\"download\",\"state\":\"informational\",\"source\":\"crossref\",\"paper_id\":\"10.1000/crossref\",\"message\":\"source \\\\\"crossref\\\\\" does not provide direct download through search metadata\",\"attempts\":[]}'; stderr=''"
+        },
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli download --source dblp --paper-json {\"paper_id\":\"dblp-1\",\"title\":\"DBLP Metadata\",\"source\":\"dblp\"}",
+          "expected": "DBLP direct retrieval returns unsupported non-success consistent with listing capabilities.",
+          "observed": "exit 3; stdout='{\"status\":\"ok\",\"operation\":\"download\",\"state\":\"unsupported\",\"source\":\"dblp\",\"paper_id\":\"dblp-1\",\"message\":\"source \\\\\"dblp\\\\\" direct download is not supported\",\"attempts\":[]}'; stderr=''"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "release/group-artifact-parity/VAL-CROSS-005-sources.log",
+          "release/group-artifact-parity/VAL-CROSS-005-crossref-download.log",
+          "release/group-artifact-parity/VAL-CROSS-005-dblp-download.log"
+        ],
+        "network": "none",
+        "artifactPaths": [
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-006",
+      "title": "Built artifacts preserve env loading rules",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
+          "expected": "Current-working-directory .env enables IEEE while leaving ACM disabled.",
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
+        },
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
+          "expected": "Explicit env file overrides cwd .env and enables ACM without carrying forward cwd IEEE state.",
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"support'; stderr=''"
+        },
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source unpaywall doi:10.1000/prefix-wins",
+          "expected": "Prefixed Unpaywall env var wins over legacy alias and is used in the outgoing request.",
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"query\":\"doi:10.1000/prefix-wins\",\"requested_sources\":[\"unpaywall\"],\"used_sources\":[\"unpaywall\"],\"invalid_sources\":[],\"source_results\":{\"unpaywall\":1},\"total\":1,\"papers\":[{\"paper_id\":\"10.1000%2Fprefix-wins\",\"title\":\"Unknown D'; stderr=''"
+        },
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source unpaywall doi:10.1000/prefix-empty",
+          "expected": "Explicitly empty prefixed Unpaywall env var blocks fallback to the legacy alias.",
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"query\":\"doi:10.1000/prefix-empty\",\"requested_sources\":[\"unpaywall\"],\"used_sources\":[\"unpaywall\"],\"invalid_sources\":[],\"source_results\":{\"unpaywall\":0},\"total\":0,\"papers\":[]}'; stderr=''"
+        },
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source unpaywall doi:10.1000/repo-fallback",
+          "expected": "Repo-root fallback applies only when the built artifact runs inside source-tree semantics.",
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"query\":\"doi:10.1000/repo-fallback\",\"requested_sources\":[\"unpaywall\"],\"used_sources\":[\"unpaywall\"],\"invalid_sources\":[],\"source_results\":{\"unpaywall\":1},\"total\":1,\"papers\":[{\"paper_id\":\"10.1000%2Frepo-fallback\",\"title\":\"Unkno'; stderr=''"
+        },
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source unpaywall doi:10.1000/repo-fallback",
+          "expected": "Repo-root fallback applies only when the built artifact runs inside source-tree semantics.",
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"query\":\"doi:10.1000/repo-fallback\",\"requested_sources\":[\"unpaywall\"],\"used_sources\":[\"unpaywall\"],\"invalid_sources\":[],\"source_results\":{\"unpaywall\":0},\"total\":0,\"papers\":[]}'; stderr=''"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "release/group-artifact-parity/VAL-CROSS-006-cwd-env.log",
+          "release/group-artifact-parity/VAL-CROSS-006-explicit-env.log",
+          "release/group-artifact-parity/VAL-CROSS-006-prefixed-wins.log",
+          "release/group-artifact-parity/VAL-CROSS-006-empty-prefixed-blocks-legacy.log",
+          "release/group-artifact-parity/VAL-CROSS-006-repo-fallback-inside.log",
+          "release/group-artifact-parity/VAL-CROSS-006-repo-fallback-outside.log"
+        ],
+        "network": "Unpaywall mock requests logged in release/group-artifact-parity/server-requests.json; prefixed request email observed as 'prefixed@example.invalid'",
+        "artifactPaths": [
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-parity/explicit.env",
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-parity/cwd-env/.env"
+        ],
+        "repoEnvKeys": [
+          "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL",
+          "PAPER_SEARCH_MCP_CORE_API_KEY"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-008",
+      "title": "Release outputs match declared deliverables and are gated by validation",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "go test -run ^$ -p 8 ./...",
+          "expected": "Validator/build command exits 0.",
+          "observed": "exit 0; stdout='?   \\tgithub.com/jtsang4/search-paper-cli/cmd/search-paper-cli\\t[no test files]\\nok  \\tgithub.com/jtsang4/search-paper-cli/internal/cli\\t(cached) [no tests to run]\\nok  \\tgithub.com/jtsang4/search-paper-cli/internal/config\\t(cached) [no tests to ru'; stderr=''"
+        },
+        {
+          "action": "sh -c test -z \"$(gofmt -l .)\"",
+          "expected": "Validator/build command exits 0.",
+          "observed": "exit 0; stdout=''; stderr=''"
+        },
+        {
+          "action": "go test -count=1 -p 8 ./...",
+          "expected": "Validator/build command exits 0.",
+          "observed": "exit 0; stdout='?   \\tgithub.com/jtsang4/search-paper-cli/cmd/search-paper-cli\\t[no test files]\\nok  \\tgithub.com/jtsang4/search-paper-cli/internal/cli\\t0.026s\\nok  \\tgithub.com/jtsang4/search-paper-cli/internal/config\\t0.010s\\nok  \\tgithub.com/jtsang4/search-paper-'; stderr=''"
+        },
+        {
+          "action": "go build ./...",
+          "expected": "Validator/build command exits 0.",
+          "observed": "exit 0; stdout=''; stderr=''"
+        },
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-parity/archive-extract/smoke/search-paper-cli --version",
+          "expected": "Extracted Linux amd64 archive binary runs successfully.",
+          "observed": "exit 0; stdout='search-paper-cli dev'; stderr=''"
+        },
+        {
+          "action": "/root/workspace/github/jtsang4/search-paper-cli/dist/search-paper-cli_linux_amd64/search-paper-cli sources",
+          "expected": "Standalone dist binary runs successfully.",
+          "observed": "exit 0; stdout='{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_re'; stderr=''"
+        },
+        {
+          "action": "inspect dist/search-paper-cli_linux_amd64 and dist/search-paper-cli_linux_amd64.tar.gz",
+          "expected": "Both declared release deliverables exist under dist and the archive contains search-paper-cli.",
+          "observed": "{\"distBinaryExists\": true, \"archiveExists\": true, \"archiveMembers\": [\"search-paper-cli\"], \"releaseScrutinyStatus\": \"pass\"}"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "release/group-artifact-parity/VAL-CROSS-008-typecheck.log",
+          "release/group-artifact-parity/VAL-CROSS-008-lint.log",
+          "release/group-artifact-parity/VAL-CROSS-008-test.log",
+          "release/group-artifact-parity/VAL-CROSS-008-build.log",
+          "release/group-artifact-parity/VAL-CROSS-008-archive-smoke.log",
+          "release/group-artifact-parity/VAL-CROSS-008-dist-binary-smoke.log"
+        ],
+        "network": "none",
+        "artifactPaths": [
+          "/root/workspace/github/jtsang4/search-paper-cli/dist/search-paper-cli_linux_amd64/search-paper-cli",
+          "/root/workspace/github/jtsang4/search-paper-cli/dist/search-paper-cli_linux_amd64.tar.gz",
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-parity/archive-extract/smoke/search-paper-cli"
+        ],
+        "validatorEvidence": {
+          "test": {
+            "passed": true,
+            "command": "GOMAXPROCS=8 go test -count=1 -p 8 ./...",
+            "exitCode": 0
+          },
+          "typecheck": {
+            "passed": true,
+            "command": "GOMAXPROCS=8 go test -run '^$' -p 8 ./...",
+            "exitCode": 0
+          },
+          "lint": {
+            "passed": true,
+            "command": "test -z \"$(gofmt -l .)\"",
+            "exitCode": 0
+          }
+        },
+        "packagingScript": "scripts/package-release.sh"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 5 passed, 0 failed, 0 blocked."
+}

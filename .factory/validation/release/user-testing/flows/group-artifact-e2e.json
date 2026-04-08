@@ -1,0 +1,140 @@
+{
+  "groupId": "group-artifact-e2e",
+  "testedAt": "2026-04-08T04:01:52.115350+00:00",
+  "isolation": {
+    "repoRoot": "/root/workspace/github/jtsang4/search-paper-cli",
+    "missionDir": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad",
+    "workingArea": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e",
+    "builtCli": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+    "artifactDir": "/root/workspace/github/jtsang4/search-paper-cli/dist/search-paper-cli_linux_amd64",
+    "outsideRepoBinary": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/outside-run/bin/search-paper-cli",
+    "evidenceDir": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/release/group-artifact-e2e",
+    "localFixtureServer": "http://127.0.0.1:18361"
+  },
+  "toolsUsed": [
+    "shell/cli",
+    "go test"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-003",
+      "title": "Unified search output can drive source-native retrieval directly",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run built CLI search with PAPER_SEARCH_MCP_ARXIV_BASE_URL=http://127.0.0.1:18361/arxiv",
+          "expected": "One normalized arxiv paper object is returned with source=arxiv and paper_id=1234.5678v1.",
+          "observed": "exit 0; returned 1 paper with normalized fields source=arxiv paper_id=1234.5678v1 pdf_url=http://127.0.0.1:18361/pdf/1234.5678v1.pdf."
+        },
+        {
+          "action": "Feed the returned paper object directly into `download --paper-json` without extra source-specific translation.",
+          "expected": "Source-native retrieval succeeds using normalized source and paper_id fields only.",
+          "observed": "exit 0; state=downloaded; saved PDF to /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/val-cross-003/save/1234.5678v1.pdf."
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "release/group-artifact-e2e/VAL-CROSS-003-terminal.txt"
+        ],
+        "stdout": [
+          "release/group-artifact-e2e/VAL-CROSS-003-search.stdout.json",
+          "release/group-artifact-e2e/VAL-CROSS-003-download.stdout.json"
+        ],
+        "stderr": [
+          "release/group-artifact-e2e/VAL-CROSS-003-search.stderr.txt",
+          "release/group-artifact-e2e/VAL-CROSS-003-download.stderr.txt"
+        ],
+        "paperObject": "release/group-artifact-e2e/VAL-CROSS-003-paper.json",
+        "network": "release/group-artifact-e2e/VAL-CROSS-003-network.jsonl",
+        "createdFiles": [
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/val-cross-003/save/1234.5678v1.pdf"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-004",
+      "title": "Unified search output can drive fallback retrieval directly",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run built CLI search with PAPER_SEARCH_MCP_ARXIV_BASE_URL=http://127.0.0.1:18361/arxiv for a record that only exposes DOI/title metadata.",
+          "expected": "Unified search returns a normalized paper object whose doi/title can be reused directly.",
+          "observed": "exit 0; returned DOI 10.1000/artifact-fallback-1 and title Artifact Fallback Retrieval with no pdf_url."
+        },
+        {
+          "action": "Feed the returned paper object directly into `download --fallback --paper-json` with repository and Unpaywall fixture env vars.",
+          "expected": "Fallback chain uses normalized doi/title fields and succeeds without source-specific schema translation.",
+          "observed": "exit 0; state=downloaded; winning_stage=unpaywall; attempts=['primary:not_found', 'repositories:not_found', 'repositories:not_found', 'repositories:not_found', 'repositories:not_found', 'unpaywall:downloaded']; saved PDF to /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/val-cross-004/save/10.1000-artifact-fallback-1.pdf."
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "release/group-artifact-e2e/VAL-CROSS-004-terminal.txt"
+        ],
+        "stdout": [
+          "release/group-artifact-e2e/VAL-CROSS-004-search.stdout.json",
+          "release/group-artifact-e2e/VAL-CROSS-004-download.stdout.json"
+        ],
+        "stderr": [
+          "release/group-artifact-e2e/VAL-CROSS-004-search.stderr.txt",
+          "release/group-artifact-e2e/VAL-CROSS-004-download.stderr.txt"
+        ],
+        "paperObject": "release/group-artifact-e2e/VAL-CROSS-004-paper.json",
+        "network": "release/group-artifact-e2e/VAL-CROSS-004-network.jsonl",
+        "createdFiles": [
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/val-cross-004/save/10.1000-artifact-fallback-1.pdf"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-007",
+      "title": "Built artifact can execute a real end-to-end flow outside the source tree",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Copy dist/search-paper-cli_linux_amd64/search-paper-cli into an isolated outside-repo directory and run `--help` there.",
+          "expected": "Copied release artifact runs outside the repository and exposes the packaged CLI surface.",
+          "observed": "exit 0; help output listed search, download, read, sources, and version commands from the copied binary in outside-run/bin/search-paper-cli."
+        },
+        {
+          "action": "From the outside-repo directory, run `search --source arxiv \"artifact outside flow\"` using only the outside directory `.env`.",
+          "expected": "Artifact performs search outside the source tree and returns one normalized paper object.",
+          "observed": "exit 0; returned 1 paper with DOI 10.1000/artifact-outside-1."
+        },
+        {
+          "action": "From the outside-repo directory, run `download --fallback --paper-json <search result>` into outside-run/downloads.",
+          "expected": "Artifact completes a realistic end-to-end search + fallback retrieval flow outside the repo.",
+          "observed": "exit 0; state=downloaded; winning_stage=unpaywall; saved PDF to /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/outside-run/downloads/10.1000-artifact-outside-1.pdf."
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "release/group-artifact-e2e/VAL-CROSS-007-terminal.txt"
+        ],
+        "stdout": [
+          "release/group-artifact-e2e/VAL-CROSS-007-help.stdout.txt",
+          "release/group-artifact-e2e/VAL-CROSS-007-search.stdout.json",
+          "release/group-artifact-e2e/VAL-CROSS-007-download.stdout.json"
+        ],
+        "stderr": [
+          "release/group-artifact-e2e/VAL-CROSS-007-help.stderr.txt",
+          "release/group-artifact-e2e/VAL-CROSS-007-search.stderr.txt",
+          "release/group-artifact-e2e/VAL-CROSS-007-download.stderr.txt"
+        ],
+        "paperObject": "release/group-artifact-e2e/VAL-CROSS-007-paper.json",
+        "network": "release/group-artifact-e2e/VAL-CROSS-007-network.jsonl",
+        "createdFiles": [
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/outside-run/bin/search-paper-cli",
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/outside-run/downloads/10.1000-artifact-outside-1.pdf",
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/outside-run/.env"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 3 assertions: 3 passed. Built artifact search output drove native retrieval and fallback retrieval directly, and a copied release artifact completed an outside-repo search-plus-fallback flow successfully."
+}
