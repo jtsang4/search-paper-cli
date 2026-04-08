@@ -57,11 +57,21 @@ const (
 	RetrievalStateFailed                      RetrievalState = "failed"
 )
 
+type RetrievalAttempt struct {
+	Stage   string `json:"stage"`
+	Source  string `json:"source,omitempty"`
+	State   string `json:"state"`
+	Message string `json:"message,omitempty"`
+	Path    string `json:"path,omitempty"`
+}
+
 type RetrievalResult struct {
-	State   RetrievalState `json:"state"`
-	Path    string         `json:"path,omitempty"`
-	Content string         `json:"content,omitempty"`
-	Message string         `json:"message,omitempty"`
+	State        RetrievalState     `json:"state"`
+	Path         string             `json:"path,omitempty"`
+	Content      string             `json:"content,omitempty"`
+	Message      string             `json:"message,omitempty"`
+	WinningStage string             `json:"winning_stage,omitempty"`
+	Attempts     []RetrievalAttempt `json:"attempts"`
 }
 
 type Descriptor struct {
@@ -106,6 +116,7 @@ var definitions = []definition{
 	{id: "pmc", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilitySupported, Read: CapabilitySupported}},
 	{id: "pubmed", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityInformational, Read: CapabilityInformational}},
 	{id: "semantic", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityRecordDependent, Read: CapabilityRecordDependent}},
+	{id: "scihub", capabilities: Capabilities{Search: CapabilityUnsupported, Download: CapabilitySupported, Read: CapabilityUnsupported}},
 	{id: "ssrn", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityRecordDependent, Read: CapabilityRecordDependent}},
 	{id: "unpaywall", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityUnsupported, Read: CapabilityUnsupported}},
 	{id: "zenodo", capabilities: Capabilities{Search: CapabilitySupported, Download: CapabilityRecordDependent, Read: CapabilityRecordDependent}},
@@ -250,8 +261,9 @@ func (s StubConnector) Download(DownloadRequest) (RetrievalResult, error) {
 		return *s.DownloadResult, nil
 	}
 	return RetrievalResult{
-		State:   RetrievalStateUnsupported,
-		Message: fmt.Sprintf("source %q does not implement download in the stub connector", s.Descriptor().ID),
+		State:    RetrievalStateUnsupported,
+		Message:  fmt.Sprintf("source %q does not implement download in the stub connector", s.Descriptor().ID),
+		Attempts: []RetrievalAttempt{},
 	}, nil
 }
 
@@ -263,8 +275,9 @@ func (s StubConnector) Read(ReadRequest) (RetrievalResult, error) {
 		return *s.ReadResult, nil
 	}
 	return RetrievalResult{
-		State:   RetrievalStateUnsupported,
-		Message: fmt.Sprintf("source %q does not implement read in the stub connector", s.Descriptor().ID),
+		State:    RetrievalStateUnsupported,
+		Message:  fmt.Sprintf("source %q does not implement read in the stub connector", s.Descriptor().ID),
+		Attempts: []RetrievalAttempt{},
 	}, nil
 }
 

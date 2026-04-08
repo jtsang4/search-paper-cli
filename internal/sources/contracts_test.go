@@ -113,6 +113,11 @@ func TestConnectorInterfaces(t *testing.T) {
 		if ieee.Capabilities.Search != CapabilitySupported {
 			t.Fatalf("expected ieee search supported with key, got %#v", ieee)
 		}
+
+		scihub := findDescriptor(t, descriptors, "scihub")
+		if !scihub.Enabled || scihub.Capabilities.Download != CapabilitySupported || scihub.Capabilities.Search != CapabilityUnsupported {
+			t.Fatalf("expected scihub descriptor to remain enabled download-only, got %#v", scihub)
+		}
 	})
 
 	t.Run("test helper provides unsupported defaults for retrieval", func(t *testing.T) {

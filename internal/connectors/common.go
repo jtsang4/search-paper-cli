@@ -73,43 +73,49 @@ func searchResult(items []paper.Paper, limit int) sources.SearchResult {
 
 func unsupportedDownload(sourceID string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
-		State:   sources.RetrievalStateUnsupported,
-		Message: fmt.Sprintf("source %q direct download is not supported", sourceID),
+		State:    sources.RetrievalStateUnsupported,
+		Message:  fmt.Sprintf("source %q direct download is not supported", sourceID),
+		Attempts: []sources.RetrievalAttempt{},
 	}, nil
 }
 
 func unsupportedRead(sourceID string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
-		State:   sources.RetrievalStateUnsupported,
-		Message: fmt.Sprintf("source %q direct read is not supported", sourceID),
+		State:    sources.RetrievalStateUnsupported,
+		Message:  fmt.Sprintf("source %q direct read is not supported", sourceID),
+		Attempts: []sources.RetrievalAttempt{},
 	}, nil
 }
 
 func metadataOnlyUnsupportedDownload(sourceID string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
-		State:   sources.RetrievalStateUnsupported,
-		Message: fmt.Sprintf("source %q exposes metadata and OA link hints only; direct download is not supported", sourceID),
+		State:    sources.RetrievalStateUnsupported,
+		Message:  fmt.Sprintf("source %q exposes metadata and OA link hints only; direct download is not supported", sourceID),
+		Attempts: []sources.RetrievalAttempt{},
 	}, nil
 }
 
 func metadataOnlyUnsupportedRead(sourceID string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
-		State:   sources.RetrievalStateUnsupported,
-		Message: fmt.Sprintf("source %q exposes metadata and OA link hints only; direct read is not supported", sourceID),
+		State:    sources.RetrievalStateUnsupported,
+		Message:  fmt.Sprintf("source %q exposes metadata and OA link hints only; direct read is not supported", sourceID),
+		Attempts: []sources.RetrievalAttempt{},
 	}, nil
 }
 
 func gatedSkeletonDownload(sourceID string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
-		State:   sources.RetrievalStateUnsupported,
-		Message: fmt.Sprintf("source %q retrieval is an env-gated skeleton and direct download is not implemented yet", sourceID),
+		State:    sources.RetrievalStateUnsupported,
+		Message:  fmt.Sprintf("source %q retrieval is an env-gated skeleton and direct download is not implemented yet", sourceID),
+		Attempts: []sources.RetrievalAttempt{},
 	}, nil
 }
 
 func gatedSkeletonRead(sourceID string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
-		State:   sources.RetrievalStateUnsupported,
-		Message: fmt.Sprintf("source %q retrieval is an env-gated skeleton and direct read is not implemented yet", sourceID),
+		State:    sources.RetrievalStateUnsupported,
+		Message:  fmt.Sprintf("source %q retrieval is an env-gated skeleton and direct read is not implemented yet", sourceID),
+		Attempts: []sources.RetrievalAttempt{},
 	}, nil
 }
 
@@ -130,30 +136,35 @@ func nativeRead(sourceID string, request sources.ReadRequest) (sources.Retrieval
 	content := extractPDFText(body)
 	if content == "" {
 		return sources.RetrievalResult{
-			State:   sources.RetrievalStateDownloadedButNotExtractable,
-			Path:    result.Path,
-			Message: fmt.Sprintf("source %q downloaded a PDF but no extractable text was detected", sourceID),
+			State:    sources.RetrievalStateDownloadedButNotExtractable,
+			Path:     result.Path,
+			Message:  fmt.Sprintf("source %q downloaded a PDF but no extractable text was detected", sourceID),
+			Attempts: cloneAttempts(result.Attempts),
 		}, nil
 	}
 
 	return sources.RetrievalResult{
-		State:   sources.RetrievalStateExtracted,
-		Path:    result.Path,
-		Content: content,
+		State:        sources.RetrievalStateExtracted,
+		Path:         result.Path,
+		Content:      content,
+		WinningStage: result.WinningStage,
+		Attempts:     cloneAttempts(result.Attempts),
 	}, nil
 }
 
 func informationalRead(sourceID string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
-		State:   sources.RetrievalStateInformational,
-		Message: fmt.Sprintf("source %q only exposes metadata through search at this stage", sourceID),
+		State:    sources.RetrievalStateInformational,
+		Message:  fmt.Sprintf("source %q only exposes metadata through search at this stage", sourceID),
+		Attempts: []sources.RetrievalAttempt{},
 	}, nil
 }
 
 func informationalDownload(sourceID string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
-		State:   sources.RetrievalStateInformational,
-		Message: fmt.Sprintf("source %q does not provide direct download through search metadata", sourceID),
+		State:    sources.RetrievalStateInformational,
+		Message:  fmt.Sprintf("source %q does not provide direct download through search metadata", sourceID),
+		Attempts: []sources.RetrievalAttempt{},
 	}, nil
 }
 
@@ -323,8 +334,9 @@ func retrievePaperPDF(sourceID string, p paper.Paper, saveDir string) (sources.R
 	pdfURL := retrievalPDFURL(p)
 	if pdfURL == "" {
 		return sources.RetrievalResult{
-			State:   sources.RetrievalStateNotFound,
-			Message: fmt.Sprintf("source %q does not expose a public PDF for this record", sourceID),
+			State:    sources.RetrievalStateNotFound,
+			Message:  fmt.Sprintf("source %q does not expose a public PDF for this record", sourceID),
+			Attempts: []sources.RetrievalAttempt{},
 		}, nil, nil
 	}
 
@@ -344,20 +356,23 @@ func retrievePaperPDF(sourceID string, p paper.Paper, saveDir string) (sources.R
 	}
 	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusUnauthorized {
 		return sources.RetrievalResult{
-			State:   sources.RetrievalStateNotFound,
-			Message: fmt.Sprintf("source %q does not expose a public PDF for this record", sourceID),
+			State:    sources.RetrievalStateNotFound,
+			Message:  fmt.Sprintf("source %q does not expose a public PDF for this record", sourceID),
+			Attempts: []sources.RetrievalAttempt{},
 		}, nil, nil
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return sources.RetrievalResult{
-			State:   sources.RetrievalStateFailed,
-			Message: fmt.Sprintf("source %q returned unexpected status %d", sourceID, resp.StatusCode),
+			State:    sources.RetrievalStateFailed,
+			Message:  fmt.Sprintf("source %q returned unexpected status %d", sourceID, resp.StatusCode),
+			Attempts: []sources.RetrievalAttempt{},
 		}, nil, nil
 	}
 	if !looksLikePDF(resp.Header.Get("Content-Type"), pdfURL, body) {
 		return sources.RetrievalResult{
-			State:   sources.RetrievalStateNotFound,
-			Message: fmt.Sprintf("source %q did not provide a public PDF for this record", sourceID),
+			State:    sources.RetrievalStateNotFound,
+			Message:  fmt.Sprintf("source %q did not provide a public PDF for this record", sourceID),
+			Attempts: []sources.RetrievalAttempt{},
 		}, nil, nil
 	}
 
@@ -373,9 +388,20 @@ func retrievePaperPDF(sourceID string, p paper.Paper, saveDir string) (sources.R
 	}
 
 	return sources.RetrievalResult{
-		State: sources.RetrievalStateDownloaded,
-		Path:  targetPath,
+		State:        sources.RetrievalStateDownloaded,
+		Path:         targetPath,
+		Attempts:     []sources.RetrievalAttempt{},
+		WinningStage: "",
 	}, body, nil
+}
+
+func cloneAttempts(attempts []sources.RetrievalAttempt) []sources.RetrievalAttempt {
+	if len(attempts) == 0 {
+		return []sources.RetrievalAttempt{}
+	}
+	cloned := make([]sources.RetrievalAttempt, len(attempts))
+	copy(cloned, attempts)
+	return cloned
 }
 
 func retrievalPDFURL(p paper.Paper) string {

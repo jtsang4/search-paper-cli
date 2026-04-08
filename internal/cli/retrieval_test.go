@@ -8,25 +8,28 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/jtsang4/search-paper-cli/internal/config"
 	"github.com/jtsang4/search-paper-cli/internal/connectors"
+	"github.com/jtsang4/search-paper-cli/internal/paper"
 	"github.com/jtsang4/search-paper-cli/internal/sources"
 )
 
 type retrievalCommandResponse struct {
-	Status    string `json:"status"`
-	Operation string `json:"operation"`
-	State     string `json:"state"`
-	Source    string `json:"source"`
-	PaperID   string `json:"paper_id"`
-	Path      string `json:"path"`
-	Content   string `json:"content"`
-	Message   string `json:"message"`
-	Attempts  []any  `json:"attempts"`
+	Status       string `json:"status"`
+	Operation    string `json:"operation"`
+	State        string `json:"state"`
+	Source       string `json:"source"`
+	PaperID      string `json:"paper_id"`
+	Path         string `json:"path"`
+	Content      string `json:"content"`
+	Message      string `json:"message"`
+	WinningStage string `json:"winning_stage"`
+	Attempts     []any  `json:"attempts"`
 }
 
 func TestNativeDownloadSavePath(t *testing.T) {
@@ -614,6 +617,319 @@ func TestIEEEACMRetrievalSkeletons(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRepositoryFallbackWins(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repository.pdf":
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(minimalPDF("Repository fallback text"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	saveDir := filepath.Join(t.TempDir(), "repository-fallback")
+	paperJSON := `{"paper_id":"1234.5678","title":"Repository Winner","doi":"10.1000/repository-wins","source":"arxiv"}`
+
+	connectorFactory := func(id string, cfg config.Config) (sources.Connector, error) {
+		switch id {
+		case "arxiv":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: "arxiv", Enabled: true, Capabilities: sources.Capabilities{Download: sources.CapabilitySupported, Read: sources.CapabilitySupported}},
+				DownloadResult:  &sources.RetrievalResult{State: sources.RetrievalStateNotFound, Message: "primary failed"},
+			}), nil
+		case "openaire":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: "openaire", Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+				SearchResults: []paper.Paper{{
+					PaperID: "repo-1",
+					Title:   "Repository Winner",
+					PDFURL:  server.URL + "/repository.pdf",
+					Source:  "openaire",
+				}},
+			}), nil
+		case "core", "europepmc", "pmc", "unpaywall":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+			}), nil
+		default:
+			return connectors.New(id, cfg)
+		}
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"download", "--fallback", "--allow-scihub", "--source", "arxiv", "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
+		workingDir:       t.TempDir(),
+		repositoryRoot:   t.TempDir(),
+		connectorFactory: connectorFactory,
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	payload := decodeRetrievalResponse(t, stdout.Bytes())
+	if payload.State != "downloaded" || payload.WinningStage != "repositories" {
+		t.Fatalf("expected repository fallback success, got %#v", payload)
+	}
+	if payload.Path == "" || !strings.HasPrefix(payload.Path, saveDir+string(os.PathSeparator)) {
+		t.Fatalf("expected saved path inside %q, got %#v", saveDir, payload)
+	}
+	if stages := attemptStages(payload.Attempts); !slices.Equal(stages, []string{"primary", "repositories"}) {
+		t.Fatalf("expected repository win to short-circuit later stages, got %#v", payload.Attempts)
+	}
+	if repositoryAttempt := decodeAttempt(t, payload.Attempts[1]); repositoryAttempt.Source != "openaire" || repositoryAttempt.Path == "" {
+		t.Fatalf("expected repository attempt details, got %#v", repositoryAttempt)
+	}
+}
+
+func TestUnpaywallAfterRepositoryMiss(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/unpaywall.pdf":
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(minimalPDF("Unpaywall fallback text"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	saveDir := filepath.Join(t.TempDir(), "unpaywall-fallback")
+	paperJSON := `{"paper_id":"1234.5678","title":"Unpaywall Winner","doi":"10.1000/unpaywall-wins","source":"arxiv"}`
+
+	connectorFactory := func(id string, cfg config.Config) (sources.Connector, error) {
+		switch id {
+		case "arxiv":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: "arxiv", Enabled: true, Capabilities: sources.Capabilities{Download: sources.CapabilitySupported}},
+				DownloadResult:  &sources.RetrievalResult{State: sources.RetrievalStateNotFound, Message: "primary failed"},
+			}), nil
+		case "openaire", "core", "europepmc", "pmc":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+			}), nil
+		case "unpaywall":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: "unpaywall", Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+				SearchResults: []paper.Paper{{
+					PaperID: "10.1000/unpaywall-wins",
+					Title:   "Unpaywall Winner",
+					DOI:     "10.1000/unpaywall-wins",
+					PDFURL:  server.URL + "/unpaywall.pdf",
+					Source:  "unpaywall",
+				}},
+			}), nil
+		default:
+			return connectors.New(id, cfg)
+		}
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"download", "--fallback", "--source", "arxiv", "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
+		environ:          []string{"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com"},
+		workingDir:       t.TempDir(),
+		repositoryRoot:   t.TempDir(),
+		connectorFactory: connectorFactory,
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	payload := decodeRetrievalResponse(t, stdout.Bytes())
+	if payload.State != "downloaded" || payload.WinningStage != "unpaywall" {
+		t.Fatalf("expected unpaywall fallback success, got %#v", payload)
+	}
+	if payload.Path == "" || !strings.HasPrefix(payload.Path, saveDir+string(os.PathSeparator)) {
+		t.Fatalf("expected path inside save dir %q, got %#v", saveDir, payload)
+	}
+	if stages := attemptStages(payload.Attempts); !slices.Equal(stages, []string{"primary", "repositories", "repositories", "repositories", "repositories", "unpaywall"}) {
+		t.Fatalf("expected repository attempts before unpaywall success, got %#v", payload.Attempts)
+	}
+}
+
+func TestSciHubDisabledStopsChain(t *testing.T) {
+	t.Parallel()
+
+	saveDir := filepath.Join(t.TempDir(), "disabled-scihub")
+	paperJSON := `{"paper_id":"1234.5678","title":"OA Failure","doi":"10.1000/oa-failure","source":"arxiv"}`
+
+	connectorFactory := func(id string, cfg config.Config) (sources.Connector, error) {
+		switch id {
+		case "arxiv":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: "arxiv", Enabled: true, Capabilities: sources.Capabilities{Download: sources.CapabilitySupported}},
+				DownloadResult:  &sources.RetrievalResult{State: sources.RetrievalStateNotFound, Message: "primary failed"},
+			}), nil
+		case "openaire", "core", "europepmc", "pmc", "unpaywall":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+			}), nil
+		default:
+			return connectors.New(id, cfg)
+		}
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"download", "--fallback", "--source", "arxiv", "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
+		environ:          []string{"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com"},
+		workingDir:       t.TempDir(),
+		repositoryRoot:   t.TempDir(),
+		connectorFactory: connectorFactory,
+	})
+	if exitCode != exitCodeRuntimeError {
+		t.Fatalf("expected exit code %d, got %d with stdout=%q stderr=%q", exitCodeRuntimeError, exitCode, stdout.String(), stderr.String())
+	}
+
+	payload := decodeRetrievalResponse(t, stdout.Bytes())
+	if payload.State != "failed" || payload.WinningStage != "" {
+		t.Fatalf("expected terminal OA-chain failure, got %#v", payload)
+	}
+	if !strings.Contains(strings.ToLower(payload.Message), "oa fallback chain") {
+		t.Fatalf("expected OA-chain failure message, got %#v", payload)
+	}
+	for _, attempt := range payload.Attempts {
+		if decodeAttempt(t, attempt).Stage == "scihub" {
+			t.Fatalf("expected no scihub attempt when disabled, got %#v", payload.Attempts)
+		}
+	}
+}
+
+func TestMissingDOIReported(t *testing.T) {
+	t.Parallel()
+
+	saveDir := filepath.Join(t.TempDir(), "missing-doi")
+	paperJSON := `{"paper_id":"1234.5678","title":"Missing DOI","source":"arxiv"}`
+
+	connectorFactory := func(id string, cfg config.Config) (sources.Connector, error) {
+		switch id {
+		case "arxiv":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: "arxiv", Enabled: true, Capabilities: sources.Capabilities{Download: sources.CapabilitySupported}},
+				DownloadResult:  &sources.RetrievalResult{State: sources.RetrievalStateNotFound, Message: "primary failed"},
+			}), nil
+		case "openaire", "core", "europepmc", "pmc":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+			}), nil
+		default:
+			return connectors.New(id, cfg)
+		}
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"download", "--fallback", "--source", "arxiv", "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
+		workingDir:       t.TempDir(),
+		repositoryRoot:   t.TempDir(),
+		connectorFactory: connectorFactory,
+	})
+	if exitCode != exitCodeRuntimeError {
+		t.Fatalf("expected exit code %d, got %d with stdout=%q stderr=%q", exitCodeRuntimeError, exitCode, stdout.String(), stderr.String())
+	}
+
+	payload := decodeRetrievalResponse(t, stdout.Bytes())
+	found := false
+	for _, attempt := range payload.Attempts {
+		item := decodeAttempt(t, attempt)
+		if item.Stage == "unpaywall" {
+			found = true
+			if item.State != "skipped" || !strings.Contains(strings.ToLower(item.Message), "doi not provided") {
+				t.Fatalf("expected missing DOI detail on unpaywall attempt, got %#v", item)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected unpaywall attempt details, got %#v", payload.Attempts)
+	}
+}
+
+func TestSciHubDirectRetrieval(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/10.1000/test":
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write([]byte(`<html><body><embed type="application/pdf" src="/pdfs/test.pdf"></body></html>`))
+		case "/pdfs/test.pdf":
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(minimalPDF("SciHub direct retrieval"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	saveDir := filepath.Join(t.TempDir(), "scihub")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"download", "--source", "scihub", "--paper-id", "10.1000/test", "--doi", "10.1000/test", "--save-dir", saveDir, "--scihub-base-url", server.URL}, &stdout, &stderr, runOptions{
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	payload := decodeRetrievalResponse(t, stdout.Bytes())
+	if payload.State != "downloaded" || payload.WinningStage != "scihub" {
+		t.Fatalf("expected scihub direct success, got %#v", payload)
+	}
+	if payload.Path == "" || !strings.HasPrefix(payload.Path, saveDir+string(os.PathSeparator)) {
+		t.Fatalf("expected scihub path inside %q, got %#v", saveDir, payload)
+	}
+	if stages := attemptStages(payload.Attempts); !slices.Equal(stages, []string{"scihub"}) {
+		t.Fatalf("expected only scihub attempt, got %#v", payload.Attempts)
+	}
+}
+
+type retrievalAttemptPayload struct {
+	Stage   string `json:"stage"`
+	Source  string `json:"source"`
+	State   string `json:"state"`
+	Message string `json:"message"`
+	Path    string `json:"path"`
+}
+
+func decodeAttempt(t *testing.T, value any) retrievalAttemptPayload {
+	t.Helper()
+
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("marshal attempt: %v", err)
+	}
+	var payload retrievalAttemptPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("unmarshal attempt: %v", err)
+	}
+	return payload
+}
+
+func attemptStages(attempts []any) []string {
+	stages := make([]string, 0, len(attempts))
+	for _, attempt := range attempts {
+		data, err := json.Marshal(attempt)
+		if err != nil {
+			continue
+		}
+		var payload retrievalAttemptPayload
+		if err := json.Unmarshal(data, &payload); err != nil {
+			continue
+		}
+		stages = append(stages, payload.Stage)
+	}
+	return stages
 }
 
 func decodeRetrievalResponse(t *testing.T, data []byte) retrievalCommandResponse {

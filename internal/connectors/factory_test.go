@@ -30,6 +30,7 @@ func TestConnectorFactoryFirstWave(t *testing.T) {
 		"pmc",
 		"pubmed",
 		"semantic",
+		"scihub",
 		"ssrn",
 		"unpaywall",
 		"zenodo",

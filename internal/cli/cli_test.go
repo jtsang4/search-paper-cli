@@ -256,6 +256,7 @@ func TestSourcesJSON(t *testing.T) {
 		"pmc",
 		"pubmed",
 		"semantic",
+		"scihub",
 		"ssrn",
 		"unpaywall",
 		"zenodo",
@@ -329,6 +330,7 @@ func TestCapabilityRegistry(t *testing.T) {
 	assertSourceCapability(t, payload.Sources, "arxiv", true, "", "supported", "supported", "supported")
 	assertSourceCapability(t, payload.Sources, "crossref", true, "", "supported", "informational", "informational")
 	assertSourceCapability(t, payload.Sources, "dblp", true, "", "supported", "unsupported", "unsupported")
+	assertSourceCapability(t, payload.Sources, "scihub", true, "", "unsupported", "supported", "unsupported")
 	assertSourceCapability(t, payload.Sources, "ssrn", true, "", "supported", "record_dependent", "record_dependent")
 }
 

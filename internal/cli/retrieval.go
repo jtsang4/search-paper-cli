@@ -16,15 +16,16 @@ import (
 )
 
 type retrievalResponse struct {
-	Status    string `json:"status"`
-	Operation string `json:"operation"`
-	State     string `json:"state"`
-	Source    string `json:"source"`
-	PaperID   string `json:"paper_id"`
-	Path      string `json:"path,omitempty"`
-	Content   string `json:"content,omitempty"`
-	Message   string `json:"message,omitempty"`
-	Attempts  []any  `json:"attempts"`
+	Status       string                     `json:"status"`
+	Operation    string                     `json:"operation"`
+	State        string                     `json:"state"`
+	Source       string                     `json:"source"`
+	PaperID      string                     `json:"paper_id"`
+	Path         string                     `json:"path,omitempty"`
+	Content      string                     `json:"content,omitempty"`
+	Message      string                     `json:"message,omitempty"`
+	WinningStage string                     `json:"winning_stage,omitempty"`
+	Attempts     []sources.RetrievalAttempt `json:"attempts"`
 }
 
 func runDownloadCommand(args []string, stdout, stderr io.Writer, opts runOptions) int {
@@ -55,6 +56,9 @@ func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writ
 	doi := flags.String("doi", "", "Paper DOI.")
 	pdfURL := flags.String("pdf-url", "", "Direct PDF URL.")
 	urlValue := flags.String("url", "", "Landing page URL.")
+	fallback := flags.Bool("fallback", false, "Use OA-first fallback retrieval.")
+	allowSciHub := flags.Bool("allow-scihub", false, "Allow optional Sci-Hub fallback when OA stages fail.")
+	sciHubBaseURL := flags.String("scihub-base-url", "https://sci-hub.se", "Sci-Hub mirror URL for direct/fallback retrieval.")
 	if err := flags.Parse(args); err != nil {
 		return writeInvalidUsage(stdout, normalizeFlagError(err), map[string]any{
 			"command": operation,
@@ -108,27 +112,31 @@ func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writ
 	}
 	resolvedSaveDir = filepath.Clean(resolvedSaveDir)
 
-	descriptor, ok := lookupSourceDescriptor(cfg, p.Source)
-	if !ok {
-		return writeError(stdout, errorResponse{
-			Status: "error",
-			Error: struct {
-				Code    string         `json:"code"`
-				Message string         `json:"message"`
-				Details map[string]any `json:"details,omitempty"`
-			}{
-				Code:    "invalid_source",
-				Message: fmt.Sprintf("unknown source %q", p.Source),
-				Details: map[string]any{"invalid_source": p.Source, "valid_sources": sources.ValidIDs()},
-			},
-		}, exitCodeInvalidUsage)
-	}
-	if !descriptor.Enabled && capabilityForOperation(descriptor, operation) == sources.CapabilityGated {
-		return writeUnsupportedError(stdout, "gated_source", fmt.Sprintf("requested source %q is gated for %s", p.Source, operation), map[string]any{
-			"source":  p.Source,
-			"reason":  descriptor.DisableReason,
-			"command": operation,
-		})
+	var descriptor sources.Descriptor
+	var ok bool
+	if p.Source != "scihub" {
+		descriptor, ok = lookupSourceDescriptor(cfg, p.Source)
+		if !ok {
+			return writeError(stdout, errorResponse{
+				Status: "error",
+				Error: struct {
+					Code    string         `json:"code"`
+					Message string         `json:"message"`
+					Details map[string]any `json:"details,omitempty"`
+				}{
+					Code:    "invalid_source",
+					Message: fmt.Sprintf("unknown source %q", p.Source),
+					Details: map[string]any{"invalid_source": p.Source, "valid_sources": sources.ValidIDs()},
+				},
+			}, exitCodeInvalidUsage)
+		}
+		if !descriptor.Enabled && capabilityForOperation(descriptor, operation) == sources.CapabilityGated {
+			return writeUnsupportedError(stdout, "gated_source", fmt.Sprintf("requested source %q is gated for %s", p.Source, operation), map[string]any{
+				"source":  p.Source,
+				"reason":  descriptor.DisableReason,
+				"command": operation,
+			})
+		}
 	}
 
 	factory := opts.connectorFactory
@@ -136,39 +144,60 @@ func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writ
 		factory = connectors.New
 	}
 
-	connector, err := factory(p.Source, cfg)
-	if err != nil {
-		return writeRuntimeError(stdout, err.Error())
-	}
-
 	var result sources.RetrievalResult
-	switch operation {
-	case "download":
-		result, err = connector.Download(sources.DownloadRequest{Paper: p, SaveDir: resolvedSaveDir})
-	case "read":
-		result, err = connector.Read(sources.ReadRequest{Paper: p, SaveDir: resolvedSaveDir})
+	var resultErr error
+	switch {
+	case operation == "download" && *fallback:
+		result, resultErr = connectors.DownloadWithFallback(cfg, factory, p.Source, p, resolvedSaveDir, *allowSciHub, *sciHubBaseURL)
+	case operation == "download" && p.Source == "scihub":
+		result, resultErr = connectors.DownloadSciHub(firstNonEmptyString(p.DOI, p.Title, p.PaperID, p.URL), resolvedSaveDir, *sciHubBaseURL)
+		if resultErr == nil {
+			result.WinningStage = "scihub"
+			result.Attempts = []sources.RetrievalAttempt{{
+				Stage:   "scihub",
+				Source:  "scihub",
+				State:   string(result.State),
+				Message: result.Message,
+				Path:    result.Path,
+			}}
+		}
 	default:
-		return writeRuntimeError(stdout, "unknown retrieval operation")
+		connector, connectorErr := factory(p.Source, cfg)
+		if connectorErr != nil {
+			return writeRuntimeError(stdout, connectorErr.Error())
+		}
+		switch operation {
+		case "download":
+			result, resultErr = connector.Download(sources.DownloadRequest{Paper: p, SaveDir: resolvedSaveDir})
+		case "read":
+			result, resultErr = connector.Read(sources.ReadRequest{Paper: p, SaveDir: resolvedSaveDir})
+		default:
+			return writeRuntimeError(stdout, "unknown retrieval operation")
+		}
 	}
-	if err != nil {
-		return writeRuntimeError(stdout, err.Error())
+	if resultErr != nil {
+		return writeRuntimeError(stdout, resultErr.Error())
 	}
 	if result.Path != "" {
 		if _, err := os.Stat(result.Path); err != nil {
 			return writeRuntimeError(stdout, fmt.Sprintf("retrieval reported path %q but the file does not exist", result.Path))
 		}
 	}
+	if result.Attempts == nil {
+		result.Attempts = []sources.RetrievalAttempt{}
+	}
 
 	response := retrievalResponse{
-		Status:    "ok",
-		Operation: operation,
-		State:     string(result.State),
-		Source:    p.Source,
-		PaperID:   p.PaperID,
-		Path:      result.Path,
-		Content:   result.Content,
-		Message:   result.Message,
-		Attempts:  []any{},
+		Status:       "ok",
+		Operation:    operation,
+		State:        string(result.State),
+		Source:       p.Source,
+		PaperID:      p.PaperID,
+		Path:         result.Path,
+		Content:      result.Content,
+		Message:      result.Message,
+		WinningStage: result.WinningStage,
+		Attempts:     result.Attempts,
 	}
 
 	if outputFormat(*format) == formatText {
@@ -306,4 +335,13 @@ func renderRetrievalText(response retrievalResponse) string {
 		b.WriteString(fmt.Sprintf("content: %s\n", response.Content))
 	}
 	return b.String()
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }

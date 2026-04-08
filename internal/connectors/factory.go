@@ -56,6 +56,8 @@ func New(id string, cfg config.Config) (sources.Connector, error) {
 		return NewZenodo(), nil
 	case "hal":
 		return NewHAL(), nil
+	case "scihub":
+		return NewSciHub(), nil
 	default:
 		return nil, fmt.Errorf("connector %q is not implemented", id)
 	}
