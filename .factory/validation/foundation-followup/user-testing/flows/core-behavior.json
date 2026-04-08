@@ -1,0 +1,375 @@
+{
+  "groupId": "core-behavior",
+  "testedAt": "2026-04-08T12:30:00Z",
+  "isolation": {
+    "milestone": "foundation-followup",
+    "workingDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
+    "outputDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/output",
+    "builtCli": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+    "envMode": "clean env via env -i equivalent with PATH, HOME, TMPDIR, PAPER_SEARCH_MCP_ENV_FILE=/dev/null only"
+  },
+  "toolsUsed": [
+    "shell/cli"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-FOUNDATION-001",
+      "title": "Root help is discoverable",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run root help in a clean environment",
+          "command": [
+            "env",
+            "-i",
+            "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
+            "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
+            "TMPDIR=/tmp",
+            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+            "--help"
+          ],
+          "expected": "Exit 0 with usage text listing search, download, read, sources, and version; stderr empty",
+          "observed": "exit=0; stdout includes Usage and commands search/download/read/sources/version; stderr=empty"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation-followup/core-behavior/help.stdout.txt",
+          "foundation-followup/core-behavior/help.stderr.txt"
+        ],
+        "stdoutSummary": [
+          "Usage:",
+          "  search-paper-cli <command> [flags]",
+          "  search-paper-cli --version",
+          "",
+          "Commands:",
+          "  sources    List configured paper sources.",
+          "  search     Search for papers across one or more sources.",
+          "  download   Download paper full text when supported.",
+          "  read       Read paper content when supported.",
+          "  version    Print the CLI version."
+        ],
+        "stderr": "",
+        "exitCodes": {
+          "help": 0
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-FOUNDATION-002",
+      "title": "Version works without configuration",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run version subcommand in a clean environment",
+          "command": [
+            "env",
+            "-i",
+            "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
+            "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
+            "TMPDIR=/tmp",
+            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+            "version"
+          ],
+          "expected": "Exit 0 and print concise version string without requiring configuration",
+          "observed": "exit=0; stdout='search-paper-cli dev'; stderr=empty"
+        },
+        {
+          "action": "Run --version flag in the same clean environment",
+          "command": [
+            "env",
+            "-i",
+            "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
+            "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
+            "TMPDIR=/tmp",
+            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+            "--version"
+          ],
+          "expected": "Exit 0 and print the same concise version string",
+          "observed": "exit=0; stdout='search-paper-cli dev'; stderr=empty"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation-followup/core-behavior/version_cmd.stdout.txt",
+          "foundation-followup/core-behavior/version_cmd.stderr.txt",
+          "foundation-followup/core-behavior/version_flag.stdout.txt",
+          "foundation-followup/core-behavior/version_flag.stderr.txt"
+        ],
+        "stdoutValues": {
+          "version": "search-paper-cli dev",
+          "--version": "search-paper-cli dev"
+        },
+        "stderrValues": {
+          "version": "",
+          "--version": ""
+        },
+        "exitCodes": {
+          "version": 0,
+          "--version": 0
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-FOUNDATION-003",
+      "title": "`sources` defaults to machine-readable JSON",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run sources once in a clean environment",
+          "command": [
+            "env",
+            "-i",
+            "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
+            "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
+            "TMPDIR=/tmp",
+            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+            "sources"
+          ],
+          "expected": "Exit 0 and emit valid JSON with a stable top-level source collection",
+          "observed": "exit=0; parsed JSON with top-level keys ['sources', 'status']; source count=24; stderr=empty"
+        },
+        {
+          "action": "Run sources a second time in the same clean environment",
+          "command": [
+            "env",
+            "-i",
+            "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
+            "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
+            "TMPDIR=/tmp",
+            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+            "sources"
+          ],
+          "expected": "Repeat run preserves ordering and schema",
+          "observed": "exit=0; second parsed source count=24; ordering stable=True; stderr=empty"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation-followup/core-behavior/sources_json_1.stdout.txt",
+          "foundation-followup/core-behavior/sources_json_1.stderr.txt",
+          "foundation-followup/core-behavior/sources_json_2.stdout.txt",
+          "foundation-followup/core-behavior/sources_json_2.stderr.txt"
+        ],
+        "orderingRun1": [
+          "acm",
+          "arxiv",
+          "base",
+          "biorxiv",
+          "citeseerx",
+          "core",
+          "crossref",
+          "dblp",
+          "doaj",
+          "europepmc",
+          "google-scholar",
+          "hal",
+          "iacr",
+          "ieee",
+          "medrxiv",
+          "openalex",
+          "openaire",
+          "pmc",
+          "pubmed",
+          "semantic",
+          "scihub",
+          "ssrn",
+          "unpaywall",
+          "zenodo"
+        ],
+        "orderingRun2": [
+          "acm",
+          "arxiv",
+          "base",
+          "biorxiv",
+          "citeseerx",
+          "core",
+          "crossref",
+          "dblp",
+          "doaj",
+          "europepmc",
+          "google-scholar",
+          "hal",
+          "iacr",
+          "ieee",
+          "medrxiv",
+          "openalex",
+          "openaire",
+          "pmc",
+          "pubmed",
+          "semantic",
+          "scihub",
+          "ssrn",
+          "unpaywall",
+          "zenodo"
+        ],
+        "schemaKeys": [
+          "sources",
+          "status"
+        ],
+        "exitCodes": {
+          "sources_run_1": 0,
+          "sources_run_2": 0
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-FOUNDATION-004",
+      "title": "`--format text` is human-readable",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run sources in text format in a clean environment",
+          "command": [
+            "env",
+            "-i",
+            "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
+            "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
+            "TMPDIR=/tmp",
+            "PAPER_SEARCH_MCP_ENV_FILE=/dev/null",
+            "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+            "sources",
+            "--format",
+            "text"
+          ],
+          "expected": "Exit 0 with readable text output instead of JSON while showing source ids, enabled state, and capabilities",
+          "observed": "exit=0; output starts with ['acm', '  enabled: false', '  disable_reason: missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY', '  capabilities:', '    search: gated', '    download: gated', '    read: gated', 'arxiv']; valid_json=False; stderr=empty"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation-followup/core-behavior/sources_text.stdout.txt",
+          "foundation-followup/core-behavior/sources_text.stderr.txt"
+        ],
+        "textPreview": [
+          "acm",
+          "  enabled: false",
+          "  disable_reason: missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY",
+          "  capabilities:",
+          "    search: gated",
+          "    download: gated",
+          "    read: gated",
+          "arxiv",
+          "  enabled: true",
+          "  capabilities:",
+          "    search: supported",
+          "    download: supported",
+          "    read: supported",
+          "base",
+          "  enabled: true",
+          "  capabilities:",
+          "    search: supported",
+          "    download: record_dependent",
+          "    read: record_dependent",
+          "biorxiv"
+        ],
+        "stderr": "",
+        "exitCodes": {
+          "sources_text": 0
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-FOUNDATION-005",
+      "title": "Source registry exposes capability state",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect parsed sources JSON from clean-env sources run",
+          "expected": "Every source entry has enabled/disabled state, disablement reason field, and search/download/read capability state fields",
+          "observed": "validated 24 sources; missing_fields=none"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation-followup/core-behavior/sources_json_1.stdout.txt"
+        ],
+        "sourceCount": 24,
+        "sampleSources": {
+          "acm": {
+            "id": "acm",
+            "enabled": false,
+            "disable_reason": "missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY",
+            "capabilities": {
+              "search": "gated",
+              "download": "gated",
+              "read": "gated"
+            }
+          },
+          "arxiv": {
+            "id": "arxiv",
+            "enabled": true,
+            "disable_reason": "",
+            "capabilities": {
+              "search": "supported",
+              "download": "supported",
+              "read": "supported"
+            }
+          },
+          "base": {
+            "id": "base",
+            "enabled": true,
+            "disable_reason": "",
+            "capabilities": {
+              "search": "supported",
+              "download": "record_dependent",
+              "read": "record_dependent"
+            }
+          }
+        },
+        "missingFields": []
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-FOUNDATION-006",
+      "title": "IEEE and ACM are gated off by default",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect clean-env sources JSON for ACM and IEEE entries",
+          "expected": "Both sources are disabled without API keys and include explicit missing-key gating reasons",
+          "observed": "acm enabled=False disable_reason='missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY'; ieee enabled=False disable_reason='missing required credential: PAPER_SEARCH_MCP_IEEE_API_KEY'"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation-followup/core-behavior/sources_json_1.stdout.txt"
+        ],
+        "acm": {
+          "id": "acm",
+          "enabled": false,
+          "disable_reason": "missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY",
+          "capabilities": {
+            "search": "gated",
+            "download": "gated",
+            "read": "gated"
+          }
+        },
+        "ieee": {
+          "id": "ieee",
+          "enabled": false,
+          "disable_reason": "missing required credential: PAPER_SEARCH_MCP_IEEE_API_KEY",
+          "capabilities": {
+            "search": "gated",
+            "download": "gated",
+            "read": "gated"
+          }
+        }
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 6 assertions through the built CLI in a clean environment: 6 passed, 0 failed, 0 blocked."
+}

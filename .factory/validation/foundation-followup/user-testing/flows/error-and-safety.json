@@ -1,0 +1,158 @@
+{
+  "groupId": "error-and-safety",
+  "testedAt": "2026-04-08T04:33:52Z",
+  "isolation": {
+    "workingDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/error-and-safety/work",
+    "outputDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/error-and-safety/output",
+    "evidenceDirectory": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/foundation-followup/error-and-safety",
+    "binaryPath": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli"
+  },
+  "toolsUsed": [
+    "shell/cli"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-FOUNDATION-009",
+      "title": "Invalid source names fail cleanly",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `search-paper-cli sources --source nope` from the assigned isolated working directory.",
+          "expected": "Command exits non-zero with structured `invalid_source` JSON naming the bad value and listing valid source ids, with no panic text.",
+          "observed": "Exit 2; stdout={\"status\":\"error\",\"error\":{\"code\":\"invalid_source\",\"message\":\"unknown source \\\"nope\\\"\",\"details\":{\"invalid_source\":\"nope\",\"valid_sources\":[\"acm\",\"arxiv\",\"base\",\"biorxiv\",\"citeseerx\",\"core\",\"crossref\",\"dblp\",\"doaj\",\"eu...; stderr="
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation-followup/error-and-safety/val009_invalid_source.transcript.txt"
+        ],
+        "commandResults": [
+          {
+            "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources --source nope",
+            "exitCode": 2,
+            "stdoutObservation": "{\"status\":\"error\",\"error\":{\"code\":\"invalid_source\",\"message\":\"unknown source \\\"nope\\\"\",\"details\":{\"invalid_source\":\"nope\",\"valid_sources\":[\"acm\",\"arxiv\",\"base\",\"biorxiv\",\"citeseerx\",\"core\",\"crossref\",\"dblp\",\"doaj\",\"eu...",
+            "stderrObservation": ""
+          }
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-FOUNDATION-011",
+      "title": "Root misuse fails cleanly",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `search-paper-cli` with no subcommand.",
+          "expected": "Command exits non-zero and returns help text or structured error without panic output.",
+          "observed": "Exit 2; stdout=; stderr=Usage:\\n  search-paper-cli <command> [flags]\\n  search-paper-cli --version\\n\\nCommands:\\n  sources    List configured paper sources.\\n  search     Search for papers across one or more sources.\\n  download   Download p..."
+        },
+        {
+          "action": "Run `search-paper-cli nope` with an unknown command.",
+          "expected": "Command exits non-zero with structured invalid usage output and no panic output.",
+          "observed": "Exit 2; stdout={\"status\":\"error\",\"error\":{\"code\":\"invalid_usage\",\"message\":\"unknown command \\\"nope\\\"\",\"details\":{\"valid_commands\":[\"sources\",\"search\",\"download\",\"read\",\"version\"]}}}\\n; stderr="
+        },
+        {
+          "action": "Run `search-paper-cli --bogus` with an unknown global flag.",
+          "expected": "Command exits non-zero with structured invalid usage output and no panic output.",
+          "observed": "Exit 2; stdout={\"status\":\"error\",\"error\":{\"code\":\"invalid_usage\",\"message\":\"unknown flag \\\"-bogus\\\"\"}}\\n; stderr="
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation-followup/error-and-safety/val011_no_subcommand.transcript.txt",
+          "foundation-followup/error-and-safety/val011_unknown_command.transcript.txt",
+          "foundation-followup/error-and-safety/val011_unknown_global_flag.transcript.txt"
+        ],
+        "commandResults": [
+          {
+            "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+            "exitCode": 2,
+            "stdoutObservation": "",
+            "stderrObservation": "Usage:\\n  search-paper-cli <command> [flags]\\n  search-paper-cli --version\\n\\nCommands:\\n  sources    List configured paper sources.\\n  search     Search for papers across one or more sources.\\n  download   Download p..."
+          },
+          {
+            "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli nope",
+            "exitCode": 2,
+            "stdoutObservation": "{\"status\":\"error\",\"error\":{\"code\":\"invalid_usage\",\"message\":\"unknown command \\\"nope\\\"\",\"details\":{\"valid_commands\":[\"sources\",\"search\",\"download\",\"read\",\"version\"]}}}\\n",
+            "stderrObservation": ""
+          },
+          {
+            "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli --bogus",
+            "exitCode": 2,
+            "stdoutObservation": "{\"status\":\"error\",\"error\":{\"code\":\"invalid_usage\",\"message\":\"unknown flag \\\"-bogus\\\"\"}}\\n",
+            "stderrObservation": ""
+          }
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-FOUNDATION-013",
+      "title": "Shared format selection is consistent",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `search-paper-cli sources` with default format.",
+          "expected": "Command exits 0 and emits JSON on stdout.",
+          "observed": "Exit 0; stdout={\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"en...; stderr="
+        },
+        {
+          "action": "Run `search-paper-cli sources --format text`.",
+          "expected": "Command exits 0 and emits human-readable text instead of JSON.",
+          "observed": "Exit 0; stdout=acm\\n  enabled: false\\n  disable_reason: missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\\n  capabilities:\\n    search: gated\\n    download: gated\\n    read: gated\\narxiv\\n  enabled: true\\n  capabilities:\\n  ...; stderr="
+        },
+        {
+          "action": "Run representative commands with invalid formats: `search --format yaml`, `download --format yaml`, and `read --format yaml`.",
+          "expected": "Each command exits 2 with clean structured `invalid_usage` JSON mentioning the unsupported format and supported formats.",
+          "observed": "search --format yaml format query: exit 2, stdout={\"status\":\"error\",\"error\":{\"code\":\"invalid_usage\",\"message\":\"unsupported format \\\"yaml\\\"\",\"details\":{\"command\":\"search\",\"supported_formats\":[\"json\",\"text\"]}}}\\n, stderr= ; download --format yaml --source arxiv --paper-id demo: exit 2, stdout={\"status\":\"error\",\"error\":{\"code\":\"invalid_usage\",\"message\":\"unsupported format \\\"yaml\\\"\",\"details\":{\"command\":\"download\",\"supported_formats\":[\"json\",\"text\"]}}}\\n, stderr= ; read --format yaml --source arxiv --paper-id demo: exit 2, stdout={\"status\":\"error\",\"error\":{\"code\":\"invalid_usage\",\"message\":\"unsupported format \\\"yaml\\\"\",\"details\":{\"command\":\"read\",\"supported_formats\":[\"json\",\"text\"]}}}\\n, stderr="
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation-followup/error-and-safety/val013_sources_default_json.transcript.txt",
+          "foundation-followup/error-and-safety/val013_sources_text.transcript.txt",
+          "foundation-followup/error-and-safety/val013_search_invalid_format.transcript.txt",
+          "foundation-followup/error-and-safety/val013_download_invalid_format.transcript.txt",
+          "foundation-followup/error-and-safety/val013_read_invalid_format.transcript.txt"
+        ],
+        "commandResults": [
+          {
+            "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources",
+            "exitCode": 0,
+            "stdoutObservation": "{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"en...",
+            "stderrObservation": ""
+          },
+          {
+            "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli sources --format text",
+            "exitCode": 0,
+            "stdoutObservation": "acm\\n  enabled: false\\n  disable_reason: missing required credential: PAPER_SEARCH_MCP_ACM_API_KEY\\n  capabilities:\\n    search: gated\\n    download: gated\\n    read: gated\\narxiv\\n  enabled: true\\n  capabilities:\\n  ...",
+            "stderrObservation": ""
+          },
+          {
+            "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --format yaml format query",
+            "exitCode": 2,
+            "stdoutObservation": "{\"status\":\"error\",\"error\":{\"code\":\"invalid_usage\",\"message\":\"unsupported format \\\"yaml\\\"\",\"details\":{\"command\":\"search\",\"supported_formats\":[\"json\",\"text\"]}}}\\n",
+            "stderrObservation": ""
+          },
+          {
+            "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli download --format yaml --source arxiv --paper-id demo",
+            "exitCode": 2,
+            "stdoutObservation": "{\"status\":\"error\",\"error\":{\"code\":\"invalid_usage\",\"message\":\"unsupported format \\\"yaml\\\"\",\"details\":{\"command\":\"download\",\"supported_formats\":[\"json\",\"text\"]}}}\\n",
+            "stderrObservation": ""
+          },
+          {
+            "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli read --format yaml --source arxiv --paper-id demo",
+            "exitCode": 2,
+            "stdoutObservation": "{\"status\":\"error\",\"error\":{\"code\":\"invalid_usage\",\"message\":\"unsupported format \\\"yaml\\\"\",\"details\":{\"command\":\"read\",\"supported_formats\":[\"json\",\"text\"]}}}\\n",
+            "stderrObservation": ""
+          }
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 3 assertions: 3 passed."
+}

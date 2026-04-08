@@ -1,0 +1,42 @@
+{
+  "milestone": "foundation-followup",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-FOUNDATION-001",
+    "VAL-FOUNDATION-002",
+    "VAL-FOUNDATION-003",
+    "VAL-FOUNDATION-004",
+    "VAL-FOUNDATION-005",
+    "VAL-FOUNDATION-006",
+    "VAL-FOUNDATION-007",
+    "VAL-FOUNDATION-008",
+    "VAL-FOUNDATION-010",
+    "VAL-FOUNDATION-012",
+    "VAL-FOUNDATION-009",
+    "VAL-FOUNDATION-011",
+    "VAL-FOUNDATION-013"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": null,
+  "flowReports": [
+    ".factory/validation/foundation-followup/user-testing/flows/core-behavior.json",
+    ".factory/validation/foundation-followup/user-testing/flows/env-precedence.json",
+    ".factory/validation/foundation-followup/user-testing/flows/error-and-safety.json"
+  ],
+  "notes": {
+    "toolsUsed": [
+      "shell/cli"
+    ],
+    "frictions": [],
+    "blockers": []
+  }
+}
