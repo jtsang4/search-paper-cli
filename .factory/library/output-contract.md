@@ -100,6 +100,7 @@ If a user explicitly requests a gated source without required configuration, the
   "source": "arxiv",
   "paper_id": "1234.5678",
   "path": "/tmp/out/paper.pdf",
+  "winning_stage": "primary",
   "attempts": []
 }
 ```
@@ -112,6 +113,7 @@ If a user explicitly requests a gated source without required configuration, the
   "source": "arxiv",
   "paper_id": "1234.5678",
   "content": "text...",
+  "winning_stage": "primary",
   "attempts": []
 }
 ```
@@ -130,6 +132,7 @@ Rules:
 
 - A success response with `path` must point to a real file.
 - Unsupported or informational retrieval results must not pretend to be `downloaded` or `extracted`.
+- `winning_stage` is optional and, when present, names the stage that actually produced the returned file or extracted content.
 - Fallback retrieval must include ordered `attempts` with stage names such as `primary`, `repositories`, `unpaywall`, `scihub`.
 
 ## Exit codes

@@ -1,0 +1,28 @@
+{
+  "featureId": "implement-native-fulltext-and-record-dependent-retrieval",
+  "reviewedAt": "2026-04-08T01:59:17.741952Z",
+  "commitId": "f5f5dded229ab6006161784261168c57f3413045",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The feature adds the requested native download/read surface and covers the happy-path/save-dir contract, but the PDF validation is too weak: a record-dependent provider can return a mislabeled non-PDF response and the CLI will still persist it and report success.",
+    "issues": [
+      {
+        "file": "internal/connectors/common.go",
+        "line": 430,
+        "severity": "blocking",
+        "description": "`looksLikePDF` accepts any response whose `Content-Type` contains `application/pdf` even when the body is not actually a PDF. `retrievePaperPDF` relies on that check before writing the file, so a provider that serves an HTML/login/error page with a misleading PDF content type will be recorded as a successful native download/read and leave a stray non-PDF file behind. That breaks the feature contract that record-dependent retrieval should succeed only when a real public file exists."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The `go-connector-worker` skill lacks a documented verification-only path for reassigned features that are already implemented, forcing the worker to deviate from the tests-first procedure even though the deviation was justified.",
+      "evidence": ".factory/skills/go-connector-worker/SKILL.md steps 4-6 require writing failing tests before implementation, while the handoff for session ee32b62a-47c4-4dac-a143-697c2666f627 records `skillFeedback.followedProcedure=false` because the feature was already present in commit f5f5dde and the worker only re-validated it."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed the transcript skeleton, handoff, architecture/skill context, and commit f5f5dde. The feature is close, but it has a blocking correctness gap in native PDF detection that can falsely treat non-PDF responses as successful record-dependent retrievals."
+}

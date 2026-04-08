@@ -1,0 +1,15 @@
+{
+  "featureId": "implement-info-only-unsupported-and-gated-retrieval-contracts",
+  "reviewedAt": "2026-04-08T01:54:52Z",
+  "commitId": "98c0f41119ccbe019a6856d644f3d5b5c2032b94",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Reviewed commit 98c0f41119ccbe019a6856d644f3d5b5c2032b94 against the feature contract and validation targets. The implementation cleanly distinguishes informational metadata-only retrieval, hard-unsupported retrieval, standalone Unpaywall metadata-only limits, and IEEE/ACM gated skeleton retrieval; the affected source capability descriptors in the registry match the connector behavior, and the CLI now returns unsupported-capability exit code 3 for informational retrieval states without introducing stray-file side effects.",
+    "issues": []
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Pass: transcript skeleton, handoff, and diff review found the retrieval-contract implementation consistent with the requested behavior for info-only, unsupported, Unpaywall-limited, and gated IEEE/ACM retrieval flows, with no high-confidence actionable bugs identified."
+}
