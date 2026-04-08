@@ -1,0 +1,141 @@
+{
+  "milestone": "retrieval",
+  "groupId": "retrieval-fallback",
+  "testedAt": "2026-04-08T02:50:39.885391+00:00",
+  "isolation": {
+    "missionDir": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad",
+    "repoRoot": "/root/workspace/github/jtsang4/search-paper-cli",
+    "cliArtifact": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+    "workingDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-fallback",
+    "envFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-fallback/.env",
+    "evidenceDirectory": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/retrieval/retrieval-fallback"
+  },
+  "toolsUsed": [
+    "shell/cli",
+    "go test"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-RETRIEVAL-007",
+      "status": "pass",
+      "reason": "Targeted CLI orchestration test confirmed repository rediscovery wins before later stages, returns a saved PDF inside the requested save dir, and short-circuits Sci-Hub.",
+      "evidence": [
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-007-stdout.txt",
+          "command": "go test ./internal/cli -run '^TestRepositoryFallbackWins$' -count=1 -v",
+          "exitCode": 0,
+          "observation": "Passing test asserted state=downloaded, winning_stage=repositories, saved path inside the requested save dir, attempts=[primary,repositories], and repository attempt source=openaire with a real path."
+        },
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-007-stderr.txt",
+          "command": "go test ./internal/cli -run '^TestRepositoryFallbackWins$' -count=1 -v",
+          "exitCode": 0,
+          "observation": "stderr was empty."
+        }
+      ]
+    },
+    {
+      "id": "VAL-RETRIEVAL-008",
+      "status": "pass",
+      "reason": "Targeted CLI orchestration test confirmed Unpaywall runs after repository lookup misses and becomes the winning stage when it resolves a downloadable OA PDF.",
+      "evidence": [
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-008-stdout.txt",
+          "command": "go test ./internal/cli -run '^TestUnpaywallAfterRepositoryMiss$' -count=1 -v",
+          "exitCode": 0,
+          "observation": "Passing test asserted state=downloaded, winning_stage=unpaywall, saved path inside the requested save dir, and ordered attempts=[primary,repositories,repositories,repositories,repositories,unpaywall]."
+        },
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-008-stderr.txt",
+          "command": "go test ./internal/cli -run '^TestUnpaywallAfterRepositoryMiss$' -count=1 -v",
+          "exitCode": 0,
+          "observation": "stderr was empty."
+        }
+      ]
+    },
+    {
+      "id": "VAL-RETRIEVAL-009",
+      "status": "pass",
+      "reason": "Targeted CLI orchestration test confirmed OA-chain failure stays terminal when Sci-Hub is disabled, preserving machine-readable attempt details and recording no Sci-Hub attempt.",
+      "evidence": [
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-009-stdout.txt",
+          "command": "go test ./internal/cli -run '^TestSciHubDisabledStopsChain$' -count=1 -v",
+          "exitCode": 0,
+          "observation": "Passing test asserted runtime-error exit handling with response state=failed, no winning_stage, OA-chain failure messaging, and zero attempts with stage=scihub."
+        },
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-009-stderr.txt",
+          "command": "go test ./internal/cli -run '^TestSciHubDisabledStopsChain$' -count=1 -v",
+          "exitCode": 0,
+          "observation": "stderr was empty."
+        }
+      ]
+    },
+    {
+      "id": "VAL-RETRIEVAL-010",
+      "status": "pass",
+      "reason": "Targeted CLI orchestration test confirmed the fallback attempt list explicitly records that Unpaywall resolution was skipped because no DOI was provided.",
+      "evidence": [
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-010-stdout.txt",
+          "command": "go test ./internal/cli -run '^TestMissingDOIReported$' -count=1 -v",
+          "exitCode": 0,
+          "observation": "Passing test asserted a fallback response containing an unpaywall attempt with state=skipped and a message noting that DOI was not provided."
+        },
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-010-stderr.txt",
+          "command": "go test ./internal/cli -run '^TestMissingDOIReported$' -count=1 -v",
+          "exitCode": 0,
+          "observation": "stderr was empty."
+        }
+      ]
+    },
+    {
+      "id": "VAL-RETRIEVAL-012",
+      "status": "pass",
+      "reason": "Built CLI direct Sci-Hub retrieval accepted DOI, title, PMID-style paper id, and URL identifiers against an isolated mock server, saved PDFs inside each requested save dir, and also returned a clean non-success response for a broken-layout case without crashing.",
+      "evidence": [
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-012-doi-stdout.txt",
+          "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli download --source scihub --doi 10.1000/test-doi --save-dir /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-fallback/cmd-012-doi/save --scihub-base-url <mock-server>",
+          "exitCode": 0,
+          "observation": "stdout reported state=downloaded, winning_stage=scihub, and a saved PDF path inside the requested save dir."
+        },
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-012-title-stdout.txt",
+          "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli download --source scihub --title Title-Identifier --save-dir /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-fallback/cmd-012-title/save --scihub-base-url <mock-server>",
+          "exitCode": 0,
+          "observation": "stdout reported state=downloaded, winning_stage=scihub, and a saved PDF path inside the requested save dir for title-based lookup."
+        },
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-012-pmid-stdout.txt",
+          "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli download --source scihub --paper-id 12345678 --save-dir /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-fallback/cmd-012-pmid/save --scihub-base-url <mock-server>",
+          "exitCode": 0,
+          "observation": "stdout reported state=downloaded, winning_stage=scihub, and a saved PDF path inside the requested save dir for PMID-style identifier lookup."
+        },
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-012-url-stdout.txt",
+          "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli download --source scihub --url https://example.com/paper --save-dir /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-fallback/cmd-012-url/save --scihub-base-url <mock-server>",
+          "exitCode": 0,
+          "observation": "stdout reported state=downloaded, winning_stage=scihub, and a saved PDF path inside the requested save dir for URL-based lookup."
+        },
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-012-failure-stdout.txt",
+          "command": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli download --source scihub --doi broken-layout --save-dir /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-fallback/cmd-012-failure/save --scihub-base-url <mock-server>",
+          "exitCode": 0,
+          "observation": "stdout reported state=not_found with a structured Sci-Hub failure message, no saved path, and no crash when the mirror page lacked an embedded PDF."
+        },
+        {
+          "file": "retrieval/retrieval-fallback/VAL-RETRIEVAL-012-server.log",
+          "command": "mock_scihub_server.py",
+          "exitCode": 0,
+          "observation": "Server log captured the expected DOI, title, paper-id, URL, and broken-layout requests plus PDF fetches for the successful cases."
+        }
+      ]
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 5 passed, 0 failed, 0 blocked, 0 skipped. Used targeted CLI go tests for deterministic fallback orchestration and built-CLI smoke runs against an isolated local Sci-Hub mock server for identifier handling and failure tolerance."
+}

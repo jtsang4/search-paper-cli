@@ -1,0 +1,60 @@
+{
+  "milestone": "retrieval",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 14,
+    "passed": 14,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-RETRIEVAL-001",
+    "VAL-RETRIEVAL-002",
+    "VAL-RETRIEVAL-003",
+    "VAL-RETRIEVAL-004",
+    "VAL-RETRIEVAL-005",
+    "VAL-RETRIEVAL-006",
+    "VAL-RETRIEVAL-007",
+    "VAL-RETRIEVAL-008",
+    "VAL-RETRIEVAL-009",
+    "VAL-RETRIEVAL-010",
+    "VAL-RETRIEVAL-011",
+    "VAL-RETRIEVAL-012",
+    "VAL-RETRIEVAL-013",
+    "VAL-RETRIEVAL-014"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Documented that live Unpaywall DOI smoke returning upstream HTTP 422 should be treated as external instability and validated with deterministic CLI tests plus built-CLI clean-env checks.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null,
+  "flowReports": [
+    ".factory/validation/retrieval/user-testing/flows/retrieval-native.json",
+    ".factory/validation/retrieval/user-testing/flows/retrieval-contracts.json",
+    ".factory/validation/retrieval/user-testing/flows/retrieval-fallback.json"
+  ],
+  "notes": {
+    "toolsUsed": [
+      "shell/cli",
+      "go test",
+      "python3 fixture HTTP server"
+    ],
+    "frictions": [
+      {
+        "description": "A live configured Unpaywall DOI smoke run from the validator working directory returned upstream HTTP 422 despite local credentials being present.",
+        "resolved": true,
+        "resolution": "Validated VAL-RETRIEVAL-011 with a built-CLI clean-env smoke run for the zero-result path and deterministic CLI test coverage (`TestUnpaywallStandaloneLimits`) for the configured metadata-only path and unsupported retrieval behavior.",
+        "affectedAssertions": [
+          "VAL-RETRIEVAL-011"
+        ]
+      }
+    ],
+    "blockers": []
+  }
+}

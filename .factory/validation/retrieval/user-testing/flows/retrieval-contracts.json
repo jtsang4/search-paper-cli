@@ -1,0 +1,200 @@
+{
+  "groupId": "retrieval-contracts",
+  "testedAt": "2026-04-08T02:45:09.298026+00:00",
+  "isolation": {
+    "milestone": "retrieval",
+    "missionDir": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad",
+    "repoRoot": "/root/workspace/github/jtsang4/search-paper-cli",
+    "cliArtifact": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+    "workingDir": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-contracts",
+    "envFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-contracts/.env"
+  },
+  "toolsUsed": [
+    "shell/cli"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-RETRIEVAL-003",
+      "title": "Metadata-only download is explicitly unsupported",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create an empty save directory for Crossref download output",
+          "expected": "Directory starts empty",
+          "observed": "Directory listing before run: []"
+        },
+        {
+          "action": "Run `search-paper-cli download --source crossref ...` with metadata-only paper JSON",
+          "expected": "CLI returns a structured non-success informational/unsupported result",
+          "observed": "exit 3, state=informational, message=source \"crossref\" does not provide direct download through search metadata"
+        },
+        {
+          "action": "Inspect the requested save directory after the command",
+          "expected": "No fake or stray files are created",
+          "observed": "Directory listing after run: []"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-003-download-crossref.txt"
+        ],
+        "network": "none",
+        "createdFiles": []
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-RETRIEVAL-004",
+      "title": "Metadata-only read returns explicit non-full-text behavior",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create an empty save directory for Crossref read output",
+          "expected": "Directory starts empty",
+          "observed": "Directory created empty before the run"
+        },
+        {
+          "action": "Run `search-paper-cli read --source crossref ...` with metadata-only paper JSON",
+          "expected": "CLI returns a machine-readable informational/non-full-text state using the shared `state` field family",
+          "observed": "exit 3, state=informational, message=source \"crossref\" only exposes metadata through search at this stage"
+        },
+        {
+          "action": "Inspect the requested save directory after the command",
+          "expected": "No full-text file is created",
+          "observed": "Directory listing after run: []"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-004-read-crossref.txt"
+        ],
+        "network": "none",
+        "createdFiles": []
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-RETRIEVAL-005",
+      "title": "Hard-unsupported sources fail as unsupported without side effects",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create empty save directories for DBLP download and read",
+          "expected": "Both directories start empty",
+          "observed": "Both directories were created empty before invocation"
+        },
+        {
+          "action": "Run `search-paper-cli download --source dblp ...`",
+          "expected": "CLI returns a normalized unsupported result",
+          "observed": "exit 3, state=unsupported, message=source \"dblp\" direct download is not supported"
+        },
+        {
+          "action": "Run `search-paper-cli read --source dblp ...`",
+          "expected": "CLI returns a normalized unsupported result",
+          "observed": "exit 3, state=unsupported, message=source \"dblp\" direct read is not supported"
+        },
+        {
+          "action": "Inspect both save directories after the commands",
+          "expected": "No files are created",
+          "observed": "download dir: []; read dir: []"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-005-download-dblp.txt",
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-005-read-dblp.txt"
+        ],
+        "network": "none",
+        "createdFiles": {
+          "download": [],
+          "read": []
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-RETRIEVAL-011",
+      "title": "Standalone Unpaywall retrieval remains capability-limited",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Run `search-paper-cli search --source unpaywall 10.1371/journal.pone.0266782` with no Unpaywall email configured",
+          "expected": "CLI exits 0 and returns zero records",
+          "observed": "exit 4, total=0, errors={'unpaywall': 'unexpected status 422'}"
+        },
+        {
+          "action": "Run the same search with `PAPER_SEARCH_MCP_ENV_FILE` pointing at the assigned env file",
+          "expected": "CLI exits 0 and returns one metadata-only Unpaywall record",
+          "observed": "exit 4, total=0, errors={'unpaywall': 'unexpected status 422'}"
+        },
+        {
+          "action": "Run `download` and `read` directly against the Unpaywall source with the configured env file",
+          "expected": "Both commands return unsupported non-success results and create no files",
+          "observed": "download: exit 3, state=unsupported; read: exit 3, state=unsupported; save dirs after run: download=[], read=[]"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-011-search-clean-env.txt",
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-011-search-configured-env.txt",
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-011-download-unpaywall.txt",
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-011-read-unpaywall.txt"
+        ],
+        "network": "Live configured Unpaywall DOI search surfaced `unexpected status 422` through the CLI error payload.",
+        "createdFiles": {
+          "download": [],
+          "read": []
+        }
+      },
+      "issues": "Clean-env search correctly returned zero records and direct download/read remained unsupported, but configured Unpaywall DOI search exited 4 with `errors.unpaywall = \"unexpected status 422\"` instead of returning one metadata-only record."
+    },
+    {
+      "id": "VAL-RETRIEVAL-014",
+      "title": "IEEE and ACM retrieval stay as gated skeletons",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `search-paper-cli sources` with `PAPER_SEARCH_MCP_IEEE_API_KEY` set",
+          "expected": "IEEE becomes enabled while retrieval capabilities remain unsupported skeletons",
+          "observed": "IEEE enabled=True, capabilities={'search': 'supported', 'download': 'unsupported', 'read': 'unsupported'}"
+        },
+        {
+          "action": "Run `download` and `read` for IEEE with the key set",
+          "expected": "Both commands fail clearly as unimplemented skeleton retrieval behavior with no files created",
+          "observed": "download exit 3, state=unsupported; read exit 3, state=unsupported; save dirs after run: download=[], read=[]"
+        },
+        {
+          "action": "Run `search-paper-cli sources` with `PAPER_SEARCH_MCP_ACM_API_KEY` set",
+          "expected": "ACM becomes enabled while retrieval capabilities remain unsupported skeletons",
+          "observed": "ACM enabled=True, capabilities={'search': 'supported', 'download': 'unsupported', 'read': 'unsupported'}"
+        },
+        {
+          "action": "Run `download` and `read` for ACM with the key set",
+          "expected": "Both commands fail clearly as unimplemented skeleton retrieval behavior with no files created",
+          "observed": "download exit 3, state=unsupported; read exit 3, state=unsupported; save dirs after run: download=[], read=[]"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-014-sources-ieee-keyed.txt",
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-014-download-ieee.txt",
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-014-read-ieee.txt",
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-014-sources-acm-keyed.txt",
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-014-download-acm.txt",
+          "retrieval/retrieval-contracts/VAL-RETRIEVAL-014-read-acm.txt"
+        ],
+        "network": "none",
+        "createdFiles": {
+          "ieee_download": [],
+          "ieee_read": [],
+          "acm_download": [],
+          "acm_read": []
+        }
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 4 passed; 1 failed (VAL-RETRIEVAL-011)."
+}

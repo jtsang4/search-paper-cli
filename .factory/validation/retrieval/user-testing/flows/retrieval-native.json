@@ -1,0 +1,197 @@
+{
+  "groupId": "retrieval-native",
+  "testedAt": "2026-04-08T02:48:03.749198+00:00",
+  "isolation": {
+    "milestone": "retrieval",
+    "missionDir": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad",
+    "artifact": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
+    "workingDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-native",
+    "envFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-native/.env",
+    "evidenceDir": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/retrieval/retrieval-native"
+  },
+  "toolsUsed": [
+    "shell/cli execution",
+    "python3 fixture HTTP server"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-RETRIEVAL-001",
+      "title": "Supported source-native download saves a PDF",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run source-native download for an arXiv paper JSON with a direct PDF URL and explicit save dir.",
+          "expected": "CLI exits 0, returns machine-readable success JSON, and saves a .pdf inside the requested directory.",
+          "observed": "Exit 0 with state=downloaded and path ending in native-001.pdf under the requested save dir."
+        },
+        {
+          "action": "Inspect the requested save directory after the command.",
+          "expected": "Exactly one PDF exists in the requested directory.",
+          "observed": "native-001.pdf exists under the requested save dir with no unexpected files."
+        }
+      ],
+      "evidence": {
+        "artifacts": [
+          "retrieval/retrieval-native/val-retrieval-001-download-terminal.txt",
+          "retrieval/retrieval-native/val-retrieval-001-download-stdout.json",
+          "retrieval/retrieval-native/val-retrieval-001-download-created-files.json"
+        ],
+        "network": "GET /native-download.pdf -> 200 (local fixture server)",
+        "stdout": {
+          "status": "ok",
+          "operation": "download",
+          "state": "downloaded",
+          "source": "arxiv",
+          "paper_id": "native-001",
+          "path": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-native/commands/val-retrieval-001-download/saved/native-001.pdf",
+          "attempts": []
+        },
+        "stderr": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-RETRIEVAL-002",
+      "title": "Supported source-native read returns extracted text",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run source-native read for a PMC paper JSON with a nested save dir that does not exist yet.",
+          "expected": "CLI exits 0, creates the requested save dir, saves the PDF, and returns JSON with a normalized state plus extracted content or an explicit parse-limited outcome.",
+          "observed": "Exit 0 with state=extracted, content=\"Extracted retrieval validation text\", and a saved PDF under the newly created nested directory."
+        },
+        {
+          "action": "Inspect the nested save dir after the command.",
+          "expected": "The requested directory exists and contains the retrieved file.",
+          "observed": "The missing/nested directory was created and contains read-002.pdf."
+        }
+      ],
+      "evidence": {
+        "artifacts": [
+          "retrieval/retrieval-native/val-retrieval-002-read-terminal.txt",
+          "retrieval/retrieval-native/val-retrieval-002-read-stdout.json",
+          "retrieval/retrieval-native/val-retrieval-002-read-created-files.json"
+        ],
+        "network": "GET /read-extractable.pdf -> 200 (local fixture server)",
+        "stdout": {
+          "status": "ok",
+          "operation": "read",
+          "state": "extracted",
+          "source": "pmc",
+          "paper_id": "read-002",
+          "path": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-native/commands/val-retrieval-002-read/missing/nested/read-002.pdf",
+          "content": "Extracted retrieval validation text",
+          "attempts": []
+        },
+        "stderr": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-RETRIEVAL-006",
+      "title": "Record-dependent retrieval is explicit about no-public-file cases",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run record-dependent semantic download with a direct PDF URL.",
+          "expected": "Success is returned only when a real file is written.",
+          "observed": "Exit 0 with state=downloaded and semantic-success.pdf created in the requested directory."
+        },
+        {
+          "action": "Run record-dependent semantic download with a missing PDF URL.",
+          "expected": "CLI returns a normalized non-success explanatory result and leaves no stray file.",
+          "observed": "Exit 0 with state=not_found, message explaining no public PDF is exposed, and an empty requested directory."
+        }
+      ],
+      "evidence": {
+        "artifacts": [
+          "retrieval/retrieval-native/val-retrieval-006-success-terminal.txt",
+          "retrieval/retrieval-native/val-retrieval-006-success-stdout.json",
+          "retrieval/retrieval-native/val-retrieval-006-success-created-files.json",
+          "retrieval/retrieval-native/val-retrieval-006-no-public-file-terminal.txt",
+          "retrieval/retrieval-native/val-retrieval-006-no-public-file-stdout.json",
+          "retrieval/retrieval-native/val-retrieval-006-no-public-file-created-files.json"
+        ],
+        "network": [
+          "GET /semantic-success.pdf -> 200 (local fixture server)",
+          "GET /missing.pdf -> 404 (local fixture server)"
+        ],
+        "stdout": {
+          "success_case": {
+            "status": "ok",
+            "operation": "download",
+            "state": "downloaded",
+            "source": "semantic",
+            "paper_id": "semantic-success",
+            "path": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-native/commands/val-retrieval-006-success/saved/semantic-success.pdf",
+            "attempts": []
+          },
+          "no_public_file_case": {
+            "status": "ok",
+            "operation": "download",
+            "state": "not_found",
+            "source": "semantic",
+            "paper_id": "semantic-missing",
+            "message": "source \"semantic\" does not expose a public PDF for this record",
+            "attempts": []
+          }
+        },
+        "stderr": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-RETRIEVAL-013",
+      "title": "SSRN retrieval is best-effort",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run SSRN download for a paper record without a direct PDF URL.",
+          "expected": "CLI returns an explicit non-success explanatory result instead of claiming download success.",
+          "observed": "Exit 0 with state=not_found, explanatory message about no public PDF, and no created file."
+        },
+        {
+          "action": "Run SSRN read for the same no-direct-PDF record.",
+          "expected": "CLI returns an explicit non-success explanatory result instead of claiming extraction success.",
+          "observed": "Exit 0 with state=not_found, the same explanatory message, and no created file."
+        }
+      ],
+      "evidence": {
+        "artifacts": [
+          "retrieval/retrieval-native/val-retrieval-013-download-terminal.txt",
+          "retrieval/retrieval-native/val-retrieval-013-download-stdout.json",
+          "retrieval/retrieval-native/val-retrieval-013-download-created-files.json",
+          "retrieval/retrieval-native/val-retrieval-013-read-terminal.txt",
+          "retrieval/retrieval-native/val-retrieval-013-read-stdout.json",
+          "retrieval/retrieval-native/val-retrieval-013-read-created-files.json"
+        ],
+        "network": "No PDF fetch attempted because the SSRN record lacked a direct public PDF URL.",
+        "stdout": {
+          "download_case": {
+            "status": "ok",
+            "operation": "download",
+            "state": "not_found",
+            "source": "ssrn",
+            "paper_id": "1234567",
+            "message": "source \"ssrn\" does not expose a public PDF for this record",
+            "attempts": []
+          },
+          "read_case": {
+            "status": "ok",
+            "operation": "read",
+            "state": "not_found",
+            "source": "ssrn",
+            "paper_id": "1234567",
+            "message": "source \"ssrn\" does not expose a public PDF for this record",
+            "attempts": []
+          }
+        },
+        "stderr": "none"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 4 retrieval assertions through the built CLI artifact: VAL-RETRIEVAL-001, VAL-RETRIEVAL-002, VAL-RETRIEVAL-006, and VAL-RETRIEVAL-013 all passed. Native download/read saved files only when appropriate, created missing save directories, and record-dependent/best-effort paths returned explicit not_found results without stray files when no public PDF was available."
+}

@@ -43,6 +43,7 @@ Reasoning:
 - Default validation should be deterministic and fixture-heavy.
 - Live smoke checks are required for selected stable flows and should use local credentials if available.
 - High-volatility or anti-bot sources must not block the default validation path unless the user explicitly changes that expectation.
+- If live Unpaywall DOI smoke returns upstream HTTP `422` despite valid local config, treat that as external instability and validate the configured-path contract with `go test ./internal/cli -run '^TestUnpaywallStandaloneLimits$' -count=1 -v` plus built-CLI clean-env and unsupported-retrieval checks instead of blocking the milestone.
 
 ## Evidence Expectations
 
