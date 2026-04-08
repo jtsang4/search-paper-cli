@@ -264,37 +264,51 @@ func TestDBLP(t *testing.T) {
 	}
 }
 
-func TestOpenAIRE(t *testing.T) {
+func TestOpenAIREXMLFirst(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Path; got != "/search/researchProducts" {
+			t.Fatalf("expected openaire researchProducts path, got %q", got)
+		}
 		if got := r.URL.Query().Get("keywords"); got != "climate science" {
 			t.Fatalf("expected openaire keywords, got %q", got)
 		}
 		if got := r.URL.Query().Get("size"); got != "1" {
 			t.Fatalf("expected openaire size, got %q", got)
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
-  "results": {
-    "result": [
-      {
-        "id": "openaire-1",
-        "title": "  OpenAIRE   Paper ",
-        "authors": ["Alice Smith", "Bob Jones"],
-        "description": " OpenAIRE abstract ",
-        "doi": "10.1000/OPENAIRE-1",
-        "dateofacceptance": "2024-04-09",
-        "url": "https://openaire.example/paper"
-      }
-    ]
-  }
-}`))
+		if got := r.URL.Query().Get("page"); got != "1" {
+			t.Fatalf("expected openaire page, got %q", got)
+		}
+		w.Header().Set("Content-Type", "application/xml")
+		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<response>
+  <results>
+    <result xmlns:dri="http://www.driver-repository.eu/namespace/dri" xmlns:oaf="http://namespace.openaire.eu/oaf">
+      <header>
+        <dri:objIdentifier>openaire-1</dri:objIdentifier>
+      </header>
+      <metadata>
+        <oaf:entity>
+          <oaf:result>
+            <title classid="main title">  OpenAIRE   Paper </title>
+            <creator>Alice Smith</creator>
+            <creator>Bob Jones</creator>
+            <description> OpenAIRE abstract </description>
+            <pid classid="doi">10.1000/OPENAIRE-1</pid>
+            <dateofacceptance>2024-04-09</dateofacceptance>
+            <url>https://openaire.example/paper</url>
+          </oaf:result>
+        </oaf:entity>
+      </metadata>
+    </result>
+  </results>
+</response>`))
 	}))
 	defer server.Close()
 
 	connector := NewOpenAIRE()
-	connector.BaseURL = server.URL
+	connector.BaseURL = server.URL + "/search/researchProducts"
 	connector.Client = server.Client()
 
 	result, err := connector.Search(sources.SearchRequest{Query: "climate science", Limit: 1})
@@ -305,6 +319,82 @@ func TestOpenAIRE(t *testing.T) {
 	got := singlePaper(t, result)
 	if got.Source != "openaire" || got.PaperID != "openaire-1" || got.DOI != "10.1000/openaire-1" {
 		t.Fatalf("unexpected openaire paper %#v", got)
+	}
+	if got.Title != "OpenAIRE Paper" || got.Abstract != "OpenAIRE abstract" || got.URL != "https://openaire.example/paper" {
+		t.Fatalf("unexpected openaire normalization %#v", got)
+	}
+}
+
+func TestOpenAIRELegacyFallback(t *testing.T) {
+	t.Parallel()
+
+	var legacyCalled bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/search/researchProducts":
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = w.Write([]byte(`<response><results><result>`))
+		case "/search/publications":
+			legacyCalled = true
+			if got := r.URL.Query().Get("keywords"); got != "climate science" {
+				t.Fatalf("expected legacy openaire keywords, got %q", got)
+			}
+			if got := r.URL.Query().Get("size"); got != "1" {
+				t.Fatalf("expected legacy openaire size, got %q", got)
+			}
+			if got := r.URL.Query().Get("format"); got != "json" {
+				t.Fatalf("expected legacy openaire format=json, got %q", got)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{
+  "response": {
+    "results": {
+      "result": [
+        {
+          "header": {
+            "dri:objIdentifier": {"$": "openaire-legacy-1"}
+          },
+          "metadata": {
+            "oaf:entity": {
+              "oaf:result": {
+                "title": {"@classid": "main title", "$": "  OpenAIRE   Legacy Paper "},
+                "creator": [{"$": "Alice Smith"}, {"$": "Bob Jones"}],
+                "description": {"$": " Legacy abstract "},
+                "pid": {"@classid": "doi", "$": "10.1000/OPENAIRE-LEGACY-1"},
+                "dateofacceptance": {"$": "2024-04-10"},
+                "url": {"$": "https://openaire.example/legacy"}
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}`))
+		default:
+			t.Fatalf("unexpected openaire path %q", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	connector := NewOpenAIRE()
+	connector.BaseURL = server.URL + "/search/researchProducts"
+	connector.Client = server.Client()
+
+	result, err := connector.Search(sources.SearchRequest{Query: "climate science", Limit: 1})
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+	if !legacyCalled {
+		t.Fatalf("expected legacy openaire fallback to be used")
+	}
+
+	got := singlePaper(t, result)
+	if got.Source != "openaire" || got.PaperID != "openaire-legacy-1" || got.DOI != "10.1000/openaire-legacy-1" {
+		t.Fatalf("unexpected fallback openaire paper %#v", got)
+	}
+	if got.Title != "OpenAIRE Legacy Paper" || got.Abstract != "Legacy abstract" || got.URL != "https://openaire.example/legacy" {
+		t.Fatalf("unexpected fallback openaire normalization %#v", got)
 	}
 }
 
