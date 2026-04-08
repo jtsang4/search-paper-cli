@@ -8,6 +8,12 @@ import (
 )
 
 func TestPrefixedEnvOverridesLegacy(t *testing.T) {
+	assertPrefixedEnvOverridesLegacy(t)
+}
+
+func assertPrefixedEnvOverridesLegacy(t *testing.T) {
+	t.Helper()
+
 	cfg, diagnostics, err := Load(LoadOptions{
 		Environ: []string{
 			"UNPAYWALL_EMAIL=legacy@example.com",
@@ -84,6 +90,10 @@ func TestBaseURLOptionsLoadFromPrefixedEnv(t *testing.T) {
 }
 
 func TestEnvFilePrecedence(t *testing.T) {
+	t.Run("prefixed env overrides legacy aliases and empty values mask fallback", func(t *testing.T) {
+		assertPrefixedEnvOverridesLegacy(t)
+	})
+
 	t.Run("explicit env file wins and malformed lines do not crash", func(t *testing.T) {
 		repoRoot := t.TempDir()
 		cwd := filepath.Join(repoRoot, "nested", "workspace")
