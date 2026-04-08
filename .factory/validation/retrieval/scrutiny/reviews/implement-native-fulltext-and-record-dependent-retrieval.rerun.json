@@ -1,0 +1,15 @@
+{
+  "featureId": "implement-native-fulltext-and-record-dependent-retrieval",
+  "reviewedAt": "2026-04-08T02:26:42.177110Z",
+  "commitId": "a094db38eb6586b0ec4fb0ea30944566422a79d8",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Reviewed the original failed feature and the follow-up fix commit in context. Native retrieval now requires a body-level `%PDF-` signature before reporting success, the regression test covers mislabeled `application/pdf` HTML bodies, and the save-path flow still avoids stray files by only writing after PDF validation succeeds.",
+    "issues": []
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": "/root/workspace/github/jtsang4/search-paper-cli/.factory/validation/retrieval/scrutiny/reviews/implement-native-fulltext-and-record-dependent-retrieval.json",
+  "summary": "Re-reviewed the previously failed native retrieval feature against the current implementation and fix commit `a094db38eb6586b0ec4fb0ea30944566422a79d8`. Result: pass. The original blocking PDF-detection bug is resolved, mislabeled non-PDF responses now return `not_found` without leaving files behind, and I did not find any remaining blocking issues in this feature area."
+}

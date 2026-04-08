@@ -1,0 +1,15 @@
+{
+  "featureId": "implement-oa-fallback-and-scihub-pipeline",
+  "reviewedAt": "2026-04-08T10:25:27+08:00",
+  "commitId": "63b32b7d8beaef1997ccb925fa0c9ec4a2391bd9",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Reviewed the original failed feature and the follow-up fix commit in context. The Sci-Hub transport/request path now normalizes into explicit `failed` retrieval results, direct `--source scihub` only sets `winning_stage` on real download success, and regression tests cover both direct and fallback failure handling.",
+    "issues": []
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": "/root/workspace/github/jtsang4/search-paper-cli/.factory/validation/retrieval/scrutiny/reviews/implement-oa-fallback-and-scihub-pipeline.json",
+  "summary": "Re-reviewed the previously failed OA fallback/Sci-Hub feature against the current implementation and fix commit `63b32b7d8beaef1997ccb925fa0c9ec4a2391bd9`. Result: pass. The original blocking Sci-Hub zero-value failure bug is resolved, the prior non-blocking `winning_stage` misreport is resolved, and I did not find any remaining blocking issues in this feature area."
+}

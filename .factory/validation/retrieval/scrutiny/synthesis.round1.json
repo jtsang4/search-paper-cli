@@ -1,0 +1,60 @@
+{
+  "milestone": "retrieval",
+  "round": 1,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go test -count=1 -p 8 ./...",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go test -run '^$' -p 8 ./...",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "test -z \"$(gofmt -l .)\"",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 3,
+    "passed": 1,
+    "failed": 2,
+    "failedFeatures": [
+      "implement-native-fulltext-and-record-dependent-retrieval",
+      "implement-oa-fallback-and-scihub-pipeline"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "implement-native-fulltext-and-record-dependent-retrieval",
+      "severity": "blocking",
+      "description": "`internal/connectors/common.go` allows `looksLikePDF` to trust `Content-Type: application/pdf` without confirming the body is actually a PDF, so record-dependent retrieval can save and report success for mislabeled HTML/error responses."
+    },
+    {
+      "featureId": "implement-oa-fallback-and-scihub-pipeline",
+      "severity": "blocking",
+      "description": "`internal/connectors/fallback.go` swallows Sci-Hub request/transport failures by returning a zero-value retrieval result with no error, which can emit an invalid empty retrieval state and hide real upstream failure details."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Documented the emitted retrieval `winning_stage` field in the shared output contract.",
+      "sourceFeature": "implement-oa-fallback-and-scihub-pipeline"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "go-connector-worker skill",
+      "suggestion": "Add a verification-only path for reassigned features that are already implemented so workers can explicitly validate and hand off without inventing tests-first edits.",
+      "evidence": "The review for `implement-native-fulltext-and-record-dependent-retrieval` noted that `.factory/skills/go-connector-worker/SKILL.md` requires test-first implementation steps even when a reassigned feature is already present in the tree, and the worker handoff recorded a justified procedure deviation during re-validation.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [],
+  "previousRound": null
+}
