@@ -25,6 +25,19 @@ Environment variables, external dependencies, and setup notes.
 - `PAPER_SEARCH_MCP_IEEE_API_KEY`
 - `PAPER_SEARCH_MCP_ACM_API_KEY`
 
+## Optional endpoint overrides for deterministic testing
+
+- `PAPER_SEARCH_MCP_ARXIV_BASE_URL`
+- `PAPER_SEARCH_MCP_OPENAIRE_BASE_URL`
+- `PAPER_SEARCH_MCP_OPENAIRE_LEGACY_BASE_URL`
+- `PAPER_SEARCH_MCP_CORE_BASE_URL`
+- `PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL`
+- `PAPER_SEARCH_MCP_PMC_SEARCH_URL`
+- `PAPER_SEARCH_MCP_PMC_SUMMARY_URL`
+- `PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL`
+
+These are intended for local deterministic testing and built-artifact validation against mock servers. They are optional, should not be required for normal runtime use, and should not be pointed at secret or internal services unless that usage is already explicitly approved for the mission.
+
 ## `.env` behavior to preserve
 
 1. `PAPER_SEARCH_MCP_ENV_FILE` wins when set.

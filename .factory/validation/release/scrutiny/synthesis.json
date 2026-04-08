@@ -1,0 +1,39 @@
+{
+  "milestone": "release",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go test -count=1 -p 8 ./...",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go test -run '^$' -p 8 ./...",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "test -z \"$(gofmt -l .)\"",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Documented connector endpoint override environment variables used for deterministic built-artifact and local end-to-end testing in .factory/library/environment.md.",
+      "sourceFeature": "implement-built-artifact-cross-command-e2e-flows"
+    }
+  ],
+  "suggestedGuidanceUpdates": [],
+  "rejectedObservations": [],
+  "previousRound": null
+}

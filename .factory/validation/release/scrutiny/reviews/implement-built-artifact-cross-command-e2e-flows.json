@@ -1,0 +1,21 @@
+{
+  "featureId": "implement-built-artifact-cross-command-e2e-flows",
+  "reviewedAt": "2026-04-08T03:44:12.338878Z",
+  "commitId": "062a345b51db5697b989167067c062810db0c65f",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Reviewed the feature handoff, transcript skeleton, commit diff, and the updated config/connector/release test code. The implementation adds deterministic built-binary coverage for search-to-native retrieval, search-to-OA-fallback retrieval, and outside-repo execution, plus config-threaded connector endpoint overrides needed to drive those flows from normalized search output without source-specific translation. I did not identify any high-confidence actionable code defects in scope.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "knowledge",
+      "observation": "The connector endpoint override environment variables introduced for deterministic built-artifact and local end-to-end testing are implemented but not documented in the shared environment guidance, so future workers would need to rediscover them from code and tests.",
+      "evidence": ".factory/library/environment.md documents optional integrations and .env precedence but does not mention PAPER_SEARCH_MCP_ARXIV_BASE_URL, PAPER_SEARCH_MCP_OPENAIRE_BASE_URL, PAPER_SEARCH_MCP_CORE_BASE_URL, PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL, PAPER_SEARCH_MCP_PMC_SEARCH_URL, PAPER_SEARCH_MCP_PMC_SUMMARY_URL, or PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL; compare internal/config/config.go:110-152 and internal/release/release_test.go:130-225,316-324 where those overrides are required for deterministic artifact e2e coverage."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass. I reviewed the mission artifacts, go-release-worker guidance, transcript skeleton, and commit 062a345b51db5697b989167067c062810db0c65f. The feature covers built-artifact search-to-native retrieval, search-to-fallback retrieval, and outside-repo execution using normalized search output and connector base-URL overrides, and I found no high-confidence in-scope code defects."
+}
