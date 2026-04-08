@@ -35,6 +35,54 @@ func TestPrefixedEnvOverridesLegacy(t *testing.T) {
 	}
 }
 
+func TestBaseURLOptionsLoadFromPrefixedEnv(t *testing.T) {
+	cfg, diagnostics, err := Load(LoadOptions{
+		Environ: []string{
+			"PAPER_SEARCH_MCP_ARXIV_BASE_URL=https://arxiv.example/api",
+			"PAPER_SEARCH_MCP_OPENAIRE_BASE_URL=https://openaire.example/search/researchProducts",
+			"PAPER_SEARCH_MCP_OPENAIRE_LEGACY_BASE_URL=https://openaire.example/search/publications",
+			"PAPER_SEARCH_MCP_CORE_BASE_URL=https://core.example/v3/search/works",
+			"PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL=https://europepmc.example/search",
+			"PAPER_SEARCH_MCP_PMC_SEARCH_URL=https://pmc.example/esearch.fcgi",
+			"PAPER_SEARCH_MCP_PMC_SUMMARY_URL=https://pmc.example/esummary.fcgi",
+			"PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL=https://unpaywall.example/v2",
+		},
+		WorkingDir:     t.TempDir(),
+		RepositoryRoot: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.ArxivBaseURL != "https://arxiv.example/api" {
+		t.Fatalf("expected arxiv base url override, got %q", cfg.ArxivBaseURL)
+	}
+	if cfg.OpenAIREBaseURL != "https://openaire.example/search/researchProducts" {
+		t.Fatalf("expected openaire base url override, got %q", cfg.OpenAIREBaseURL)
+	}
+	if cfg.OpenAIRELegacyBaseURL != "https://openaire.example/search/publications" {
+		t.Fatalf("expected openaire legacy base url override, got %q", cfg.OpenAIRELegacyBaseURL)
+	}
+	if cfg.CoreBaseURL != "https://core.example/v3/search/works" {
+		t.Fatalf("expected core base url override, got %q", cfg.CoreBaseURL)
+	}
+	if cfg.EuropePMCBaseURL != "https://europepmc.example/search" {
+		t.Fatalf("expected europe pmc base url override, got %q", cfg.EuropePMCBaseURL)
+	}
+	if cfg.PMCSearchURL != "https://pmc.example/esearch.fcgi" {
+		t.Fatalf("expected pmc search url override, got %q", cfg.PMCSearchURL)
+	}
+	if cfg.PMCSummaryURL != "https://pmc.example/esummary.fcgi" {
+		t.Fatalf("expected pmc summary url override, got %q", cfg.PMCSummaryURL)
+	}
+	if cfg.UnpaywallBaseURL != "https://unpaywall.example/v2" {
+		t.Fatalf("expected unpaywall base url override, got %q", cfg.UnpaywallBaseURL)
+	}
+	if len(diagnostics.Warnings) != 0 {
+		t.Fatalf("expected no warnings, got %#v", diagnostics.Warnings)
+	}
+}
+
 func TestEnvFilePrecedence(t *testing.T) {
 	t.Run("explicit env file wins and malformed lines do not crash", func(t *testing.T) {
 		repoRoot := t.TempDir()

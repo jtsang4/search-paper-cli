@@ -11,7 +11,7 @@ import (
 func New(id string, cfg config.Config) (sources.Connector, error) {
 	switch strings.ToLower(strings.TrimSpace(id)) {
 	case "arxiv":
-		return NewArxiv(), nil
+		return NewArxiv(cfg), nil
 	case "biorxiv":
 		return NewBioRxiv(), nil
 	case "medrxiv":
@@ -21,9 +21,9 @@ func New(id string, cfg config.Config) (sources.Connector, error) {
 	case "iacr":
 		return NewIACR(), nil
 	case "pmc":
-		return NewPMC(), nil
+		return NewPMC(cfg), nil
 	case "europepmc":
-		return NewEuropePMC(), nil
+		return NewEuropePMC(cfg), nil
 	case "core":
 		return NewCORE(cfg), nil
 	case "semantic":
@@ -37,7 +37,7 @@ func New(id string, cfg config.Config) (sources.Connector, error) {
 	case "dblp":
 		return NewDBLP(), nil
 	case "openaire":
-		return NewOpenAIRE(), nil
+		return NewOpenAIRE(cfg), nil
 	case "citeseerx":
 		return NewCiteSeerX(), nil
 	case "ssrn":

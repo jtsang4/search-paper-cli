@@ -19,6 +19,14 @@ type Config struct {
 	ZenodoAccessToken     string
 	IEEEAPIKey            string
 	ACMAPIKey             string
+	ArxivBaseURL          string
+	OpenAIREBaseURL       string
+	OpenAIRELegacyBaseURL string
+	CoreBaseURL           string
+	EuropePMCBaseURL      string
+	PMCSearchURL          string
+	PMCSummaryURL         string
+	UnpaywallBaseURL      string
 }
 
 type Warning struct {
@@ -96,6 +104,54 @@ var bindings = []binding{
 		prefixed: "PAPER_SEARCH_MCP_ACM_API_KEY",
 		assign: func(cfg *Config, value string) {
 			cfg.ACMAPIKey = value
+		},
+	},
+	{
+		prefixed: "PAPER_SEARCH_MCP_ARXIV_BASE_URL",
+		assign: func(cfg *Config, value string) {
+			cfg.ArxivBaseURL = value
+		},
+	},
+	{
+		prefixed: "PAPER_SEARCH_MCP_OPENAIRE_BASE_URL",
+		assign: func(cfg *Config, value string) {
+			cfg.OpenAIREBaseURL = value
+		},
+	},
+	{
+		prefixed: "PAPER_SEARCH_MCP_OPENAIRE_LEGACY_BASE_URL",
+		assign: func(cfg *Config, value string) {
+			cfg.OpenAIRELegacyBaseURL = value
+		},
+	},
+	{
+		prefixed: "PAPER_SEARCH_MCP_CORE_BASE_URL",
+		assign: func(cfg *Config, value string) {
+			cfg.CoreBaseURL = value
+		},
+	},
+	{
+		prefixed: "PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL",
+		assign: func(cfg *Config, value string) {
+			cfg.EuropePMCBaseURL = value
+		},
+	},
+	{
+		prefixed: "PAPER_SEARCH_MCP_PMC_SEARCH_URL",
+		assign: func(cfg *Config, value string) {
+			cfg.PMCSearchURL = value
+		},
+	},
+	{
+		prefixed: "PAPER_SEARCH_MCP_PMC_SUMMARY_URL",
+		assign: func(cfg *Config, value string) {
+			cfg.PMCSummaryURL = value
+		},
+	},
+	{
+		prefixed: "PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL",
+		assign: func(cfg *Config, value string) {
+			cfg.UnpaywallBaseURL = value
 		},
 	},
 }

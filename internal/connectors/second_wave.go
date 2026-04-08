@@ -465,10 +465,20 @@ const (
 	openaireLegacyPublicationsURL = "https://api.openaire.eu/search/publications"
 )
 
-func NewOpenAIRE() *OpenAIRE {
+func NewOpenAIRE(cfg ...config.Config) *OpenAIRE {
+	baseURL := openaireResearchProductsURL
+	legacyBaseURL := openaireLegacyPublicationsURL
+	if len(cfg) > 0 {
+		if strings.TrimSpace(cfg[0].OpenAIREBaseURL) != "" {
+			baseURL = strings.TrimSpace(cfg[0].OpenAIREBaseURL)
+		}
+		if strings.TrimSpace(cfg[0].OpenAIRELegacyBaseURL) != "" {
+			legacyBaseURL = strings.TrimSpace(cfg[0].OpenAIRELegacyBaseURL)
+		}
+	}
 	return &OpenAIRE{
-		BaseURL:       openaireResearchProductsURL,
-		LegacyBaseURL: openaireLegacyPublicationsURL,
+		BaseURL:       baseURL,
+		LegacyBaseURL: legacyBaseURL,
 		Client:        defaultHTTPClient(),
 	}
 }
@@ -723,8 +733,12 @@ type Unpaywall struct {
 }
 
 func NewUnpaywall(cfg config.Config) *Unpaywall {
+	baseURL := "https://api.unpaywall.org/v2"
+	if strings.TrimSpace(cfg.UnpaywallBaseURL) != "" {
+		baseURL = strings.TrimSpace(cfg.UnpaywallBaseURL)
+	}
 	return &Unpaywall{
-		BaseURL: "https://api.unpaywall.org/v2",
+		BaseURL: baseURL,
 		Client:  defaultHTTPClient(),
 		Config:  cfg,
 	}

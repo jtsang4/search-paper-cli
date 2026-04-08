@@ -39,9 +39,13 @@ type Arxiv struct {
 	Client  *http.Client
 }
 
-func NewArxiv() *Arxiv {
+func NewArxiv(cfg ...config.Config) *Arxiv {
+	baseURL := "http://export.arxiv.org/api/query"
+	if len(cfg) > 0 && strings.TrimSpace(cfg[0].ArxivBaseURL) != "" {
+		baseURL = strings.TrimSpace(cfg[0].ArxivBaseURL)
+	}
 	return &Arxiv{
-		BaseURL: "http://export.arxiv.org/api/query",
+		BaseURL: baseURL,
 		Client:  defaultHTTPClient(),
 	}
 }
@@ -521,10 +525,20 @@ type PMC struct {
 	Client     *http.Client
 }
 
-func NewPMC() *PMC {
+func NewPMC(cfg ...config.Config) *PMC {
+	searchURL := "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+	summaryURL := "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+	if len(cfg) > 0 {
+		if strings.TrimSpace(cfg[0].PMCSearchURL) != "" {
+			searchURL = strings.TrimSpace(cfg[0].PMCSearchURL)
+		}
+		if strings.TrimSpace(cfg[0].PMCSummaryURL) != "" {
+			summaryURL = strings.TrimSpace(cfg[0].PMCSummaryURL)
+		}
+	}
 	return &PMC{
-		SearchURL:  "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
-		SummaryURL: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi",
+		SearchURL:  searchURL,
+		SummaryURL: summaryURL,
 		Client:     defaultHTTPClient(),
 	}
 }
@@ -661,9 +675,13 @@ type EuropePMC struct {
 	Client  *http.Client
 }
 
-func NewEuropePMC() *EuropePMC {
+func NewEuropePMC(cfg ...config.Config) *EuropePMC {
+	baseURL := "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+	if len(cfg) > 0 && strings.TrimSpace(cfg[0].EuropePMCBaseURL) != "" {
+		baseURL = strings.TrimSpace(cfg[0].EuropePMCBaseURL)
+	}
 	return &EuropePMC{
-		BaseURL: "https://www.ebi.ac.uk/europepmc/webservices/rest/search",
+		BaseURL: baseURL,
 		Client:  defaultHTTPClient(),
 	}
 }
@@ -767,8 +785,12 @@ type CORE struct {
 }
 
 func NewCORE(cfg config.Config) *CORE {
+	baseURL := "https://api.core.ac.uk/v3/search/works"
+	if strings.TrimSpace(cfg.CoreBaseURL) != "" {
+		baseURL = strings.TrimSpace(cfg.CoreBaseURL)
+	}
 	return &CORE{
-		BaseURL: "https://api.core.ac.uk/v3/search/works",
+		BaseURL: baseURL,
 		Client:  defaultHTTPClient(),
 		Config:  cfg,
 	}

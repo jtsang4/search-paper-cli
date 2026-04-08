@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -91,6 +93,271 @@ func TestBuiltArtifactPreservesCapabilityConsistency(t *testing.T) {
 	}
 }
 
+func TestArtifactSearchToNativeRetrieval(t *testing.T) {
+	t.Parallel()
+
+	binaryPath := buildArtifactBinary(t)
+	artifactDir := t.TempDir()
+	workDir := t.TempDir()
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/arxiv" && r.URL.Query().Get("search_query") == "all:artifact native flow":
+			w.Header().Set("Content-Type", "application/atom+xml")
+			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <id>http://arxiv.org/abs/1234.5678v1</id>
+    <title>Artifact Native Retrieval</title>
+    <summary>Native retrieval summary</summary>
+    <published>2024-04-08T00:00:00Z</published>
+    <author><name>Alice Example</name></author>
+    <link rel="alternate" type="text/html" href="http://arxiv.org/abs/1234.5678v1"></link>
+    <link title="pdf" type="application/pdf" href="` + server.URL + `/pdf/1234.5678v1.pdf"></link>
+  </entry>
+</feed>`))
+		case r.URL.Path == "/pdf/1234.5678v1.pdf":
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(minimalPDF("Artifact native retrieval PDF"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	searchPayload := runSearchArtifact(t, binaryPath, artifactDir, []string{
+		"PAPER_SEARCH_MCP_ARXIV_BASE_URL=" + server.URL + "/arxiv",
+	}, "artifact native flow")
+	if len(searchPayload.Papers) != 1 {
+		t.Fatalf("expected one search paper, got %#v", searchPayload)
+	}
+	paperJSON := marshalJSON(t, searchPayload.Papers[0])
+	saveDir := filepath.Join(workDir, "native-downloads")
+	response := runArtifactCommand(t, binaryPath, artifactDir, nil, "download", "--save-dir", saveDir, "--paper-json", paperJSON)
+	if response.ExitCode != 0 {
+		t.Fatalf("expected native retrieval exit code 0, got %d stdout=%q stderr=%q", response.ExitCode, response.Stdout, response.Stderr)
+	}
+
+	var payload artifactRetrievalFlowPayload
+	if err := json.Unmarshal([]byte(response.Stdout), &payload); err != nil {
+		t.Fatalf("expected valid retrieval payload, got %q: %v", response.Stdout, err)
+	}
+	if payload.State != "downloaded" || payload.Source != "arxiv" || payload.PaperID != "1234.5678v1" {
+		t.Fatalf("unexpected native retrieval payload %#v", payload)
+	}
+	if payload.Path == "" || !strings.HasPrefix(payload.Path, saveDir+string(os.PathSeparator)) {
+		t.Fatalf("expected saved path inside %q, got %#v", saveDir, payload)
+	}
+	if len(payload.Attempts) != 0 {
+		t.Fatalf("expected native retrieval attempts to stay empty, got %#v", payload.Attempts)
+	}
+	if _, err := os.Stat(payload.Path); err != nil {
+		t.Fatalf("expected saved file at %q: %v", payload.Path, err)
+	}
+}
+
+func TestArtifactSearchToFallbackRetrieval(t *testing.T) {
+	t.Parallel()
+
+	binaryPath := buildArtifactBinary(t)
+	artifactDir := t.TempDir()
+	workDir := t.TempDir()
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/arxiv" && r.URL.Query().Get("search_query") == "all:artifact fallback flow":
+			w.Header().Set("Content-Type", "application/atom+xml")
+			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <id>http://arxiv.org/abs/9999.0001v1</id>
+    <title>Artifact Fallback Retrieval</title>
+    <summary>Contains doi 10.1000/artifact-fallback-1.</summary>
+    <published>2024-04-08T00:00:00Z</published>
+    <author><name>Alice Example</name></author>
+  </entry>
+</feed>`))
+		case r.URL.Path == "/openaire/search/researchProducts":
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><response><results></results></response>`))
+		case r.URL.Path == "/openaire/search/publications":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"response":{"results":{"result":[]}}}`))
+		case r.URL.Path == "/core":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"results":[]}`))
+		case r.URL.Path == "/europepmc":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"resultList":{"result":[]}}`))
+		case r.URL.Path == "/pmc/esearch.fcgi":
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><eSearchResult><IdList></IdList></eSearchResult>`))
+		case r.URL.Path == "/unpaywall/10.1000/artifact-fallback-1":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"doi":"10.1000/artifact-fallback-1","title":"Artifact Fallback Retrieval","published_date":"2024-04-08","best_oa_location":{"url":"https://example.test/paper","url_for_pdf":"` + server.URL + `/files/unpaywall.pdf"},"z_authors":[{"given":"Alice","family":"Example"}]}`))
+		case r.URL.Path == "/files/unpaywall.pdf":
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(minimalPDF("Artifact fallback retrieval PDF"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	searchPayload := runSearchArtifact(t, binaryPath, artifactDir, []string{
+		"PAPER_SEARCH_MCP_ARXIV_BASE_URL=" + server.URL + "/arxiv",
+	}, "artifact fallback flow")
+	if len(searchPayload.Papers) != 1 {
+		t.Fatalf("expected one search paper, got %#v", searchPayload)
+	}
+	paperJSON := marshalJSON(t, searchPayload.Papers[0])
+	saveDir := filepath.Join(workDir, "fallback-downloads")
+	response := runArtifactCommand(t, binaryPath, artifactDir, []string{
+		"PAPER_SEARCH_MCP_OPENAIRE_BASE_URL=" + server.URL + "/openaire/search/researchProducts",
+		"PAPER_SEARCH_MCP_OPENAIRE_LEGACY_BASE_URL=" + server.URL + "/openaire/search/publications",
+		"PAPER_SEARCH_MCP_CORE_BASE_URL=" + server.URL + "/core",
+		"PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL=" + server.URL + "/europepmc",
+		"PAPER_SEARCH_MCP_PMC_SEARCH_URL=" + server.URL + "/pmc/esearch.fcgi",
+		"PAPER_SEARCH_MCP_PMC_SUMMARY_URL=" + server.URL + "/pmc/esummary.fcgi",
+		"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com",
+		"PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL=" + server.URL + "/unpaywall",
+	}, "download", "--fallback", "--save-dir", saveDir, "--paper-json", paperJSON)
+	if response.ExitCode != 0 {
+		t.Fatalf("expected fallback retrieval exit code 0, got %d stdout=%q stderr=%q", response.ExitCode, response.Stdout, response.Stderr)
+	}
+
+	var payload artifactRetrievalFlowPayload
+	if err := json.Unmarshal([]byte(response.Stdout), &payload); err != nil {
+		t.Fatalf("expected valid retrieval payload, got %q: %v", response.Stdout, err)
+	}
+	if payload.State != "downloaded" || payload.WinningStage != "unpaywall" {
+		t.Fatalf("expected unpaywall fallback success, got %#v", payload)
+	}
+	if payload.Path == "" || !strings.HasPrefix(payload.Path, saveDir+string(os.PathSeparator)) {
+		t.Fatalf("expected saved path inside %q, got %#v", saveDir, payload)
+	}
+	if len(payload.Attempts) != 6 {
+		t.Fatalf("expected ordered fallback attempts, got %#v", payload.Attempts)
+	}
+	if payload.Attempts[0].Stage != "primary" || payload.Attempts[len(payload.Attempts)-1].Stage != "unpaywall" {
+		t.Fatalf("expected primary-to-unpaywall attempts, got %#v", payload.Attempts)
+	}
+	if _, err := os.Stat(payload.Path); err != nil {
+		t.Fatalf("expected saved file at %q: %v", payload.Path, err)
+	}
+}
+
+func TestArtifactOutsideRepoFlow(t *testing.T) {
+	t.Parallel()
+
+	binaryPath := buildArtifactBinary(t)
+	outsideDir := t.TempDir()
+	releaseDir := filepath.Join(outsideDir, "bin")
+	if err := os.MkdirAll(releaseDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) error = %v", releaseDir, err)
+	}
+	releaseBinary := filepath.Join(releaseDir, BinaryName)
+	copyFile(t, binaryPath, releaseBinary)
+
+	runHelp := runArtifactCommand(t, releaseBinary, outsideDir, nil, "--help")
+	if runHelp.ExitCode != 0 {
+		t.Fatalf("expected outside-repo help exit code 0, got %d stdout=%q stderr=%q", runHelp.ExitCode, runHelp.Stdout, runHelp.Stderr)
+	}
+	if !strings.Contains(runHelp.Stdout, "search") || !strings.Contains(runHelp.Stdout, "download") {
+		t.Fatalf("expected help output to include core commands, got %q", runHelp.Stdout)
+	}
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/arxiv" && r.URL.Query().Get("search_query") == "all:artifact outside flow":
+			w.Header().Set("Content-Type", "application/atom+xml")
+			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <id>http://arxiv.org/abs/4321.0001v1</id>
+    <title>Artifact Outside Repo Flow</title>
+    <summary>Outside repo artifact flow with doi 10.1000/artifact-outside-1.</summary>
+    <published>2024-04-08T00:00:00Z</published>
+    <author><name>Alice Example</name></author>
+  </entry>
+</feed>`))
+		case r.URL.Path == "/openaire/search/researchProducts":
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><response><results></results></response>`))
+		case r.URL.Path == "/openaire/search/publications":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"response":{"results":{"result":[]}}}`))
+		case r.URL.Path == "/core":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"results":[]}`))
+		case r.URL.Path == "/europepmc":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"resultList":{"result":[]}}`))
+		case r.URL.Path == "/pmc/esearch.fcgi":
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><eSearchResult><IdList></IdList></eSearchResult>`))
+		case r.URL.Path == "/unpaywall/10.1000/artifact-outside-1":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"doi":"10.1000/artifact-outside-1","title":"Artifact Outside Repo Flow","published_date":"2024-04-08","best_oa_location":{"url":"https://example.test/outside","url_for_pdf":"` + server.URL + `/files/outside.pdf"},"z_authors":[{"given":"Alice","family":"Example"}]}`))
+		case r.URL.Path == "/files/outside.pdf":
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(minimalPDF("Artifact outside repo flow PDF"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	envFile := filepath.Join(outsideDir, ".env")
+	writeFile(t, envFile, strings.Join([]string{
+		"PAPER_SEARCH_MCP_ARXIV_BASE_URL=" + server.URL + "/arxiv",
+		"PAPER_SEARCH_MCP_OPENAIRE_BASE_URL=" + server.URL + "/openaire/search/researchProducts",
+		"PAPER_SEARCH_MCP_OPENAIRE_LEGACY_BASE_URL=" + server.URL + "/openaire/search/publications",
+		"PAPER_SEARCH_MCP_CORE_BASE_URL=" + server.URL + "/core",
+		"PAPER_SEARCH_MCP_EUROPEPMC_BASE_URL=" + server.URL + "/europepmc",
+		"PAPER_SEARCH_MCP_PMC_SEARCH_URL=" + server.URL + "/pmc/esearch.fcgi",
+		"PAPER_SEARCH_MCP_PMC_SUMMARY_URL=" + server.URL + "/pmc/esummary.fcgi",
+		"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com",
+		"PAPER_SEARCH_MCP_UNPAYWALL_BASE_URL=" + server.URL + "/unpaywall",
+		"",
+	}, "\n"))
+
+	searchResponse := runArtifactCommand(t, releaseBinary, outsideDir, nil, "search", "--source", "arxiv", "artifact outside flow")
+	if searchResponse.ExitCode != 0 {
+		t.Fatalf("expected outside-repo search exit code 0, got %d stdout=%q stderr=%q", searchResponse.ExitCode, searchResponse.Stdout, searchResponse.Stderr)
+	}
+	var searchPayload artifactSearchPayload
+	if err := json.Unmarshal([]byte(searchResponse.Stdout), &searchPayload); err != nil {
+		t.Fatalf("expected valid search payload, got %q: %v", searchResponse.Stdout, err)
+	}
+	if len(searchPayload.Papers) != 1 {
+		t.Fatalf("expected one outside-repo search paper, got %#v", searchPayload)
+	}
+
+	saveDir := filepath.Join(outsideDir, "downloads")
+	paperJSON := marshalJSON(t, searchPayload.Papers[0])
+	retrievalResponse := runArtifactCommand(t, releaseBinary, outsideDir, nil, "download", "--fallback", "--save-dir", saveDir, "--paper-json", paperJSON)
+	if retrievalResponse.ExitCode != 0 {
+		t.Fatalf("expected outside-repo fallback exit code 0, got %d stdout=%q stderr=%q", retrievalResponse.ExitCode, retrievalResponse.Stdout, retrievalResponse.Stderr)
+	}
+	var payload artifactRetrievalFlowPayload
+	if err := json.Unmarshal([]byte(retrievalResponse.Stdout), &payload); err != nil {
+		t.Fatalf("expected valid retrieval payload, got %q: %v", retrievalResponse.Stdout, err)
+	}
+	if payload.State != "downloaded" || payload.WinningStage != "unpaywall" {
+		t.Fatalf("expected outside-repo fallback success, got %#v", payload)
+	}
+	if payload.Path == "" || !strings.HasPrefix(payload.Path, saveDir+string(os.PathSeparator)) {
+		t.Fatalf("expected saved path inside %q, got %#v", saveDir, payload)
+	}
+	if _, err := os.Stat(payload.Path); err != nil {
+		t.Fatalf("expected saved file at %q: %v", payload.Path, err)
+	}
+}
+
 type artifactSourcesPayload struct {
 	Status  string `json:"status"`
 	Sources []struct {
@@ -107,6 +374,33 @@ type artifactRetrievalPayload struct {
 	Status string `json:"status"`
 	State  string `json:"state"`
 	Source string `json:"source"`
+}
+
+type artifactSearchPayload struct {
+	Status string `json:"status"`
+	Papers []struct {
+		PaperID string `json:"paper_id"`
+		Title   string `json:"title"`
+		DOI     string `json:"doi"`
+		PDFURL  string `json:"pdf_url"`
+		URL     string `json:"url"`
+		Source  string `json:"source"`
+	} `json:"papers"`
+}
+
+type artifactRetrievalAttempt struct {
+	Stage string `json:"stage"`
+	State string `json:"state"`
+}
+
+type artifactRetrievalFlowPayload struct {
+	Status       string                     `json:"status"`
+	State        string                     `json:"state"`
+	Source       string                     `json:"source"`
+	PaperID      string                     `json:"paper_id"`
+	Path         string                     `json:"path"`
+	WinningStage string                     `json:"winning_stage"`
+	Attempts     []artifactRetrievalAttempt `json:"attempts"`
 }
 
 type artifactRetrievalResult struct {
@@ -147,6 +441,24 @@ func runSourcesArtifact(t *testing.T, binaryPath, workingDir string, extraEnv []
 	}
 	if payload.Status != "ok" {
 		t.Fatalf("expected ok sources payload, got %#v", payload)
+	}
+	return payload
+}
+
+func runSearchArtifact(t *testing.T, binaryPath, workingDir string, extraEnv []string, query string) artifactSearchPayload {
+	t.Helper()
+
+	result := runArtifactCommand(t, binaryPath, workingDir, extraEnv, "search", "--source", "arxiv", query)
+	if result.ExitCode != 0 {
+		t.Fatalf("expected search exit code 0, got %d with stdout=%q stderr=%q", result.ExitCode, result.Stdout, result.Stderr)
+	}
+
+	var payload artifactSearchPayload
+	if err := json.Unmarshal([]byte(result.Stdout), &payload); err != nil {
+		t.Fatalf("expected valid search json, got %q: %v", result.Stdout, err)
+	}
+	if payload.Status != "ok" {
+		t.Fatalf("expected ok search payload, got %#v", payload)
 	}
 	return payload
 }
@@ -247,6 +559,34 @@ func writeFile(t *testing.T, path, contents string) {
 	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
 		t.Fatalf("WriteFile(%q) error = %v", path, err)
 	}
+}
+
+func copyFile(t *testing.T, src, dst string) {
+	t.Helper()
+
+	data, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", src, err)
+	}
+	if err := os.WriteFile(dst, data, 0o755); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", dst, err)
+	}
+}
+
+func marshalJSON(t *testing.T, value any) string {
+	t.Helper()
+
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	return string(data)
+}
+
+func minimalPDF(text string) []byte {
+	text = strings.ReplaceAll(text, "(", "\\(")
+	text = strings.ReplaceAll(text, ")", "\\)")
+	return []byte("%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n4 0 obj\n<< /Length 44 >>\nstream\nBT /F1 18 Tf 24 120 Td (" + text + ") Tj ET\nendstream\nendobj\n5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\nxref\n0 6\n0000000000 65535 f \n0000000010 00000 n \n0000000063 00000 n \n0000000122 00000 n \n0000000248 00000 n \n0000000341 00000 n \ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n411\n%%EOF")
 }
 
 func assertSourceEnabled(t *testing.T, sources []struct {
