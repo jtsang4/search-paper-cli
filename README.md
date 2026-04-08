@@ -128,6 +128,10 @@ Release artifact paths:
 - `dist/search-paper-cli_linux_amd64/search-paper-cli`
 - `dist/search-paper-cli_linux_amd64.tar.gz`
 
+## License
+
+This project is licensed under the [MIT License](./LICENSE).
+
 ## Notes on output contract and optional sources
 
 - Default output is JSON; use `--format text` for a human-readable view
