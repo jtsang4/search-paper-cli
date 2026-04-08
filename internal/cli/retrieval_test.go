@@ -930,6 +930,90 @@ func TestSciHubDirectRetrieval(t *testing.T) {
 	}
 }
 
+func TestSciHubDirectTransportFailureNormalized(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	}))
+	baseURL := server.URL
+	server.Close()
+
+	saveDir := filepath.Join(t.TempDir(), "scihub-failure")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"download", "--source", "scihub", "--paper-id", "10.1000/test", "--doi", "10.1000/test", "--save-dir", saveDir, "--scihub-base-url", baseURL}, &stdout, &stderr, runOptions{
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+	})
+	if exitCode != exitCodeRuntimeError {
+		t.Fatalf("expected exit code %d, got %d with stdout=%q stderr=%q", exitCodeRuntimeError, exitCode, stdout.String(), stderr.String())
+	}
+
+	payload := decodeRetrievalResponse(t, stdout.Bytes())
+	if payload.State != "failed" || payload.WinningStage != "" || payload.Path != "" {
+		t.Fatalf("expected normalized failed scihub response without winning stage, got %#v", payload)
+	}
+	if stages := attemptStages(payload.Attempts); !slices.Equal(stages, []string{"scihub"}) {
+		t.Fatalf("expected only scihub attempt, got %#v", payload.Attempts)
+	}
+	attempt := decodeAttempt(t, payload.Attempts[0])
+	if attempt.State != "failed" || attempt.Path != "" || !strings.Contains(strings.ToLower(attempt.Message), "failed") {
+		t.Fatalf("expected explicit failed scihub attempt, got %#v", attempt)
+	}
+}
+
+func TestSciHubFallbackTransportFailureNormalized(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	}))
+	baseURL := server.URL
+	server.Close()
+
+	saveDir := filepath.Join(t.TempDir(), "scihub-fallback-failure")
+	paperJSON := `{"paper_id":"1234.5678","title":"SciHub Failure","doi":"10.1000/scihub-failure","source":"arxiv"}`
+
+	connectorFactory := func(id string, cfg config.Config) (sources.Connector, error) {
+		switch id {
+		case "arxiv":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: "arxiv", Enabled: true, Capabilities: sources.Capabilities{Download: sources.CapabilitySupported}},
+				DownloadResult:  &sources.RetrievalResult{State: sources.RetrievalStateNotFound, Message: "primary failed"},
+			}), nil
+		case "openaire", "core", "europepmc", "pmc", "unpaywall":
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+			}), nil
+		default:
+			return connectors.New(id, cfg)
+		}
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"download", "--fallback", "--allow-scihub", "--source", "arxiv", "--save-dir", saveDir, "--paper-json", paperJSON, "--scihub-base-url", baseURL}, &stdout, &stderr, runOptions{
+		environ:          []string{"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=tester@example.com"},
+		workingDir:       t.TempDir(),
+		repositoryRoot:   t.TempDir(),
+		connectorFactory: connectorFactory,
+	})
+	if exitCode != exitCodeRuntimeError {
+		t.Fatalf("expected exit code %d, got %d with stdout=%q stderr=%q", exitCodeRuntimeError, exitCode, stdout.String(), stderr.String())
+	}
+
+	payload := decodeRetrievalResponse(t, stdout.Bytes())
+	if payload.State != "failed" || payload.WinningStage != "" {
+		t.Fatalf("expected terminal failed fallback response, got %#v", payload)
+	}
+	lastAttempt := decodeAttempt(t, payload.Attempts[len(payload.Attempts)-1])
+	if lastAttempt.Stage != "scihub" || lastAttempt.State != "failed" || lastAttempt.Path != "" || !strings.Contains(strings.ToLower(lastAttempt.Message), "failed") {
+		t.Fatalf("expected explicit failed scihub fallback attempt, got %#v", lastAttempt)
+	}
+}
+
 type retrievalAttemptPayload struct {
 	Stage   string `json:"stage"`
 	Source  string `json:"source"`

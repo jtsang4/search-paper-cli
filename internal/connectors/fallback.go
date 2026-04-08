@@ -1,6 +1,7 @@
 package connectors
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -284,11 +285,19 @@ func DownloadSciHub(identifier string, saveDir string, baseURL string) (sources.
 	searchURL := baseURL + "/" + strings.TrimLeft(identifier, "/")
 	req, err := http.NewRequest(http.MethodGet, searchURL, nil)
 	if err != nil {
-		return sources.RetrievalResult{}, err
+		return sources.RetrievalResult{
+			State:    sources.RetrievalStateFailed,
+			Message:  fmt.Sprintf("Sci-Hub request failed: %v", err),
+			Attempts: []sources.RetrievalAttempt{},
+		}, nil
 	}
 	body, err := executeBytes(defaultHTTPClient(), req)
 	if err != nil {
-		return sources.RetrievalResult{}, nil
+		return sources.RetrievalResult{
+			State:    sources.RetrievalStateFailed,
+			Message:  fmt.Sprintf("Sci-Hub request failed: %v", err),
+			Attempts: []sources.RetrievalAttempt{},
+		}, nil
 	}
 
 	pdfURL := parseSciHubPDFURL(baseURL, string(body))

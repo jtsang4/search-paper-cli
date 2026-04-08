@@ -152,7 +152,6 @@ func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writ
 	case operation == "download" && p.Source == "scihub":
 		result, resultErr = connectors.DownloadSciHub(firstNonEmptyString(p.DOI, p.Title, p.PaperID, p.URL), resolvedSaveDir, *sciHubBaseURL)
 		if resultErr == nil {
-			result.WinningStage = "scihub"
 			result.Attempts = []sources.RetrievalAttempt{{
 				Stage:   "scihub",
 				Source:  "scihub",
@@ -160,6 +159,9 @@ func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writ
 				Message: result.Message,
 				Path:    result.Path,
 			}}
+			if result.State == sources.RetrievalStateDownloaded {
+				result.WinningStage = "scihub"
+			}
 		}
 	default:
 		connector, connectorErr := factory(p.Source, cfg)
