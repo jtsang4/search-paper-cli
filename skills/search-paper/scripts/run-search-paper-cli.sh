@@ -72,7 +72,7 @@ require_value() {
   fi
 
   printf 'error: missing required environment variable %s.\n' "$key" >&2
-  printf 'error: this skill only recognizes SEARCH_PAPER_-prefixed variables; legacy or fuzzy-matched names are ignored.\n' >&2
+  printf 'error: this skill only recognizes SEARCH_PAPER_-prefixed variables; non-prefixed or fuzzy-matched names are ignored.\n' >&2
   printf 'error: example: %s=you@example.com\n' "$key" >&2
   printf 'error: create %s from %s and fill in the required values.\n' "$ENV_FILE" "$ENV_EXAMPLE" >&2
   exit 1

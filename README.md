@@ -86,8 +86,8 @@ cp .env.example .env
 
 | Environment variable | Provider / usage | Required? | How to obtain / notes |
 | --- | --- | --- | --- |
-| `SEARCH_PAPER_UNPAYWALL_EMAIL` (`UNPAYWALL_EMAIL` legacy alias) | Unpaywall DOI/OA lookup and OA-first fallback resolution | Required for Unpaywall-backed lookup/fallback | Use a valid email address; see [unpaywall.org/products/api](https://unpaywall.org/products/api) |
-| `SEARCH_PAPER_CORE_API_KEY` (`CORE_API_KEY` legacy alias) | CORE | Optional, recommended | Free API key from [core.ac.uk/services/api](https://core.ac.uk/services/api) |
+| `SEARCH_PAPER_UNPAYWALL_EMAIL` | Unpaywall DOI/OA lookup and OA-first fallback resolution | Required for Unpaywall-backed lookup/fallback | Use a valid email address; see [unpaywall.org/products/api](https://unpaywall.org/products/api) |
+| `SEARCH_PAPER_CORE_API_KEY` | CORE | Optional, recommended | Free API key from [core.ac.uk/services/api](https://core.ac.uk/services/api) |
 | `SEARCH_PAPER_SEMANTIC_SCHOLAR_API_KEY` | Semantic Scholar | Optional | Free API key from [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api); improves rate limits |
 | `SEARCH_PAPER_GOOGLE_SCHOLAR_PROXY_URL` | Google Scholar proxy | Optional | Provide your own HTTP/HTTPS proxy URL if Google Scholar is rate-limited or bot-protected |
 | `SEARCH_PAPER_DOAJ_API_KEY` | DOAJ | Optional | Free API key from [doaj.org/apply-for-api-key](https://doaj.org/apply-for-api-key/) |
@@ -114,7 +114,7 @@ These variables are all optional and are mainly intended for deterministic tests
 2. `./.env` in the current working directory
 3. Repository-root `.env` when running inside the source tree
 
-Prefixed `SEARCH_PAPER_*` variables override legacy aliases, and an explicitly empty prefixed value blocks fallback.
+Only `SEARCH_PAPER_*` variables are recognized.
 
 ## Testing / packaging
 

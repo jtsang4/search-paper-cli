@@ -51,21 +51,18 @@ type envValue struct {
 
 type binding struct {
 	prefixed string
-	legacy   string
 	assign   func(*Config, string)
 }
 
 var bindings = []binding{
 	{
 		prefixed: "SEARCH_PAPER_UNPAYWALL_EMAIL",
-		legacy:   "UNPAYWALL_EMAIL",
 		assign: func(cfg *Config, value string) {
 			cfg.UnpaywallEmail = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_CORE_API_KEY",
-		legacy:   "CORE_API_KEY",
 		assign: func(cfg *Config, value string) {
 			cfg.CoreAPIKey = value
 		},
@@ -208,7 +205,7 @@ func Load(opts LoadOptions) (Config, Diagnostics, error) {
 
 	cfg := Config{}
 	for _, item := range bindings {
-		value, ok := resolveValue(merged, item.prefixed, item.legacy)
+		value, ok := resolveValue(merged, item.prefixed)
 		if ok {
 			item.assign(&cfg, value)
 		}
@@ -329,14 +326,8 @@ func validEnvKey(key string) bool {
 	return key != ""
 }
 
-func resolveValue(env map[string]envValue, prefixed, legacy string) (string, bool) {
-	if value, ok := env[prefixed]; ok {
-		return value.value, true
-	}
-	if legacy == "" {
-		return "", false
-	}
-	value, ok := env[legacy]
+func resolveValue(env map[string]envValue, prefixed string) (string, bool) {
+	value, ok := env[prefixed]
 	return value.value, ok
 }
 

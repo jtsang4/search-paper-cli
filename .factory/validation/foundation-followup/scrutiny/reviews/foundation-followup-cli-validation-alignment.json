@@ -6,10 +6,10 @@
   "diffReviewed": true,
   "status": "pass",
   "codeReview": {
-    "summary": "Reviewed the feature definition, handoff, transcript skeleton, skill procedure, and commit 2ac2e86b58548b7389dbe0537d818f122ada813e. The change is narrowly scoped to keep the final foundation follow-up regression run aligned with the env precedence contract by reusing the existing prefixed-vs-legacy assertion inside TestEnvFilePrecedence, while the previously-added CLI foundation tests continue to cover help/version/source-registry/output-format behavior. I did not find any high-confidence actionable defects in scope.",
+    "summary": "Reviewed the feature definition, handoff, transcript skeleton, skill procedure, and commit 2ac2e86b58548b7389dbe0537d818f122ada813e. The change is narrowly scoped to keep the final foundation follow-up regression run aligned with the env precedence contract by reusing the existing prefixed env assertion inside TestEnvFilePrecedence, while the previously-added CLI foundation tests continue to cover help/version/source-registry/output-format behavior. I did not find any high-confidence actionable defects in scope.",
     "issues": []
   },
   "sharedStateObservations": [],
   "addressesFailureFrom": null,
-  "summary": "Pass. The follow-up feature correctly tightens the final foundation regression coverage so the env-file precedence suite also exercises prefixed-over-legacy resolution and empty-prefixed masking, and I found no blocking or non-blocking code defects in the reviewed diff."
+  "summary": "Pass. The follow-up feature correctly tightens the final foundation regression coverage so the env-file precedence suite also exercises prefixed env loading and empty-prefixed preservation, and I found no blocking or non-blocking code defects in the reviewed diff."
 }

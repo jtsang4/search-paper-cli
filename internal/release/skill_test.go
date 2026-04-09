@@ -122,7 +122,7 @@ func TestSkillRunScriptRequiresExactPrefixedEnvVariable(t *testing.T) {
 
 	copyFile(t, filepath.Join(repoRoot, "skills", "search-paper", "scripts", "run-search-paper-cli.sh"), filepath.Join(skillRoot, "scripts", "run-search-paper-cli.sh"))
 	writeFile(t, filepath.Join(skillRoot, ".env.example"), "SEARCH_PAPER_UNPAYWALL_EMAIL=you@example.com\n")
-	writeFile(t, filepath.Join(skillRoot, ".env"), "UNPAYWALL_EMAIL=legacy@example.com\n")
+	writeFile(t, filepath.Join(skillRoot, ".env"), "UNPAYWALL_CONTACT=someone@example.com\n")
 
 	cmd := exec.Command("/bin/sh", filepath.Join(skillRoot, "scripts", "run-search-paper-cli.sh"), "sources")
 	cmd.Dir = t.TempDir()

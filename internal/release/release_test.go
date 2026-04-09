@@ -520,8 +520,6 @@ func filteredEnv() []string {
 	for _, entry := range env {
 		switch {
 		case strings.HasPrefix(entry, "SEARCH_PAPER_"):
-		case strings.HasPrefix(entry, "UNPAYWALL_EMAIL="):
-		case strings.HasPrefix(entry, "CORE_API_KEY="):
 		default:
 			filtered = append(filtered, entry)
 		}

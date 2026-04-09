@@ -7,18 +7,16 @@ import (
 	"testing"
 )
 
-func TestPrefixedEnvOverridesLegacy(t *testing.T) {
-	assertPrefixedEnvOverridesLegacy(t)
+func TestPrefixedEnvLoadsValues(t *testing.T) {
+	assertPrefixedEnvLoadsValues(t)
 }
 
-func assertPrefixedEnvOverridesLegacy(t *testing.T) {
+func assertPrefixedEnvLoadsValues(t *testing.T) {
 	t.Helper()
 
 	cfg, diagnostics, err := Load(LoadOptions{
 		Environ: []string{
-			"UNPAYWALL_EMAIL=legacy@example.com",
 			"SEARCH_PAPER_UNPAYWALL_EMAIL=prefixed@example.com",
-			"CORE_API_KEY=legacy-core-key",
 			"SEARCH_PAPER_CORE_API_KEY=",
 		},
 		WorkingDir:     t.TempDir(),
@@ -29,11 +27,11 @@ func assertPrefixedEnvOverridesLegacy(t *testing.T) {
 	}
 
 	if cfg.UnpaywallEmail != "prefixed@example.com" {
-		t.Fatalf("expected prefixed unpaywall email to win, got %q", cfg.UnpaywallEmail)
+		t.Fatalf("expected prefixed unpaywall email to load, got %q", cfg.UnpaywallEmail)
 	}
 
 	if cfg.CoreAPIKey != "" {
-		t.Fatalf("expected explicitly empty prefixed core key to mask legacy alias, got %q", cfg.CoreAPIKey)
+		t.Fatalf("expected explicitly empty prefixed core key to be preserved, got %q", cfg.CoreAPIKey)
 	}
 
 	if len(diagnostics.Warnings) != 0 {
@@ -90,8 +88,8 @@ func TestBaseURLOptionsLoadFromPrefixedEnv(t *testing.T) {
 }
 
 func TestEnvFilePrecedence(t *testing.T) {
-	t.Run("prefixed env overrides legacy aliases and empty values mask fallback", func(t *testing.T) {
-		assertPrefixedEnvOverridesLegacy(t)
+	t.Run("prefixed env values load directly and preserve empties", func(t *testing.T) {
+		assertPrefixedEnvLoadsValues(t)
 	})
 
 	t.Run("explicit env file wins and malformed lines do not crash", func(t *testing.T) {

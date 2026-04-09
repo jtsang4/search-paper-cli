@@ -46,7 +46,7 @@ None.
 ```json
 {
   "salientSummary": "Implemented the root CLI, version/help surfaces, env loading, and the source registry JSON/text renderers. Added failing CLI/config tests first, then wired shared formatting and deterministic source ordering until all scoped and repo validators passed.",
-  "whatWasImplemented": "Created the Go module entrypoint, root command tree, shared formatter, env loader with prefixed-over-legacy precedence, and a registry layer that exposes enabled state plus per-capability status for each source. Added CLI integration tests for help/version/sources output and config precedence behavior.",
+  "whatWasImplemented": "Created the Go module entrypoint, root command tree, shared formatter, env loader for prefixed environment variables, and a registry layer that exposes enabled state plus per-capability status for each source. Added CLI integration tests for help/version/sources output and config precedence behavior.",
   "whatWasLeftUndone": "",
   "verification": {
     "commandsRun": [
@@ -79,8 +79,8 @@ None.
         "file": "internal/config/config_test.go",
         "cases": [
           {
-            "name": "TestPrefixedEnvOverridesLegacy",
-            "verifies": "Prefixed env vars win over legacy aliases and empty prefixed values mask legacy values."
+            "name": "TestPrefixedEnvLoadsValues",
+            "verifies": "Prefixed env vars load directly and preserve explicit empty values."
           }
         ]
       },

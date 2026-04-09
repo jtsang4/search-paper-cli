@@ -178,7 +178,7 @@ func unpaywallFallbackAttempt(cfg config.Config, factory fallbackConnectorFactor
 			Stage:   "unpaywall",
 			Source:  "unpaywall",
 			State:   "skipped",
-			Message: "SEARCH_PAPER_UNPAYWALL_EMAIL/UNPAYWALL_EMAIL missing",
+			Message: "SEARCH_PAPER_UNPAYWALL_EMAIL missing",
 		}, nil, nil
 	}
 

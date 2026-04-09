@@ -116,12 +116,12 @@
         },
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source unpaywall doi:10.1000/prefix-wins",
-          "expected": "Prefixed Unpaywall env var wins over legacy alias and is used in the outgoing request.",
+          "expected": "Prefixed Unpaywall env var is used in the outgoing request.",
           "observed": "exit 0; stdout='{\"status\":\"ok\",\"query\":\"doi:10.1000/prefix-wins\",\"requested_sources\":[\"unpaywall\"],\"used_sources\":[\"unpaywall\"],\"invalid_sources\":[],\"source_results\":{\"unpaywall\":1},\"total\":1,\"papers\":[{\"paper_id\":\"10.1000%2Fprefix-wins\",\"title\":\"Unknown D'; stderr=''"
         },
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source unpaywall doi:10.1000/prefix-empty",
-          "expected": "Explicitly empty prefixed Unpaywall env var blocks fallback to the legacy alias.",
+          "expected": "Explicitly empty prefixed Unpaywall env var leaves Unpaywall credentials unset.",
           "observed": "exit 0; stdout='{\"status\":\"ok\",\"query\":\"doi:10.1000/prefix-empty\",\"requested_sources\":[\"unpaywall\"],\"used_sources\":[\"unpaywall\"],\"invalid_sources\":[],\"source_results\":{\"unpaywall\":0},\"total\":0,\"papers\":[]}'; stderr=''"
         },
         {

@@ -40,7 +40,7 @@ This layer must stay thin. It should delegate all real behavior to shared servic
 Responsible for:
 
 - loading `.env` and process env
-- prefixed-vs-legacy env resolution
+- prefixed env resolution
 - source activation/gating
 - secret-safe diagnostics
 

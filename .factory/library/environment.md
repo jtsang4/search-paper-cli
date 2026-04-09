@@ -11,10 +11,8 @@ Environment variables, external dependencies, and setup notes.
 
 - `SEARCH_PAPER_UNPAYWALL_EMAIL`
   - Required to activate Unpaywall DOI/OA lookup behavior.
-  - Legacy alias: `UNPAYWALL_EMAIL`
 - `SEARCH_PAPER_CORE_API_KEY`
   - Recommended for CORE reliability and rate limits.
-  - Legacy alias: `CORE_API_KEY`
 
 ## Optional integrations
 
@@ -44,8 +42,7 @@ These are intended for local deterministic testing and built-artifact validation
 2. Otherwise `./.env` in the current working directory wins.
 3. Otherwise repository-root `.env` is used when running from within the source tree.
 4. Discovery stops after the first existing file.
-5. Prefixed `SEARCH_PAPER_*` variables override legacy aliases.
-6. An explicitly empty prefixed value blocks fallback to the legacy alias.
+5. Only `SEARCH_PAPER_*` variables are recognized.
 
 ## Secret handling
 

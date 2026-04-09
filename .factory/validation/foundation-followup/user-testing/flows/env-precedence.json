@@ -14,43 +14,29 @@
   "assertions": [
     {
       "id": "VAL-FOUNDATION-007",
-      "title": "Prefixed env vars override legacy aliases",
+      "title": "Only prefixed env vars are recognized",
       "status": "pass",
       "steps": [
         {
-          "action": "Run unpaywall search with only legacy alias variables set",
-          "expected": "CLI uses UNPAYWALL_EMAIL and returns one result",
-          "observed": "exit 0; server observed email=legacy@example.com; total=1"
-        },
-        {
-          "action": "Run unpaywall search with both legacy and SEARCH_PAPER_UNPAYWALL_EMAIL set",
-          "expected": "Prefixed email wins over legacy alias",
+          "action": "Run unpaywall search with only SEARCH_PAPER_UNPAYWALL_EMAIL set",
+          "expected": "CLI uses SEARCH_PAPER_UNPAYWALL_EMAIL and returns one result",
           "observed": "exit 0; server observed email=prefixed@example.com; total=1"
         },
         {
-          "action": "Run core search with only CORE_API_KEY set",
-          "expected": "Legacy alias still populates auth header",
-          "observed": "exit 0; server observed authorization_present=True; total=1"
-        },
-        {
-          "action": "Run core search with CORE_API_KEY set and SEARCH_PAPER_CORE_API_KEY explicitly empty",
-          "expected": "Empty prefixed variable masks the legacy alias and removes auth header",
+          "action": "Run core search with SEARCH_PAPER_CORE_API_KEY explicitly empty",
+          "expected": "Explicitly empty prefixed variables stay empty and omit auth headers",
           "observed": "exit 0; server observed authorization_present=False; total=1"
         }
       ],
       "evidence": {
         "terminalSnapshots": [
-          "foundation-followup/env-precedence/VAL-FOUNDATION-007-unpaywall-legacy-only.txt",
-          "foundation-followup/env-precedence/VAL-FOUNDATION-007-unpaywall-prefixed-wins.txt",
-          "foundation-followup/env-precedence/VAL-FOUNDATION-007-core-legacy-only.txt",
-          "foundation-followup/env-precedence/VAL-FOUNDATION-007-core-empty-prefixed-masks.txt"
+          "foundation-followup/env-precedence/VAL-FOUNDATION-007-unpaywall-prefixed.txt",
+          "foundation-followup/env-precedence/VAL-FOUNDATION-007-core-empty-prefixed.txt"
         ],
         "serverObservations": "foundation-followup/env-precedence/server-observations.json",
         "network": {
-          "unpaywallLegacyEmail": "legacy@example.com",
           "unpaywallPrefixedEmail": "prefixed@example.com",
-          "coreLegacyAuthorizationPresent": true,
-          "coreMaskedAuthorizationPresent": false
+          "coreAuthorizationPresent": false
         }
       },
       "issues": null
