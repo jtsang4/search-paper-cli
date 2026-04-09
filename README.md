@@ -1,6 +1,6 @@
 # search-paper-cli
 
-`search-paper-cli` is an agent-friendly Go CLI replacement for `paper-search-mcp`. It provides consistent machine-readable search, download, and read flows across academic paper sources, supports OA-first fallback retrieval, and is designed to work both from the repository and as a packaged standalone Linux binary.
+`search-paper-cli` is an agent-friendly Go CLI replacement for [`paper-search-mcp`](https://github.com/openags/paper-search-mcp). It provides consistent machine-readable search, download, and read flows across academic paper sources, supports OA-first fallback retrieval, and is designed to work both from the repository and as a packaged standalone Linux binary.
 
 ## Key features
 
@@ -76,18 +76,28 @@ semantic, scihub, ssrn, unpaywall, zenodo
 
 ## Environment variables
 
-Common runtime variables:
+Configure variables in a `.env` file (recommended) or via shell exports:
 
-- `SEARCH_PAPER_UNPAYWALL_EMAIL` (`UNPAYWALL_EMAIL` legacy alias): enables Unpaywall DOI/OA lookup
-- `SEARCH_PAPER_CORE_API_KEY` (`CORE_API_KEY` legacy alias): recommended for CORE reliability/rate limits
-- `SEARCH_PAPER_SEMANTIC_SCHOLAR_API_KEY`
-- `SEARCH_PAPER_GOOGLE_SCHOLAR_PROXY_URL`
-- `SEARCH_PAPER_DOAJ_API_KEY`
-- `SEARCH_PAPER_ZENODO_ACCESS_TOKEN`
-- `SEARCH_PAPER_IEEE_API_KEY`
-- `SEARCH_PAPER_ACM_API_KEY`
+```bash
+cp .env.example .env
+```
 
-Optional endpoint overrides for deterministic tests and artifact validation:
+### Credential and API key requirements
+
+| Environment variable | Provider / usage | Required? | How to obtain / notes |
+| --- | --- | --- | --- |
+| `SEARCH_PAPER_UNPAYWALL_EMAIL` (`UNPAYWALL_EMAIL` legacy alias) | Unpaywall DOI/OA lookup and OA-first fallback resolution | Required for Unpaywall-backed lookup/fallback | Use a valid email address; see [unpaywall.org/products/api](https://unpaywall.org/products/api) |
+| `SEARCH_PAPER_CORE_API_KEY` (`CORE_API_KEY` legacy alias) | CORE | Optional, recommended | Free API key from [core.ac.uk/services/api](https://core.ac.uk/services/api) |
+| `SEARCH_PAPER_SEMANTIC_SCHOLAR_API_KEY` | Semantic Scholar | Optional | Free API key from [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api); improves rate limits |
+| `SEARCH_PAPER_GOOGLE_SCHOLAR_PROXY_URL` | Google Scholar proxy | Optional | Provide your own HTTP/HTTPS proxy URL if Google Scholar is rate-limited or bot-protected |
+| `SEARCH_PAPER_DOAJ_API_KEY` | DOAJ | Optional | Free API key from [doaj.org/apply-for-api-key](https://doaj.org/apply-for-api-key/) |
+| `SEARCH_PAPER_ZENODO_ACCESS_TOKEN` | Zenodo | Optional | Create a personal access token at [zenodo.org/account/settings/applications](https://zenodo.org/account/settings/applications/); useful for authenticated access such as private records |
+| `SEARCH_PAPER_IEEE_API_KEY` | IEEE Xplore | Optional overall, required to enable the `ieee` source | Available from [developer.ieee.org](https://developer.ieee.org/) |
+| `SEARCH_PAPER_ACM_API_KEY` | ACM Digital Library | Optional overall, required to enable the `acm` source | See [libraries.acm.org/digital-library/acm-open](https://libraries.acm.org/digital-library/acm-open) |
+
+### Optional endpoint overrides
+
+These variables are all optional and are mainly intended for deterministic tests, local mocks, or custom deployments. Most users should leave them unset.
 
 - `SEARCH_PAPER_ARXIV_BASE_URL`
 - `SEARCH_PAPER_OPENAIRE_BASE_URL`
@@ -131,12 +141,3 @@ Release artifact paths:
 ## License
 
 This project is licensed under the [MIT License](./LICENSE).
-
-## Notes on output contract and optional sources
-
-- Default output is JSON; use `--format text` for a human-readable view
-- Success responses use `{"status":"ok", ...}` and structured failures use `{"status":"error", ...}`
-- `search` returns normalized papers plus `requested_sources`, `used_sources`, `invalid_sources`, `source_results`, and per-source `errors`
-- `download` and `read` return operation state, result path/content, and fallback `attempts`
-- Use `sources` to inspect whether a source is `supported`, `record_dependent`, `informational`, `unsupported`, or `gated`
-- Some sources are optional or gated by credentials (`ieee`, `acm`), and some retrieval paths are metadata-only or record-dependent rather than direct-download capable
