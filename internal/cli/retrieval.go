@@ -18,6 +18,7 @@ import (
 type retrievalResponse struct {
 	Status       string                     `json:"status"`
 	Operation    string                     `json:"operation"`
+	Target       string                     `json:"target"`
 	State        string                     `json:"state"`
 	Source       string                     `json:"source"`
 	PaperID      string                     `json:"paper_id"`
@@ -29,25 +30,46 @@ type retrievalResponse struct {
 }
 
 func runDownloadCommand(args []string, stdout, stderr io.Writer, opts runOptions) int {
-	return runRetrievalCommand("download", args, stdout, stderr, opts)
+	return runRetrievalCommand(retrievalMode{
+		commandName: "download",
+		operation:   "download",
+		target:      "pdf",
+	}, args, stdout, stderr, opts)
 }
 
 func runReadCommand(args []string, stdout, stderr io.Writer, opts runOptions) int {
-	return runRetrievalCommand("read", args, stdout, stderr, opts)
+	return runRetrievalCommand(retrievalMode{
+		commandName: "read",
+		operation:   "read",
+		target:      "text",
+	}, args, stdout, stderr, opts)
 }
 
-func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writer, opts runOptions) int {
+func runGetCommand(args []string, stdout, stderr io.Writer, opts runOptions) int {
+	return runRetrievalCommand(retrievalMode{
+		commandName: "get",
+	}, args, stdout, stderr, opts)
+}
+
+type retrievalMode struct {
+	commandName string
+	operation   string
+	target      string
+}
+
+func runRetrievalCommand(mode retrievalMode, args []string, stdout, stderr io.Writer, opts runOptions) int {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			_, _ = io.WriteString(stdout, retrievalCommandHelp(operation))
+			_, _ = io.WriteString(stdout, retrievalCommandHelp(mode.commandName))
 			return exitCodeOK
 		}
 	}
 
-	flags := flag.NewFlagSet(operation, flag.ContinueOnError)
+	flags := flag.NewFlagSet(mode.commandName, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 
 	format := addFormatFlag(flags)
+	targetFlag := flags.String("as", "", "Retrieval target: pdf or text.")
 	sourceID := flags.String("source", "", "Source id for source-native retrieval.")
 	saveDir := flags.String("save-dir", "", "Directory where downloaded PDFs should be saved.")
 	paperJSON := flags.String("paper-json", "", "Normalized paper JSON object from prior search output.")
@@ -61,19 +83,31 @@ func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writ
 	sciHubBaseURL := flags.String("scihub-base-url", "https://sci-hub.se", "Sci-Hub mirror URL for direct/fallback retrieval.")
 	if err := flags.Parse(args); err != nil {
 		return writeInvalidUsage(stdout, normalizeFlagError(err), map[string]any{
-			"command": operation,
+			"command": mode.commandName,
 		})
+	}
+
+	if mode.commandName == "get" {
+		resolvedMode, err := retrievalModeFromTarget(*targetFlag)
+		if err != nil {
+			return writeInvalidUsage(stdout, err.Error(), map[string]any{
+				"command":           mode.commandName,
+				"flag":              "as",
+				"supported_targets": []string{"pdf", "text"},
+			})
+		}
+		mode = resolvedMode
 	}
 
 	if !isSupportedFormat(*format) {
 		response := validateFormat(*format)
-		response.Error.Details["command"] = operation
+		response.Error.Details["command"] = mode.commandName
 		return writeError(stdout, response, exitCodeInvalidUsage)
 	}
 
 	if len(flags.Args()) != 0 {
-		return writeInvalidUsage(stdout, fmt.Sprintf("unknown argument %q for %s command", flags.Args()[0], operation), map[string]any{
-			"command": operation,
+		return writeInvalidUsage(stdout, fmt.Sprintf("unknown argument %q for %s command", flags.Args()[0], mode.commandName), map[string]any{
+			"command": mode.commandName,
 			"args":    flags.Args(),
 		})
 	}
@@ -94,12 +128,12 @@ func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writ
 	})
 	if err != nil {
 		return writeInvalidUsage(stdout, err.Error(), map[string]any{
-			"command": operation,
+			"command": mode.commandName,
 		})
 	}
 	if p.Source == "" {
-		return writeInvalidUsage(stdout, fmt.Sprintf("%s requires a source via --source or --paper-json", operation), map[string]any{
-			"command": operation,
+		return writeInvalidUsage(stdout, fmt.Sprintf("%s requires a source via --source or --paper-json", mode.commandName), map[string]any{
+			"command": mode.commandName,
 		})
 	}
 
@@ -130,11 +164,11 @@ func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writ
 				},
 			}, exitCodeInvalidUsage)
 		}
-		if !descriptor.Enabled && capabilityForOperation(descriptor, operation) == sources.CapabilityGated {
-			return writeUnsupportedError(stdout, "gated_source", fmt.Sprintf("requested source %q is gated for %s", p.Source, operation), map[string]any{
+		if !descriptor.Enabled && capabilityForOperation(descriptor, mode.operation) == sources.CapabilityGated {
+			return writeUnsupportedError(stdout, "gated_source", fmt.Sprintf("requested source %q is gated for %s", p.Source, mode.commandName), map[string]any{
 				"source":  p.Source,
 				"reason":  descriptor.DisableReason,
-				"command": operation,
+				"command": mode.commandName,
 			})
 		}
 	}
@@ -147,9 +181,9 @@ func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writ
 	var result sources.RetrievalResult
 	var resultErr error
 	switch {
-	case operation == "download" && *fallback:
+	case mode.operation == "download" && *fallback:
 		result, resultErr = connectors.DownloadWithFallback(cfg, factory, p.Source, p, resolvedSaveDir, *allowSciHub, *sciHubBaseURL)
-	case operation == "download" && p.Source == "scihub":
+	case mode.operation == "download" && p.Source == "scihub":
 		result, resultErr = connectors.DownloadSciHub(firstNonEmptyString(p.DOI, p.Title, p.PaperID, p.URL), resolvedSaveDir, *sciHubBaseURL)
 		if resultErr == nil {
 			result.Attempts = []sources.RetrievalAttempt{{
@@ -168,7 +202,7 @@ func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writ
 		if connectorErr != nil {
 			return writeRuntimeError(stdout, connectorErr.Error())
 		}
-		switch operation {
+		switch mode.operation {
 		case "download":
 			result, resultErr = connector.Download(sources.DownloadRequest{Paper: p, SaveDir: resolvedSaveDir})
 		case "read":
@@ -191,7 +225,8 @@ func runRetrievalCommand(operation string, args []string, stdout, stderr io.Writ
 
 	response := retrievalResponse{
 		Status:       "ok",
-		Operation:    operation,
+		Operation:    mode.operation,
+		Target:       mode.target,
 		State:        string(result.State),
 		Source:       p.Source,
 		PaperID:      p.PaperID,
@@ -288,8 +323,35 @@ func parseRetrievalPaper(input retrievalPaperInput) (paper.Paper, error) {
 }
 
 func retrievalCommandHelp(operation string) string {
-	return "Usage:\n  search-paper-cli " + operation + " --source <id> [--save-dir <dir>] [--paper-json <json>]\n\n" +
-		"Fetch paper full text or extracted content using source-native retrieval.\n"
+	switch operation {
+	case "get":
+		return "Usage:\n  search-paper-cli get --as <pdf|text> --source <id> [--save-dir <dir>] [--paper-json <json>]\n\n" +
+			"Retrieve paper content using source-native or fallback retrieval with an explicit output target.\n"
+	default:
+		return "Usage:\n  search-paper-cli " + operation + " --source <id> [--save-dir <dir>] [--paper-json <json>]\n\n" +
+			"Fetch paper full text or extracted content using source-native retrieval.\n"
+	}
+}
+
+func retrievalModeFromTarget(value string) (retrievalMode, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "pdf":
+		return retrievalMode{
+			commandName: "get",
+			operation:   "download",
+			target:      "pdf",
+		}, nil
+	case "text":
+		return retrievalMode{
+			commandName: "get",
+			operation:   "read",
+			target:      "text",
+		}, nil
+	case "":
+		return retrievalMode{}, fmt.Errorf("get requires --as with one of: pdf, text")
+	default:
+		return retrievalMode{}, fmt.Errorf("unsupported --as value %q", strings.TrimSpace(value))
+	}
 }
 
 func lookupSourceDescriptor(cfg config.Config, sourceID string) (sources.Descriptor, bool) {
@@ -322,6 +384,9 @@ func retrievalExitCode(state sources.RetrievalState) int {
 func renderRetrievalText(response retrievalResponse) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("operation: %s\n", response.Operation))
+	if response.Target != "" {
+		b.WriteString(fmt.Sprintf("target: %s\n", response.Target))
+	}
 	b.WriteString(fmt.Sprintf("state: %s\n", response.State))
 	b.WriteString(fmt.Sprintf("source: %s\n", response.Source))
 	if response.PaperID != "" {

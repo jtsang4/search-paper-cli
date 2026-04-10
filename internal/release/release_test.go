@@ -265,7 +265,7 @@ func TestArtifactOutsideRepoFlow(t *testing.T) {
 	if runHelp.ExitCode != 0 {
 		t.Fatalf("expected outside-repo help exit code 0, got %d stdout=%q stderr=%q", runHelp.ExitCode, runHelp.Stdout, runHelp.Stderr)
 	}
-	if !strings.Contains(runHelp.Stdout, "search") || !strings.Contains(runHelp.Stdout, "download") {
+	if !strings.Contains(runHelp.Stdout, "search") || !strings.Contains(runHelp.Stdout, "get") {
 		t.Fatalf("expected help output to include core commands, got %q", runHelp.Stdout)
 	}
 

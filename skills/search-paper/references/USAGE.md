@@ -13,8 +13,10 @@ sh scripts/run-search-paper-cli.sh <command> [args...]
 - `sources` — inspect available sources, capability states, and whether credentials have enabled gated providers
 - `search` — search one or more sources and return normalized paper results
   - returns `mode: degraded` plus failed-source metadata when some requested sources fail
-- `download` — fetch paper full text when a source or fallback path supports downloading
-- `read` — fetch and extract readable paper content when supported
+- `get` — retrieve paper content with an explicit target:
+  - `get --as pdf` fetches paper full text when a source or fallback path supports downloading
+  - `get --as text` fetches and extracts readable paper content when supported
+- `download` / `read` — legacy aliases for compatibility; prefer `get`
 - `version` — print the CLI version
 
 ## Inspect sources
@@ -56,30 +58,42 @@ When some requested sources fail but others succeed, the response still returns 
 - `failed_sources`
 - `errors`
 
-## Download a paper
+## Retrieve a paper as a file
 
-Use `download` when you already have a paper object or enough metadata to retrieve a file.
+Use `get --as pdf` when you already have a paper object or enough metadata to retrieve a file.
 
 ```bash
-sh scripts/run-search-paper-cli.sh download --source arxiv --paper-json '{"paper_id":"1234.5678v1","title":"Example","source":"arxiv","pdf_url":"https://arxiv.org/pdf/1234.5678v1.pdf"}'
+sh scripts/run-search-paper-cli.sh get --as pdf --source arxiv --paper-json '{"paper_id":"1234.5678v1","title":"Example","source":"arxiv","pdf_url":"https://arxiv.org/pdf/1234.5678v1.pdf"}'
 ```
 
 Typical inputs:
 
+- `--as pdf`
 - `--source <id>`
 - `--paper-json '<json>'`
 - or source-specific identifiers such as paper id / DOI / URL depending on the workflow
 - optional save-directory arguments when you need control over output location
 
-## Read a paper
+## Retrieve a paper as extracted text
 
-Use `read` when you want extracted paper content instead of a saved file.
+Use `get --as text` when you want extracted paper content instead of a saved file.
 
 ```bash
-sh scripts/run-search-paper-cli.sh read --source arxiv --paper-json '{"paper_id":"1234.5678v1","title":"Example","source":"arxiv","pdf_url":"https://arxiv.org/pdf/1234.5678v1.pdf"}'
+sh scripts/run-search-paper-cli.sh get --as text --source arxiv --paper-json '{"paper_id":"1234.5678v1","title":"Example","source":"arxiv","pdf_url":"https://arxiv.org/pdf/1234.5678v1.pdf"}'
 ```
 
-Typical inputs mirror `download`, but the result is structured read output rather than a saved artifact path.
+Typical inputs mirror file retrieval, but use `--as text` and expect structured extracted content rather than only a saved artifact path.
+
+## Legacy compatibility
+
+Older callers may still use:
+
+```bash
+sh scripts/run-search-paper-cli.sh download ...
+sh scripts/run-search-paper-cli.sh read ...
+```
+
+Those aliases still work, but new agent workflows should prefer `get --as pdf|text` so retrieval intent is explicit and non-ambiguous.
 
 ## Version
 

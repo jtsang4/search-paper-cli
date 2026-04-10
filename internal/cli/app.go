@@ -64,14 +64,9 @@ var commands = []command{
 		description: "Search registered sources and return normalized paper results.",
 	},
 	{
-		name:        "download",
-		summary:     "Download paper full text when supported.",
-		description: "Download source-native or fallback paper full text into a target directory.",
-	},
-	{
-		name:        "read",
-		summary:     "Read paper content when supported.",
-		description: "Fetch and extract paper content from a source-native or fallback retrieval path.",
+		name:        "get",
+		summary:     "Retrieve paper content as pdf or text.",
+		description: "Retrieve paper content using source-native or fallback flows with an explicit output target.",
 	},
 	{
 		name:        "version",
@@ -125,6 +120,12 @@ func runWithOptions(args []string, stdout, stderr io.Writer, opts runOptions) in
 	if name == "help" {
 		return runHelp(remaining[1:], stdout)
 	}
+	if name == "download" {
+		return runDownloadCommand(remaining[1:], stdout, stderr, opts)
+	}
+	if name == "read" {
+		return runReadCommand(remaining[1:], stdout, stderr, opts)
+	}
 
 	cmd, ok := lookupCommand(name)
 	if !ok {
@@ -138,10 +139,8 @@ func runWithOptions(args []string, stdout, stderr io.Writer, opts runOptions) in
 		return runSourcesCommand(remaining[1:], stdout, stderr, opts)
 	case "search":
 		return runSearchCommand(remaining[1:], stdout, stderr, opts)
-	case "download":
-		return runDownloadCommand(remaining[1:], stdout, stderr, opts)
-	case "read":
-		return runReadCommand(remaining[1:], stdout, stderr, opts)
+	case "get":
+		return runGetCommand(remaining[1:], stdout, stderr, opts)
 	case "version":
 		return runVersionCommand(remaining[1:], stdout)
 	default:
@@ -152,6 +151,10 @@ func runWithOptions(args []string, stdout, stderr io.Writer, opts runOptions) in
 func runHelp(args []string, stdout io.Writer) int {
 	if len(args) == 0 {
 		_, _ = io.WriteString(stdout, rootHelp())
+		return exitCodeOK
+	}
+	if args[0] == "get" || args[0] == "download" || args[0] == "read" {
+		_, _ = io.WriteString(stdout, retrievalCommandHelp(args[0]))
 		return exitCodeOK
 	}
 

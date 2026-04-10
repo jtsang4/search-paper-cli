@@ -37,9 +37,14 @@ func TestRootHelp(t *testing.T) {
 	}
 
 	output := stdout.String()
-	for _, want := range []string{"Usage:", "search", "download", "read", "sources", "version"} {
+	for _, want := range []string{"Usage:", "search", "get", "sources", "version"} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("expected help output to contain %q, got %q", want, output)
+		}
+	}
+	for _, unwanted := range []string{"download", "read"} {
+		if strings.Contains(output, "  "+unwanted) {
+			t.Fatalf("expected root help to hide legacy command %q, got %q", unwanted, output)
 		}
 	}
 }
@@ -419,6 +424,7 @@ func TestInvalidFormat(t *testing.T) {
 	for _, args := range [][]string{
 		{"sources", "--format", "yaml"},
 		{"search", "--format", "yaml"},
+		{"get", "--as", "pdf", "--format", "yaml"},
 		{"download", "--format", "yaml"},
 		{"read", "--format", "yaml"},
 	} {

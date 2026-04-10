@@ -22,6 +22,7 @@ import (
 type retrievalCommandResponse struct {
 	Status       string `json:"status"`
 	Operation    string `json:"operation"`
+	Target       string `json:"target"`
 	State        string `json:"state"`
 	Source       string `json:"source"`
 	PaperID      string `json:"paper_id"`
@@ -82,6 +83,105 @@ func TestNativeDownloadSavePath(t *testing.T) {
 	if info.IsDir() || filepath.Ext(payload.Path) != ".pdf" {
 		t.Fatalf("expected saved pdf file, got %#v", info)
 	}
+}
+
+func TestGetCommandRequiresExplicitTarget(t *testing.T) {
+	t.Parallel()
+
+	for _, args := range [][]string{
+		{"get", "--source", "arxiv", "--paper-id", "1234.5678"},
+		{"get", "--as", "html", "--source", "arxiv", "--paper-id", "1234.5678"},
+	} {
+		args := args
+		t.Run(strings.Join(args, "-"), func(t *testing.T) {
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+
+			exitCode := runWithOptions(args, &stdout, &stderr, runOptions{
+				workingDir:     t.TempDir(),
+				repositoryRoot: t.TempDir(),
+			})
+			if exitCode != exitCodeInvalidUsage {
+				t.Fatalf("expected exit code %d, got %d with stdout=%q stderr=%q", exitCodeInvalidUsage, exitCode, stdout.String(), stderr.String())
+			}
+
+			var payload struct {
+				Status string `json:"status"`
+				Error  struct {
+					Code    string         `json:"code"`
+					Message string         `json:"message"`
+					Details map[string]any `json:"details"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+				t.Fatalf("expected valid json error, got %q: %v", stdout.String(), err)
+			}
+			if payload.Error.Code != "invalid_usage" {
+				t.Fatalf("expected invalid_usage error, got %#v", payload)
+			}
+			if payload.Error.Details["flag"] != "as" {
+				t.Fatalf("expected --as details, got %#v", payload)
+			}
+		})
+	}
+}
+
+func TestGetCommandMatchesLegacyRetrievalModes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("pdf target maps to download", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(minimalPDF("Get PDF text"))
+		}))
+		defer server.Close()
+
+		saveDir := filepath.Join(t.TempDir(), "get-pdf")
+		paperJSON := `{"paper_id":"get-pdf-1","title":"Get PDF","pdf_url":"` + server.URL + `/paper.pdf","source":"arxiv"}`
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"get", "--as", "pdf", "--source", "arxiv", "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
+			workingDir:       t.TempDir(),
+			repositoryRoot:   t.TempDir(),
+			connectorFactory: connectors.New,
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+
+		payload := decodeRetrievalResponse(t, stdout.Bytes())
+		if payload.Operation != "download" || payload.Target != "pdf" || payload.State != "downloaded" {
+			t.Fatalf("expected pdf retrieval payload, got %#v", payload)
+		}
+	})
+
+	t.Run("text target maps to read", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(minimalPDF("Get text extraction"))
+		}))
+		defer server.Close()
+
+		saveDir := filepath.Join(t.TempDir(), "get-text")
+		paperJSON := `{"paper_id":"get-text-1","title":"Get Text","pdf_url":"` + server.URL + `/paper.pdf","source":"pmc"}`
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"get", "--as", "text", "--source", "pmc", "--save-dir", saveDir, "--paper-json", paperJSON}, &stdout, &stderr, runOptions{
+			workingDir:       t.TempDir(),
+			repositoryRoot:   t.TempDir(),
+			connectorFactory: connectors.New,
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+
+		payload := decodeRetrievalResponse(t, stdout.Bytes())
+		if payload.Operation != "read" || payload.Target != "text" || payload.State != "extracted" {
+			t.Fatalf("expected text retrieval payload, got %#v", payload)
+		}
+	})
 }
 
 func TestReadStates(t *testing.T) {

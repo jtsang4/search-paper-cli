@@ -6,6 +6,13 @@ usage() {
 Usage: sh scripts/run-search-paper-cli.sh <command> [args...]
 
 Run search-paper-cli with SEARCH_PAPER_ENV_FILE pointing to this skill directory's .env file.
+Prefer:
+  sh scripts/run-search-paper-cli.sh search ...
+  sh scripts/run-search-paper-cli.sh get --as pdf ...
+  sh scripts/run-search-paper-cli.sh get --as text ...
+
+Legacy `download` and `read` aliases still work, but `get --as ...` is preferred for agent callers.
+
 Required configuration:
   SEARCH_PAPER_UNPAYWALL_EMAIL
 
