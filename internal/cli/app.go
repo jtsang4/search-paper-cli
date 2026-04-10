@@ -12,6 +12,7 @@ import (
 
 	"github.com/jtsang4/search-paper-cli/internal/config"
 	"github.com/jtsang4/search-paper-cli/internal/sources"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -87,64 +88,158 @@ func runWithOptions(args []string, stdout, stderr io.Writer, opts runOptions) in
 		stderr = io.Discard
 	}
 
-	if len(args) > 0 {
-		switch args[0] {
-		case "--help", "-h":
-			_, _ = io.WriteString(stdout, rootHelp())
-			return exitCodeOK
+	root := newRootCommand(stdout, stderr, opts)
+	root.SetArgs(args)
+
+	if err := root.Execute(); err != nil {
+		var exitErr cliExitError
+		if errors.As(err, &exitErr) {
+			return exitErr.code
 		}
+		return handleRootCommandError(stdout, err)
+	}
+	return exitCodeOK
+}
+
+type cliExitError struct {
+	code int
+}
+
+func (e cliExitError) Error() string {
+	return fmt.Sprintf("exit code %d", e.code)
+}
+
+func exitCodeToError(code int) error {
+	if code == exitCodeOK {
+		return nil
+	}
+	return cliExitError{code: code}
+}
+
+func newRootCommand(stdout, stderr io.Writer, opts runOptions) *cobra.Command {
+	root := &cobra.Command{
+		Use:           "search-paper-cli",
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			showVersion, _ := cmd.Flags().GetBool("version")
+			if showVersion {
+				_, _ = fmt.Fprintln(stdout, version)
+				return nil
+			}
+			if len(args) == 0 {
+				_, _ = io.WriteString(stderr, rootHelp())
+				return cliExitError{code: exitCodeInvalidUsage}
+			}
+			return writeInvalidUsageError(stdout, fmt.Sprintf("unknown command %q", args[0]), map[string]any{
+				"valid_commands": commandNames(),
+			})
+		},
 	}
 
-	global := flag.NewFlagSet("search-paper-cli", flag.ContinueOnError)
-	global.SetOutput(io.Discard)
+	root.CompletionOptions.DisableDefaultCmd = true
+	root.SetOut(stdout)
+	root.SetErr(io.Discard)
+	root.SetVersionTemplate("{{.Version}}\n")
+	root.Version = version
+	root.Flags().BoolP("version", "v", false, "Print version information and exit.")
+	root.SetHelpFunc(func(command *cobra.Command, _ []string) {
+		_, _ = io.WriteString(stdout, helpTextForCommand(command))
+	})
 
-	showVersion := global.Bool("version", false, "Print version information and exit.")
-	global.BoolVar(showVersion, "v", false, "Print version information and exit.")
-
-	if err := global.Parse(args); err != nil {
-		return writeInvalidUsage(stdout, normalizeFlagError(err), nil)
+	addCommand := func(command *cobra.Command) {
+		command.DisableFlagParsing = true
+		command.SetOut(stdout)
+		command.SetErr(io.Discard)
+		root.AddCommand(command)
 	}
 
-	if *showVersion {
-		_, _ = fmt.Fprintln(stdout, version)
-		return exitCodeOK
-	}
+	addCommand(&cobra.Command{
+		Use: "sources",
+		RunE: func(_ *cobra.Command, args []string) error {
+			return exitCodeToError(runSourcesCommand(args, stdout, stderr, opts))
+		},
+	})
+	addCommand(&cobra.Command{
+		Use: "search",
+		RunE: func(_ *cobra.Command, args []string) error {
+			return exitCodeToError(runSearchCommand(args, stdout, stderr, opts))
+		},
+	})
+	addCommand(&cobra.Command{
+		Use: "get",
+		RunE: func(_ *cobra.Command, args []string) error {
+			return exitCodeToError(runGetCommand(args, stdout, stderr, opts))
+		},
+	})
+	addCommand(&cobra.Command{
+		Use:    "download",
+		Hidden: true,
+		RunE: func(_ *cobra.Command, args []string) error {
+			return exitCodeToError(runDownloadCommand(args, stdout, stderr, opts))
+		},
+	})
+	addCommand(&cobra.Command{
+		Use:    "read",
+		Hidden: true,
+		RunE: func(_ *cobra.Command, args []string) error {
+			return exitCodeToError(runReadCommand(args, stdout, stderr, opts))
+		},
+	})
+	addCommand(&cobra.Command{
+		Use: "version",
+		RunE: func(_ *cobra.Command, args []string) error {
+			return exitCodeToError(runVersionCommand(args, stdout))
+		},
+	})
 
-	remaining := global.Args()
-	if len(remaining) == 0 {
-		_, _ = io.WriteString(stderr, rootHelp())
-		return exitCodeInvalidUsage
-	}
+	return root
+}
 
-	name := remaining[0]
-	if name == "help" {
-		return runHelp(remaining[1:], stdout)
-	}
-	if name == "download" {
-		return runDownloadCommand(remaining[1:], stdout, stderr, opts)
-	}
-	if name == "read" {
-		return runReadCommand(remaining[1:], stdout, stderr, opts)
-	}
-
-	cmd, ok := lookupCommand(name)
-	if !ok {
+func handleRootCommandError(stdout io.Writer, err error) int {
+	message := normalizeFlagError(err)
+	if strings.HasPrefix(err.Error(), "unknown command ") {
+		name := ""
+		parts := strings.Split(err.Error(), `"`)
+		if len(parts) >= 2 {
+			name = parts[1]
+		}
+		if name == "" {
+			name = "unknown"
+		}
 		return writeInvalidUsage(stdout, fmt.Sprintf("unknown command %q", name), map[string]any{
 			"valid_commands": commandNames(),
 		})
 	}
+	return writeInvalidUsage(stdout, message, nil)
+}
 
-	switch cmd.name {
-	case "sources":
-		return runSourcesCommand(remaining[1:], stdout, stderr, opts)
+func writeInvalidUsageError(stdout io.Writer, message string, details map[string]any) error {
+	writeInvalidUsage(stdout, message, details)
+	return cliExitError{code: exitCodeInvalidUsage}
+}
+
+func helpTextForCommand(cmd *cobra.Command) string {
+	switch cmd.Name() {
 	case "search":
-		return runSearchCommand(remaining[1:], stdout, stderr, opts)
-	case "get":
-		return runGetCommand(remaining[1:], stdout, stderr, opts)
+		return commandHelp(command{
+			name:        "search",
+			description: "Search registered sources and return normalized paper results.",
+		})
+	case "sources":
+		return commandHelp(command{
+			name:        "sources",
+			description: "Inspect the source registry and source capabilities.",
+		})
+	case "get", "download", "read":
+		return retrievalCommandHelp(cmd.Name())
 	case "version":
-		return runVersionCommand(remaining[1:], stdout)
+		return commandHelp(command{
+			name:        "version",
+			description: "Print the concise CLI version string.",
+		})
 	default:
-		return runPlaceholderCommand(cmd.name, cmd.description)(remaining[1:], stdout, stderr)
+		return rootHelp()
 	}
 }
 

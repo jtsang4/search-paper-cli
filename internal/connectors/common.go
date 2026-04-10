@@ -1,6 +1,7 @@
 package connectors
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -16,14 +17,16 @@ import (
 	"time"
 	"unicode"
 
+	pdf "github.com/ledongthuc/pdf"
+
 	"github.com/jtsang4/search-paper-cli/internal/paper"
 	"github.com/jtsang4/search-paper-cli/internal/sources"
 )
 
 var (
-	doiPattern  = regexp.MustCompile(`(?i)\b(?:https?://(?:dx\.)?doi\.org/|doi:\s*)?(10\.\d{4,9}/[-._;()/:A-Z0-9]+)\b`)
-	tagPattern  = regexp.MustCompile(`<[^>]+>`)
-	spaceRegexp = regexp.MustCompile(`\s+`)
+	doiPattern     = regexp.MustCompile(`(?i)\b(?:https?://(?:dx\.)?doi\.org/|doi:\s*)?(10\.\d{4,9}/[-._;()/:A-Z0-9]+)\b`)
+	spaceRegexp    = regexp.MustCompile(`\s+`)
+	pdfTextPattern = regexp.MustCompile(`\(([^()]|\\.)+\)\s*Tj`)
 )
 
 func defaultHTTPClient() *http.Client {
@@ -215,16 +218,6 @@ func extractDOI(values ...string) string {
 		}
 	}
 	return ""
-}
-
-func stripHTML(value string) string {
-	value = tagPattern.ReplaceAllString(value, " ")
-	value = strings.ReplaceAll(value, "&nbsp;", " ")
-	value = strings.ReplaceAll(value, "&amp;", "&")
-	value = strings.ReplaceAll(value, "&lt;", "<")
-	value = strings.ReplaceAll(value, "&gt;", ">")
-	value = spaceRegexp.ReplaceAllString(value, " ")
-	return strings.TrimSpace(value)
 }
 
 func splitAuthors(value string) []string {
@@ -474,9 +467,30 @@ func sanitizeFilename(value string) string {
 	return result
 }
 
-var pdfTextPattern = regexp.MustCompile(`\(([^()]|\\.)+\)\s*Tj`)
-
 func extractPDFText(body []byte) string {
+	reader, err := pdf.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err == nil {
+		plain, plainErr := reader.GetPlainText()
+		if plainErr == nil {
+			var parts []string
+			scanner := bufio.NewScanner(plain)
+			for scanner.Scan() {
+				text := normalizeText(scanner.Text())
+				if text != "" {
+					parts = append(parts, text)
+				}
+			}
+			if scanner.Err() == nil {
+				if content := strings.TrimSpace(strings.Join(parts, " ")); content != "" {
+					return content
+				}
+			}
+		}
+	}
+	return extractPDFTextLegacy(body)
+}
+
+func extractPDFTextLegacy(body []byte) string {
 	matches := pdfTextPattern.FindAllString(string(body), -1)
 	if len(matches) == 0 {
 		return ""
@@ -494,7 +508,7 @@ func extractPDFText(body []byte) string {
 		text = strings.ReplaceAll(text, `\\`, `\`)
 		text = strings.ReplaceAll(text, `\n`, " ")
 		text = strings.ReplaceAll(text, `\r`, " ")
-		text = strings.TrimSpace(text)
+		text = normalizeText(text)
 		if text != "" {
 			parts = append(parts, text)
 		}

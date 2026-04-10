@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"html"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/jtsang4/search-paper-cli/internal/config"
 	"github.com/jtsang4/search-paper-cli/internal/paper"
 	"github.com/jtsang4/search-paper-cli/internal/sources"
@@ -1012,36 +1012,33 @@ func firstNonEmpty(values ...string) string {
 }
 
 func parseGoogleScholarResults(baseURL, body string) []paper.Paper {
-	cardPattern := regexp.MustCompile(`(?s)<div class="gs_r gs_or gs_scl".*?</div>\s*</div>`)
-	titlePattern := regexp.MustCompile(`(?s)<h3 class="gs_rt">\s*<a href="([^"]+)">\s*(.*?)\s*</a>`)
-	pdfPattern := regexp.MustCompile(`(?s)<div class="gs_or_ggsm">\s*<a href="([^"]+)">`)
-	metaPattern := regexp.MustCompile(`(?s)<div class="gs_a">\s*(.*?)\s*</div>`)
-	abstractPattern := regexp.MustCompile(`(?s)<div class="gs_rs">\s*(.*?)\s*</div>`)
+	document, err := parseHTMLDocument([]byte(body))
+	if err != nil {
+		return []paper.Paper{}
+	}
 
-	matches := cardPattern.FindAllString(body, -1)
-	items := make([]paper.Paper, 0, len(matches))
-	for _, match := range matches {
-		titleMatch := titlePattern.FindStringSubmatch(match)
-		if len(titleMatch) == 0 {
-			continue
+	items := make([]paper.Paper, 0)
+	document.Find("div.gs_r.gs_or.gs_scl").Each(func(_ int, selection *goquery.Selection) {
+		titleLink := selection.Find("h3.gs_rt a").First()
+		href := selectionAttr(titleLink, "href")
+		if href == "" {
+			return
 		}
-		metaMatch := metaPattern.FindStringSubmatch(match)
-		abstractMatch := abstractPattern.FindStringSubmatch(match)
-		pdfMatch := pdfPattern.FindStringSubmatch(match)
-		authors, publishedDate := scholarAuthorsAndDate(stripHTML(groupValue(metaMatch, 1)))
-		abstract := stripHTML(groupValue(abstractMatch, 1))
+		meta := selectionText(selection.Find("div.gs_a").First())
+		abstract := selectionText(selection.Find("div.gs_rs").First())
+		authors, publishedDate := scholarAuthorsAndDate(meta)
 		items = append(items, paper.Paper{
-			PaperID:       groupValue(titleMatch, 1),
-			Title:         stripHTML(groupValue(titleMatch, 2)),
+			PaperID:       href,
+			Title:         selectionText(titleLink),
 			Authors:       authors,
 			Abstract:      abstract,
 			DOI:           extractDOI(abstract),
 			PublishedDate: publishedDate,
-			PDFURL:        resolveRelativeURL(baseURL, groupValue(pdfMatch, 1)),
-			URL:           resolveRelativeURL(baseURL, groupValue(titleMatch, 1)),
+			PDFURL:        resolveRelativeURL(baseURL, selectionAttr(selection.Find("div.gs_or_ggsm a").First(), "href")),
+			URL:           resolveRelativeURL(baseURL, href),
 			Source:        "google-scholar",
 		})
-	}
+	})
 	return items
 }
 
@@ -1070,53 +1067,67 @@ func dblpURL(value string) string {
 }
 
 func parseCiteSeerXResults(baseURL, body string) []paper.Paper {
-	cardPattern := regexp.MustCompile(`(?s)<div class="result">.*?<a class="remove doc_details" href="([^"]*doi=([^"&]+)[^"]*)">\s*(.*?)\s*</a>.*?<div class="pubinfo">\s*(.*?)\s*</div>.*?<div class="snippet">\s*(.*?)\s*</div>.*?<a href="([^"]*type=pdf[^"]*)">`)
-	matches := cardPattern.FindAllStringSubmatch(body, -1)
-	items := make([]paper.Paper, 0, len(matches))
-	for _, match := range matches {
-		meta := stripHTML(groupValue(match, 4))
-		abstract := stripHTML(groupValue(match, 5))
-		pdfURL := html.UnescapeString(groupValue(match, 6))
+	document, err := parseHTMLDocument([]byte(body))
+	if err != nil {
+		return []paper.Paper{}
+	}
+
+	items := make([]paper.Paper, 0)
+	document.Find("div.result").Each(func(_ int, selection *goquery.Selection) {
+		titleLink := selection.Find("a.remove.doc_details").First()
+		href := selectionAttr(titleLink, "href")
+		if href == "" {
+			return
+		}
+		meta := selectionText(selection.Find("div.pubinfo").First())
+		abstract := selectionText(selection.Find("div.snippet").First())
+		pdfURL := ""
+		selection.Find("a[href]").EachWithBreak(func(_ int, link *goquery.Selection) bool {
+			candidate := selectionAttr(link, "href")
+			if strings.Contains(candidate, "type=pdf") {
+				pdfURL = candidate
+				return false
+			}
+			return true
+		})
 		items = append(items, paper.Paper{
-			PaperID:  strings.TrimSpace(groupValue(match, 2)),
-			Title:    stripHTML(groupValue(match, 3)),
+			PaperID:  strings.TrimSpace(firstNonEmpty(queryParamValue(href, "doi"), extractDOI(href))),
+			Title:    selectionText(titleLink),
 			Authors:  splitAuthors(strings.ReplaceAll(strings.Split(meta, " - ")[0], ",", ";")),
 			Abstract: abstract,
-			URL:      resolveRelativeURL(baseURL, groupValue(match, 1)),
+			URL:      resolveRelativeURL(baseURL, href),
 			PDFURL:   resolveRelativeURL(baseURL, pdfURL),
 			Source:   "citeseerx",
 		})
-	}
+	})
 	return items
 }
 
 func parseSSRNResults(baseURL, body string) []paper.Paper {
-	cardPattern := regexp.MustCompile(`(?s)<div class="search-result-content".*?</div>`)
-	titlePattern := regexp.MustCompile(`(?s)<h2>\s*<a href="([^"]*abstract_id=(\d+)[^"]*)">\s*(.*?)\s*</a>`)
-	authorsPattern := regexp.MustCompile(`(?s)<p class="authors">\s*(.*?)\s*</p>`)
-	abstractPattern := regexp.MustCompile(`(?s)<div class="abstract-text">\s*(.*?)\s*</div>`)
-	pdfPattern := regexp.MustCompile(`(?s)<a class="opt-link" href="([^"]+\.pdf[^"]*)">`)
+	document, err := parseHTMLDocument([]byte(body))
+	if err != nil {
+		return []paper.Paper{}
+	}
 
-	matches := cardPattern.FindAllString(body, -1)
-	items := make([]paper.Paper, 0, len(matches))
-	for _, match := range matches {
-		titleMatch := titlePattern.FindStringSubmatch(match)
-		if len(titleMatch) == 0 {
-			continue
+	items := make([]paper.Paper, 0)
+	document.Find("div.search-result-content").Each(func(_ int, selection *goquery.Selection) {
+		titleLink := selection.Find("h2 a").First()
+		href := selectionAttr(titleLink, "href")
+		if href == "" {
+			return
 		}
-		authors := splitAuthors(strings.ReplaceAll(stripHTML(groupValue(authorsPattern.FindStringSubmatch(match), 1)), ",", ";"))
-		abstract := stripHTML(groupValue(abstractPattern.FindStringSubmatch(match), 1))
+		abstract := selectionText(selection.Find("div.abstract-text").First())
 		items = append(items, paper.Paper{
-			PaperID:  groupValue(titleMatch, 2),
-			Title:    stripHTML(groupValue(titleMatch, 3)),
-			Authors:  authors,
+			PaperID:  queryParamValue(href, "abstract_id"),
+			Title:    selectionText(titleLink),
+			Authors:  splitAuthors(strings.ReplaceAll(selectionText(selection.Find("p.authors").First()), ",", ";")),
 			Abstract: abstract,
 			DOI:      extractDOI(abstract),
-			URL:      resolveRelativeURL(baseURL, groupValue(titleMatch, 1)),
-			PDFURL:   resolveRelativeURL(baseURL, groupValue(pdfPattern.FindStringSubmatch(match), 1)),
+			URL:      resolveRelativeURL(baseURL, href),
+			PDFURL:   resolveRelativeURL(baseURL, selectionAttr(selection.Find("a.opt-link").First(), "href")),
 			Source:   "ssrn",
 		})
-	}
+	})
 	return items
 }
 
@@ -1129,6 +1140,18 @@ func resolveRelativeURL(baseURL, href string) string {
 		return href
 	}
 	return joinURL(baseURL, href)
+}
+
+func queryParamValue(rawURL, key string) string {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(parsed.Query().Get(key))
+}
+
+func doiFromURLQuery(rawURL, key string) string {
+	return extractDOI(queryParamValue(rawURL, key))
 }
 
 func groupValue(groups []string, index int) string {

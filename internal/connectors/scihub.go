@@ -1,24 +1,22 @@
 package connectors
 
-import (
-	"regexp"
-	"strings"
-)
-
-var (
-	sciHubEmbedPattern  = regexp.MustCompile(`(?is)<embed[^>]+type=["']application/pdf["'][^>]+src=["']([^"']+)["']`)
-	sciHubIframePattern = regexp.MustCompile(`(?is)<iframe[^>]+src=["']([^"']+)["']`)
-	sciHubLinkPattern   = regexp.MustCompile(`(?is)<a[^>]+href=["']([^"']*pdf[^"']*)["']`)
-)
+import "strings"
 
 func parseSciHubPDFURL(baseURL string, body string) string {
-	for _, pattern := range []*regexp.Regexp{sciHubEmbedPattern, sciHubIframePattern, sciHubLinkPattern} {
-		matches := pattern.FindStringSubmatch(body)
-		if len(matches) < 2 {
-			continue
-		}
-		return resolveSciHubURL(baseURL, matches[1])
+	document, err := parseHTMLDocument([]byte(body))
+	if err != nil {
+		return ""
 	}
+
+	for _, selector := range []string{`embed[type="application/pdf"]`, "iframe", "a[href*='.pdf']", "a[href*='pdf']"} {
+		if href := selectionAttr(document.Find(selector).First(), "src"); href != "" {
+			return resolveSciHubURL(baseURL, href)
+		}
+		if href := selectionAttr(document.Find(selector).First(), "href"); href != "" {
+			return resolveSciHubURL(baseURL, href)
+		}
+	}
+
 	return ""
 }
 

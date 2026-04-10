@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"html"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/jtsang4/search-paper-cli/internal/config"
 	"github.com/jtsang4/search-paper-cli/internal/paper"
 	"github.com/jtsang4/search-paper-cli/internal/sources"
@@ -480,27 +480,31 @@ func (c *IACR) Search(request sources.SearchRequest) (sources.SearchResult, erro
 		return sources.SearchResult{}, err
 	}
 
-	pattern := regexp.MustCompile(`(?s)<div class="mb-4">.*?<a href="([^"]+)">\s*(.*?)\s*</a>.*?<div class="authors">\s*(.*?)\s*</div>.*?<p class="mt-2">\s*(.*?)\s*</p>`)
-	matches := pattern.FindAllSubmatch(body, -1)
-	items := make([]paper.Paper, 0, len(matches))
-	for _, match := range matches {
-		href := strings.TrimSpace(string(match[1]))
-		title := stripHTML(string(match[2]))
-		authors := strings.Split(stripHTML(string(match[3])), ",")
-		for i := range authors {
-			authors[i] = strings.TrimSpace(authors[i])
+	document, err := parseHTMLDocument(body)
+	if err != nil {
+		return sources.SearchResult{}, err
+	}
+
+	items := make([]paper.Paper, 0)
+	document.Find("div.mb-4").Each(func(_ int, selection *goquery.Selection) {
+		link := selection.Find("a[href]").First()
+		href := selectionAttr(link, "href")
+		if href == "" {
+			return
 		}
+		title := selectionText(link)
+		authors := splitCSVValues(selectionText(selection.Find("div.authors").First()), ",")
 		id := strings.TrimPrefix(href, "/")
 		items = append(items, paper.Paper{
 			PaperID:  id,
 			Title:    title,
 			Authors:  authors,
-			Abstract: stripHTML(string(match[4])),
+			Abstract: selectionText(selection.Find("p.mt-2").First()),
 			URL:      joinURL(c.BaseURL, href),
 			PDFURL:   joinURL(c.BaseURL, href+".pdf"),
 			Source:   "iacr",
 		})
-	}
+	})
 	return searchResult(items, request.Limit), nil
 }
 
@@ -1399,14 +1403,9 @@ func limitOrDefault(limit, fallback int) int {
 }
 
 var (
-	preprintSearchResultPattern = regexp.MustCompile(`(?s)<li class="[^"]*\bsearch-result\b[^"]*".*?</li>`)
-	preprintTitlePattern        = regexp.MustCompile(`(?s)<a href="([^"]+)" class="highwire-cite-linked-title"[^>]*>\s*<span class="highwire-cite-title">(.*?)</span>`)
-	preprintAuthorPattern       = regexp.MustCompile(`(?s)<span class="highwire-citation-author(?:\s+first)?".*?<span class="nlm-given-names">(.*?)</span>\s*<span class="nlm-surname">(.*?)</span>`)
-	preprintPISAPattern         = regexp.MustCompile(`data-pisa="([^"]+)"`)
-	preprintAPATHPattern        = regexp.MustCompile(`data-apath="([^"]+)"`)
-	preprintDatePattern         = regexp.MustCompile(`/(?:biorxiv|medrxiv)/(?:early|content)/(\d{4})/(\d{2})/(\d{2})/`)
-	preprintVersionPattern      = regexp.MustCompile(`v(\d+)$`)
-	preprintVersionSuffix       = regexp.MustCompile(`(?i)v\d+$`)
+	preprintDatePattern    = regexp.MustCompile(`/(?:biorxiv|medrxiv)/(?:early|content)/(\d{4})/(\d{2})/(\d{2})/`)
+	preprintVersionPattern = regexp.MustCompile(`v(\d+)$`)
+	preprintVersionSuffix  = regexp.MustCompile(`(?i)v\d+$`)
 )
 
 func preprintSearchURL(baseURL, sourceID, query string, limit int) (string, error) {
@@ -1430,28 +1429,35 @@ func preprintSearchURL(baseURL, sourceID, query string, limit int) (string, erro
 }
 
 func parsePreprintSearchResults(body []byte, baseURL, landingBase, sourceID string) []paper.Paper {
-	matches := preprintSearchResultPattern.FindAllString(string(body), -1)
-	items := make([]paper.Paper, 0, len(matches))
-	for _, match := range matches {
-		titleMatch := preprintTitlePattern.FindStringSubmatch(match)
-		if len(titleMatch) == 0 {
-			continue
+	document, err := parseHTMLDocument(body)
+	if err != nil {
+		return []paper.Paper{}
+	}
+
+	items := make([]paper.Paper, 0)
+	document.Find("li.search-result").Each(func(_ int, selection *goquery.Selection) {
+		link := selection.Find("a.highwire-cite-linked-title").First()
+		href := resolveRelativeURL(baseURL, selectionAttr(link, "href"))
+		if href == "" {
+			return
 		}
+		title := selectionText(link.Find(".highwire-cite-title").First())
+		if title == "" {
+			title = selectionText(link)
+		}
+		authors := extractPreprintAuthors(selection)
+		blockHTML, _ := selection.Html()
 
-		href := resolveRelativeURL(baseURL, html.UnescapeString(groupValue(titleMatch, 1)))
-		title := html.UnescapeString(stripHTML(groupValue(titleMatch, 2)))
-		authors := extractPreprintAuthors(match)
-
-		doi := trimPreprintVersion(extractDOI(match))
+		doi := trimPreprintVersion(extractDOI(blockHTML))
 		if doi == "" {
 			doi = trimPreprintVersion(extractDOI(href))
 		}
 		paperID := doi
 		if paperID == "" {
-			paperID = preprintIdentifier(match)
+			paperID = preprintIdentifier(selection)
 		}
 
-		version := preprintVersion(match, href)
+		version := preprintVersion(blockHTML, href)
 		if href == "" && paperID != "" {
 			href = strings.TrimRight(landingBase, "/") + "/" + paperID
 			if version != "" {
@@ -1469,30 +1475,31 @@ func parsePreprintSearchResults(body []byte, baseURL, landingBase, sourceID stri
 			Title:         title,
 			Authors:       authors,
 			DOI:           doi,
-			PublishedDate: preprintPublishedDate(match),
+			PublishedDate: preprintPublishedDate(selection),
 			PDFURL:        pdfURL,
 			URL:           href,
 			Source:        sourceID,
 		})
-	}
+	})
 	return items
 }
 
-func extractPreprintAuthors(block string) []string {
-	matches := preprintAuthorPattern.FindAllStringSubmatch(block, -1)
-	authors := make([]string, 0, len(matches))
-	for _, match := range matches {
-		name := strings.TrimSpace(spaceRegexp.ReplaceAllString(html.UnescapeString(groupValue(match, 1))+" "+html.UnescapeString(groupValue(match, 2)), " "))
+func extractPreprintAuthors(selection *goquery.Selection) []string {
+	authors := make([]string, 0)
+	selection.Find(".highwire-citation-author").Each(func(_ int, authorSel *goquery.Selection) {
+		given := selectionText(authorSel.Find(".nlm-given-names").First())
+		surname := selectionText(authorSel.Find(".nlm-surname").First())
+		name := normalizeText(strings.TrimSpace(given + " " + surname))
 		if name != "" {
 			authors = append(authors, name)
 		}
-	}
+	})
 	return authors
 }
 
-func preprintIdentifier(block string) string {
-	if match := preprintPISAPattern.FindStringSubmatch(block); len(match) > 1 {
-		parts := strings.Split(strings.TrimSpace(match[1]), ";")
+func preprintIdentifier(selection *goquery.Selection) string {
+	if value := selectionAttr(selection.Find("[data-pisa]").First(), "data-pisa"); value != "" {
+		parts := strings.Split(strings.TrimSpace(value), ";")
 		if len(parts) > 1 {
 			return trimPreprintVersion(parts[1])
 		}
@@ -1500,12 +1507,12 @@ func preprintIdentifier(block string) string {
 	return ""
 }
 
-func preprintPublishedDate(block string) string {
-	match := preprintAPATHPattern.FindStringSubmatch(block)
-	if len(match) < 2 {
+func preprintPublishedDate(selection *goquery.Selection) string {
+	value := selectionAttr(selection.Find("[data-apath]").First(), "data-apath")
+	if value == "" {
 		return ""
 	}
-	parts := preprintDatePattern.FindStringSubmatch(match[1])
+	parts := preprintDatePattern.FindStringSubmatch(value)
 	if len(parts) != 4 {
 		return ""
 	}
