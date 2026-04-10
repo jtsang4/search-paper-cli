@@ -131,9 +131,10 @@ func newRootCommand(stdout, stderr io.Writer, opts runOptions) *cobra.Command {
 				_, _ = io.WriteString(stderr, rootHelp())
 				return cliExitError{code: exitCodeInvalidUsage}
 			}
-			return writeInvalidUsageError(stdout, fmt.Sprintf("unknown command %q", args[0]), map[string]any{
+			writeInvalidUsage(stdout, fmt.Sprintf("unknown command %q", args[0]), map[string]any{
 				"valid_commands": commandNames(),
 			})
+			return cliExitError{code: exitCodeInvalidUsage}
 		},
 	}
 
@@ -214,11 +215,6 @@ func handleRootCommandError(stdout io.Writer, err error) int {
 	return writeInvalidUsage(stdout, message, nil)
 }
 
-func writeInvalidUsageError(stdout io.Writer, message string, details map[string]any) error {
-	writeInvalidUsage(stdout, message, details)
-	return cliExitError{code: exitCodeInvalidUsage}
-}
-
 func helpTextForCommand(cmd *cobra.Command) string {
 	switch cmd.Name() {
 	case "search":
@@ -241,36 +237,6 @@ func helpTextForCommand(cmd *cobra.Command) string {
 	default:
 		return rootHelp()
 	}
-}
-
-func runHelp(args []string, stdout io.Writer) int {
-	if len(args) == 0 {
-		_, _ = io.WriteString(stdout, rootHelp())
-		return exitCodeOK
-	}
-	if args[0] == "get" || args[0] == "download" || args[0] == "read" {
-		_, _ = io.WriteString(stdout, retrievalCommandHelp(args[0]))
-		return exitCodeOK
-	}
-
-	cmd, ok := lookupCommand(args[0])
-	if !ok {
-		return writeInvalidUsage(stdout, fmt.Sprintf("unknown command %q", args[0]), map[string]any{
-			"valid_commands": commandNames(),
-		})
-	}
-
-	_, _ = io.WriteString(stdout, commandHelp(cmd))
-	return exitCodeOK
-}
-
-func lookupCommand(name string) (command, bool) {
-	for _, cmd := range commands {
-		if cmd.name == name {
-			return cmd, true
-		}
-	}
-	return command{}, false
 }
 
 func commandNames() []string {
@@ -341,30 +307,10 @@ func runSourcesCommand(args []string, stdout, stderr io.Writer, opts runOptions)
 		return writeError(stdout, response, exitCodeInvalidUsage)
 	}
 
-	workingDir := opts.workingDir
-	if workingDir == "" {
-		var err error
-		workingDir, err = os.Getwd()
-		if err != nil {
-			return writeRuntimeError(stdout, "failed to determine working directory")
-		}
+	_, cfg, exitCode := loadRuntimeConfig(stdout, stderr, opts)
+	if exitCode != 0 {
+		return exitCode
 	}
-
-	repositoryRoot := opts.repositoryRoot
-	if repositoryRoot == "" {
-		repositoryRoot = discoverRepositoryRoot(workingDir)
-	}
-
-	cfg, diagnostics, err := config.Load(config.LoadOptions{
-		Environ:        opts.environ,
-		WorkingDir:     workingDir,
-		RepositoryRoot: repositoryRoot,
-	})
-	if err != nil {
-		return writeRuntimeError(stdout, "failed to load configuration")
-	}
-
-	writeWarnings(stderr, diagnostics)
 
 	registry, invalid := sources.Select(cfg, splitCSV(*selectedSources))
 	if len(invalid) != 0 {
@@ -398,49 +344,6 @@ func runSourcesCommand(args []string, stdout, stderr io.Writer, opts runOptions)
 		Status:  "ok",
 		Sources: registry,
 	}, exitCodeOK)
-}
-
-func runPlaceholderCommand(name, description string) func(args []string, stdout, stderr io.Writer) int {
-	return func(args []string, stdout, stderr io.Writer) int {
-		for _, arg := range args {
-			if arg == "--help" || arg == "-h" {
-				_, _ = io.WriteString(stdout, placeholderCommandHelp(name, description))
-				return exitCodeOK
-			}
-		}
-
-		flags := flag.NewFlagSet(name, flag.ContinueOnError)
-		flags.SetOutput(io.Discard)
-		format := addFormatFlag(flags)
-		if err := flags.Parse(args); err != nil {
-			return writeInvalidUsage(stdout, normalizeFlagError(err), map[string]any{
-				"command": name,
-			})
-		}
-
-		if !isSupportedFormat(*format) {
-			response := validateFormat(*format)
-			response.Error.Details["command"] = name
-			return writeError(stdout, response, exitCodeInvalidUsage)
-		}
-
-		if len(flags.Args()) > 0 {
-			return writeInvalidUsage(stdout, fmt.Sprintf("unknown argument %q for %s command", flags.Args()[0], name), map[string]any{
-				"command": name,
-				"args":    flags.Args(),
-			})
-		}
-
-		_, _ = io.WriteString(stderr, placeholderCommandHelp(name, description))
-		return exitCodeInvalidUsage
-	}
-}
-
-func placeholderCommandHelp(name, description string) string {
-	return commandHelp(command{
-		name:        name,
-		description: description,
-	})
 }
 
 func writeWarnings(stderr io.Writer, diagnostics config.Diagnostics) {
@@ -506,6 +409,41 @@ func writeJSON(stdout io.Writer, payload any, exitCode int) int {
 	encoder.SetEscapeHTML(false)
 	_ = encoder.Encode(payload)
 	return exitCode
+}
+
+func loadRuntimeConfig(stdout, stderr io.Writer, opts runOptions) (string, config.Config, int) {
+	workingDir, repositoryRoot, err := runtimePaths(opts)
+	if err != nil {
+		return "", config.Config{}, writeRuntimeError(stdout, "failed to determine working directory")
+	}
+
+	cfg, diagnostics, err := config.Load(config.LoadOptions{
+		Environ:        opts.environ,
+		WorkingDir:     workingDir,
+		RepositoryRoot: repositoryRoot,
+	})
+	if err != nil {
+		return "", config.Config{}, writeRuntimeError(stdout, "failed to load configuration")
+	}
+	writeWarnings(stderr, diagnostics)
+	return workingDir, cfg, 0
+}
+
+func runtimePaths(opts runOptions) (string, string, error) {
+	workingDir := opts.workingDir
+	if workingDir == "" {
+		var err error
+		workingDir, err = os.Getwd()
+		if err != nil {
+			return "", "", err
+		}
+	}
+
+	repositoryRoot := opts.repositoryRoot
+	if repositoryRoot == "" {
+		repositoryRoot = discoverRepositoryRoot(workingDir)
+	}
+	return workingDir, repositoryRoot, nil
 }
 
 func discoverRepositoryRoot(workingDir string) string {

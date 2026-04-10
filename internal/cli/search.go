@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"slices"
 	"strconv"
@@ -90,29 +89,10 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 		})
 	}
 
-	workingDir := opts.workingDir
-	if workingDir == "" {
-		var err error
-		workingDir, err = os.Getwd()
-		if err != nil {
-			return writeRuntimeError(stdout, "failed to determine working directory")
-		}
+	_, cfg, exitCode := loadRuntimeConfig(stdout, stderr, opts)
+	if exitCode != 0 {
+		return exitCode
 	}
-
-	repositoryRoot := opts.repositoryRoot
-	if repositoryRoot == "" {
-		repositoryRoot = discoverRepositoryRoot(workingDir)
-	}
-
-	cfg, diagnostics, err := config.Load(config.LoadOptions{
-		Environ:        opts.environ,
-		WorkingDir:     workingDir,
-		RepositoryRoot: repositoryRoot,
-	})
-	if err != nil {
-		return writeRuntimeError(stdout, "failed to load configuration")
-	}
-	writeWarnings(stderr, diagnostics)
 
 	requested := splitCSV(*selectedSources)
 	registry, invalid, blocked := selectSearchSources(cfg, requested)

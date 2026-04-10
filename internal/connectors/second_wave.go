@@ -1150,10 +1150,6 @@ func queryParamValue(rawURL, key string) string {
 	return strings.TrimSpace(parsed.Query().Get(key))
 }
 
-func doiFromURLQuery(rawURL, key string) string {
-	return extractDOI(queryParamValue(rawURL, key))
-}
-
 func groupValue(groups []string, index int) string {
 	if len(groups) <= index {
 		return ""

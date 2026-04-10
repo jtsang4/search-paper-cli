@@ -75,52 +75,36 @@ func searchResult(items []paper.Paper, limit int) sources.SearchResult {
 	}
 }
 
-func unsupportedDownload(sourceID string) (sources.RetrievalResult, error) {
+func retrievalResult(state sources.RetrievalState, message string) (sources.RetrievalResult, error) {
 	return sources.RetrievalResult{
-		State:    sources.RetrievalStateUnsupported,
-		Message:  fmt.Sprintf("source %q direct download is not supported", sourceID),
+		State:    state,
+		Message:  message,
 		Attempts: []sources.RetrievalAttempt{},
 	}, nil
+}
+
+func unsupportedDownload(sourceID string) (sources.RetrievalResult, error) {
+	return retrievalResult(sources.RetrievalStateUnsupported, fmt.Sprintf("source %q direct download is not supported", sourceID))
 }
 
 func unsupportedRead(sourceID string) (sources.RetrievalResult, error) {
-	return sources.RetrievalResult{
-		State:    sources.RetrievalStateUnsupported,
-		Message:  fmt.Sprintf("source %q direct read is not supported", sourceID),
-		Attempts: []sources.RetrievalAttempt{},
-	}, nil
+	return retrievalResult(sources.RetrievalStateUnsupported, fmt.Sprintf("source %q direct read is not supported", sourceID))
 }
 
 func metadataOnlyUnsupportedDownload(sourceID string) (sources.RetrievalResult, error) {
-	return sources.RetrievalResult{
-		State:    sources.RetrievalStateUnsupported,
-		Message:  fmt.Sprintf("source %q exposes metadata and OA link hints only; direct download is not supported", sourceID),
-		Attempts: []sources.RetrievalAttempt{},
-	}, nil
+	return retrievalResult(sources.RetrievalStateUnsupported, fmt.Sprintf("source %q exposes metadata and OA link hints only; direct download is not supported", sourceID))
 }
 
 func metadataOnlyUnsupportedRead(sourceID string) (sources.RetrievalResult, error) {
-	return sources.RetrievalResult{
-		State:    sources.RetrievalStateUnsupported,
-		Message:  fmt.Sprintf("source %q exposes metadata and OA link hints only; direct read is not supported", sourceID),
-		Attempts: []sources.RetrievalAttempt{},
-	}, nil
+	return retrievalResult(sources.RetrievalStateUnsupported, fmt.Sprintf("source %q exposes metadata and OA link hints only; direct read is not supported", sourceID))
 }
 
 func gatedSkeletonDownload(sourceID string) (sources.RetrievalResult, error) {
-	return sources.RetrievalResult{
-		State:    sources.RetrievalStateUnsupported,
-		Message:  fmt.Sprintf("source %q retrieval is an env-gated skeleton and direct download is not implemented yet", sourceID),
-		Attempts: []sources.RetrievalAttempt{},
-	}, nil
+	return retrievalResult(sources.RetrievalStateUnsupported, fmt.Sprintf("source %q retrieval is an env-gated skeleton and direct download is not implemented yet", sourceID))
 }
 
 func gatedSkeletonRead(sourceID string) (sources.RetrievalResult, error) {
-	return sources.RetrievalResult{
-		State:    sources.RetrievalStateUnsupported,
-		Message:  fmt.Sprintf("source %q retrieval is an env-gated skeleton and direct read is not implemented yet", sourceID),
-		Attempts: []sources.RetrievalAttempt{},
-	}, nil
+	return retrievalResult(sources.RetrievalStateUnsupported, fmt.Sprintf("source %q retrieval is an env-gated skeleton and direct read is not implemented yet", sourceID))
 }
 
 func nativeDownload(sourceID string, request sources.DownloadRequest) (sources.RetrievalResult, error) {
@@ -157,19 +141,11 @@ func nativeRead(sourceID string, request sources.ReadRequest) (sources.Retrieval
 }
 
 func informationalRead(sourceID string) (sources.RetrievalResult, error) {
-	return sources.RetrievalResult{
-		State:    sources.RetrievalStateInformational,
-		Message:  fmt.Sprintf("source %q only exposes metadata through search at this stage", sourceID),
-		Attempts: []sources.RetrievalAttempt{},
-	}, nil
+	return retrievalResult(sources.RetrievalStateInformational, fmt.Sprintf("source %q only exposes metadata through search at this stage", sourceID))
 }
 
 func informationalDownload(sourceID string) (sources.RetrievalResult, error) {
-	return sources.RetrievalResult{
-		State:    sources.RetrievalStateInformational,
-		Message:  fmt.Sprintf("source %q does not provide direct download through search metadata", sourceID),
-		Attempts: []sources.RetrievalAttempt{},
-	}, nil
+	return retrievalResult(sources.RetrievalStateInformational, fmt.Sprintf("source %q does not provide direct download through search metadata", sourceID))
 }
 
 func parseDate(values ...string) string {

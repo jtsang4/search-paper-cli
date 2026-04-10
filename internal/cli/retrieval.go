@@ -112,7 +112,7 @@ func runRetrievalCommand(mode retrievalMode, args []string, stdout, stderr io.Wr
 		})
 	}
 
-	workingDir, _, cfg, exitCode := loadRuntimeConfig(stdout, stderr, opts)
+	workingDir, cfg, exitCode := loadRuntimeConfig(stdout, stderr, opts)
 	if exitCode != 0 {
 		return exitCode
 	}
@@ -146,10 +146,8 @@ func runRetrievalCommand(mode retrievalMode, args []string, stdout, stderr io.Wr
 	}
 	resolvedSaveDir = filepath.Clean(resolvedSaveDir)
 
-	var descriptor sources.Descriptor
-	var ok bool
 	if p.Source != "scihub" {
-		descriptor, ok = lookupSourceDescriptor(cfg, p.Source)
+		descriptor, ok := sourceDescriptor(cfg, p.Source)
 		if !ok {
 			return writeError(stdout, errorResponse{
 				Status: "error",
@@ -164,7 +162,7 @@ func runRetrievalCommand(mode retrievalMode, args []string, stdout, stderr io.Wr
 				},
 			}, exitCodeInvalidUsage)
 		}
-		if !descriptor.Enabled && capabilityForOperation(descriptor, mode.operation) == sources.CapabilityGated {
+		if !descriptor.Enabled && retrievalCapability(descriptor, mode.operation) == sources.CapabilityGated {
 			return writeUnsupportedError(stdout, "gated_source", fmt.Sprintf("requested source %q is gated for %s", p.Source, mode.commandName), map[string]any{
 				"source":  p.Source,
 				"reason":  descriptor.DisableReason,
@@ -242,33 +240,6 @@ func runRetrievalCommand(mode retrievalMode, args []string, stdout, stderr io.Wr
 		return retrievalExitCode(result.State)
 	}
 	return writeJSON(stdout, response, retrievalExitCode(result.State))
-}
-
-func loadRuntimeConfig(stdout, stderr io.Writer, opts runOptions) (string, string, config.Config, int) {
-	workingDir := opts.workingDir
-	if workingDir == "" {
-		var err error
-		workingDir, err = os.Getwd()
-		if err != nil {
-			return "", "", config.Config{}, writeRuntimeError(stdout, "failed to determine working directory")
-		}
-	}
-
-	repositoryRoot := opts.repositoryRoot
-	if repositoryRoot == "" {
-		repositoryRoot = discoverRepositoryRoot(workingDir)
-	}
-
-	cfg, diagnostics, err := config.Load(config.LoadOptions{
-		Environ:        opts.environ,
-		WorkingDir:     workingDir,
-		RepositoryRoot: repositoryRoot,
-	})
-	if err != nil {
-		return "", "", config.Config{}, writeRuntimeError(stdout, "failed to load configuration")
-	}
-	writeWarnings(stderr, diagnostics)
-	return workingDir, repositoryRoot, cfg, 0
 }
 
 type retrievalPaperInput struct {
@@ -354,7 +325,7 @@ func retrievalModeFromTarget(value string) (retrievalMode, error) {
 	}
 }
 
-func lookupSourceDescriptor(cfg config.Config, sourceID string) (sources.Descriptor, bool) {
+func sourceDescriptor(cfg config.Config, sourceID string) (sources.Descriptor, bool) {
 	for _, descriptor := range sources.List(cfg) {
 		if descriptor.ID == strings.ToLower(strings.TrimSpace(sourceID)) {
 			return descriptor, true
@@ -363,7 +334,7 @@ func lookupSourceDescriptor(cfg config.Config, sourceID string) (sources.Descrip
 	return sources.Descriptor{}, false
 }
 
-func capabilityForOperation(descriptor sources.Descriptor, operation string) sources.CapabilityState {
+func retrievalCapability(descriptor sources.Descriptor, operation string) sources.CapabilityState {
 	if operation == "read" {
 		return descriptor.Capabilities.Read
 	}
