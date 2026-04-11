@@ -1,6 +1,6 @@
 # search-paper-cli
 
-`search-paper-cli` is an agent-friendly Go CLI replacement for [`paper-search-mcp`](https://github.com/openags/paper-search-mcp). It provides consistent machine-readable search, download, and read flows across academic paper sources, supports OA-first fallback retrieval, and is designed to work both from the repository and as a packaged standalone Linux binary.
+`search-paper-cli` is an agent-friendly Go CLI inspired by [`paper-search-mcp`](https://github.com/openags/paper-search-mcp). It provides consistent machine-readable search, download, and read flows across academic paper sources, supports OA-first fallback retrieval, and is designed to work both from the repository and as a packaged standalone Linux binary.
 
 ## Key features
 

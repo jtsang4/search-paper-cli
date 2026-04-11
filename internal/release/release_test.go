@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -418,7 +419,7 @@ func buildArtifactBinary(t *testing.T) string {
 
 	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/search-paper-cli")
 	cmd.Dir = repoRoot
-	cmd.Env = append(filteredEnv(), "GOOS="+TargetOS, "GOARCH="+TargetArch, "CGO_ENABLED=0")
+	cmd.Env = append(filteredEnv(), "GOOS="+runtime.GOOS, "GOARCH="+runtime.GOARCH, "CGO_ENABLED=0")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build failed: %v\n%s", err, string(output))
