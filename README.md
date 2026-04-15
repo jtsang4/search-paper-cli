@@ -11,15 +11,7 @@
 - Native retrieval plus optional OA-first fallback chain and optional Sci-Hub fallback
 - `.env` discovery that works in-repo and for packaged binaries outside the repo
 
-## Installation / build
-
-Requires Go `1.26`.
-
-```bash
-go mod tidy
-go build ./...
-go build -o dist/search-paper-cli ./cmd/search-paper-cli
-```
+## Installation
 
 Install the CLI directly:
 
@@ -27,7 +19,13 @@ Install the CLI directly:
 go install github.com/jtsang4/search-paper-cli/cmd/search-paper-cli@latest
 ```
 
-## Usage examples
+## Usage
+
+Recommended: use this via an Agent that calls the skill. Install the skill with:
+
+```bash
+npx skills add jtsang4/search-paper-cli
+```
 
 Show help and version:
 
@@ -75,6 +73,8 @@ semantic, scihub, ssrn, unpaywall, zenodo
 ```
 
 ## Environment variables
+
+When using the skill, we recommend putting the `.env` file alongside the skill directory so the Agent can load the environment variables consistently.
 
 Configure variables in a `.env` file (recommended) or via shell exports:
 
