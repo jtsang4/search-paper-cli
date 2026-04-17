@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestSkillRunScriptUsesSkillLocalEnvFileFromAnyWorkingDirectory(t *testing.T) {
+func TestSkillRunScriptDoesNotInjectLegacyRuntimeConfig(t *testing.T) {
 	t.Parallel()
 
 	binaryPath := buildArtifactBinary(t)
@@ -51,7 +51,7 @@ func TestSkillRunScriptUsesSkillLocalEnvFileFromAnyWorkingDirectory(t *testing.T
 		t.Fatalf("expected ok payload, got %#v", payload)
 	}
 
-	assertSourceEnabled(t, payload.Sources, "ieee", true)
+	assertSourceEnabled(t, payload.Sources, "ieee", false)
 	assertSourceEnabled(t, payload.Sources, "acm", false)
 }
 

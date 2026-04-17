@@ -42,29 +42,22 @@ func TestBuiltArtifactPreservesEnvLoadingRules(t *testing.T) {
 	assertSourceEnabled(t, cleanPayload.Sources, "ieee", false)
 	assertSourceEnabled(t, cleanPayload.Sources, "acm", false)
 
-	writeFile(t, filepath.Join(outsideDir, ".env"), "SEARCH_PAPER_IEEE_API_KEY=ieee-from-cwd\n")
-	cwdPayload := runSourcesArtifact(t, binaryPath, outsideDir, nil)
-	assertSourceEnabled(t, cwdPayload.Sources, "ieee", true)
-	assertSourceEnabled(t, cwdPayload.Sources, "acm", false)
+	writeGlobalConfig(t, outsideDir, "config.yml", "acm_api_key: acm-from-yml\n")
+	ymlPayload := runSourcesArtifact(t, binaryPath, outsideDir, nil)
+	assertSourceEnabled(t, ymlPayload.Sources, "ieee", false)
+	assertSourceEnabled(t, ymlPayload.Sources, "acm", true)
 
+	writeGlobalConfig(t, outsideDir, "config.yaml", "ieee_api_key: ieee-from-yaml\n")
+	yamlWinsPayload := runSourcesArtifact(t, binaryPath, outsideDir, nil)
+	assertSourceEnabled(t, yamlWinsPayload.Sources, "ieee", true)
+	assertSourceEnabled(t, yamlWinsPayload.Sources, "acm", false)
+
+	writeFile(t, filepath.Join(outsideDir, ".env"), "SEARCH_PAPER_ACM_API_KEY=acm-from-cwd-env\n")
 	explicitEnvFile := filepath.Join(t.TempDir(), "explicit.env")
-	writeFile(t, explicitEnvFile, "SEARCH_PAPER_ACM_API_KEY=acm-from-explicit\n")
-	explicitPayload := runSourcesArtifact(t, binaryPath, outsideDir, []string{"SEARCH_PAPER_ENV_FILE=" + explicitEnvFile})
-	assertSourceEnabled(t, explicitPayload.Sources, "ieee", false)
-	assertSourceEnabled(t, explicitPayload.Sources, "acm", true)
-
-	fakeRepoRoot := t.TempDir()
-	writeFile(t, filepath.Join(fakeRepoRoot, "go.mod"), "module example.com/fake\n\ngo 1.26\n")
-	writeFile(t, filepath.Join(fakeRepoRoot, ".factory", "services.yaml"), "commands: {}\nservices: {}\n")
-	writeFile(t, filepath.Join(fakeRepoRoot, ".env"), "SEARCH_PAPER_IEEE_API_KEY=ieee-from-repo-root\n")
-	nestedDir := filepath.Join(fakeRepoRoot, "nested", "workspace")
-	if err := os.MkdirAll(nestedDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll() error = %v", err)
-	}
-
-	repoFallbackPayload := runSourcesArtifact(t, binaryPath, nestedDir, nil)
-	assertSourceEnabled(t, repoFallbackPayload.Sources, "ieee", true)
-	assertSourceEnabled(t, repoFallbackPayload.Sources, "acm", false)
+	writeFile(t, explicitEnvFile, "SEARCH_PAPER_ACM_API_KEY=acm-from-explicit-env\n")
+	legacyIgnoredPayload := runSourcesArtifact(t, binaryPath, outsideDir, []string{"SEARCH_PAPER_ENV_FILE=" + explicitEnvFile})
+	assertSourceEnabled(t, legacyIgnoredPayload.Sources, "ieee", true)
+	assertSourceEnabled(t, legacyIgnoredPayload.Sources, "acm", false)
 }
 
 func TestBuiltArtifactPreservesCapabilityConsistency(t *testing.T) {
@@ -312,17 +305,16 @@ func TestArtifactOutsideRepoFlow(t *testing.T) {
 	}))
 	defer server.Close()
 
-	envFile := filepath.Join(outsideDir, ".env")
-	writeFile(t, envFile, strings.Join([]string{
-		"SEARCH_PAPER_ARXIV_BASE_URL=" + server.URL + "/arxiv",
-		"SEARCH_PAPER_OPENAIRE_BASE_URL=" + server.URL + "/openaire/search/researchProducts",
-		"SEARCH_PAPER_OPENAIRE_LEGACY_BASE_URL=" + server.URL + "/openaire/search/publications",
-		"SEARCH_PAPER_CORE_BASE_URL=" + server.URL + "/core",
-		"SEARCH_PAPER_EUROPEPMC_BASE_URL=" + server.URL + "/europepmc",
-		"SEARCH_PAPER_PMC_SEARCH_URL=" + server.URL + "/pmc/esearch.fcgi",
-		"SEARCH_PAPER_PMC_SUMMARY_URL=" + server.URL + "/pmc/esummary.fcgi",
-		"SEARCH_PAPER_UNPAYWALL_EMAIL=tester@example.com",
-		"SEARCH_PAPER_UNPAYWALL_BASE_URL=" + server.URL + "/unpaywall",
+	writeGlobalConfig(t, outsideDir, "config.yaml", strings.Join([]string{
+		"arxiv_base_url: " + server.URL + "/arxiv",
+		"openaire_base_url: " + server.URL + "/openaire/search/researchProducts",
+		"openaire_legacy_base_url: " + server.URL + "/openaire/search/publications",
+		"core_base_url: " + server.URL + "/core",
+		"europepmc_base_url: " + server.URL + "/europepmc",
+		"pmc_search_url: " + server.URL + "/pmc/esearch.fcgi",
+		"pmc_summary_url: " + server.URL + "/pmc/esummary.fcgi",
+		"unpaywall_email: tester@example.com",
+		"unpaywall_base_url: " + server.URL + "/unpaywall",
 		"",
 	}, "\n"))
 
@@ -491,7 +483,7 @@ func runArtifactCommand(t *testing.T, binaryPath, workingDir string, extraEnv []
 
 	cmd := exec.Command(binaryPath, args...)
 	cmd.Dir = workingDir
-	cmd.Env = append(filteredEnv(), extraEnv...)
+	cmd.Env = append(filteredEnv(), ensureHomeEnv(workingDir, extraEnv)...)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -528,6 +520,23 @@ func filteredEnv() []string {
 	return filtered
 }
 
+func ensureHomeEnv(workingDir string, extraEnv []string) []string {
+	if hasEnvKey(extraEnv, "HOME") {
+		return extraEnv
+	}
+	return append([]string{"HOME=" + workingDir}, extraEnv...)
+}
+
+func hasEnvKey(entries []string, key string) bool {
+	prefix := key + "="
+	for _, entry := range entries {
+		if strings.HasPrefix(entry, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func findRepoRoot(t *testing.T) string {
 	t.Helper()
 
@@ -558,6 +567,12 @@ func writeFile(t *testing.T, path, contents string) {
 	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
 		t.Fatalf("WriteFile(%q) error = %v", path, err)
 	}
+}
+
+func writeGlobalConfig(t *testing.T, homeDir, fileName, contents string) {
+	t.Helper()
+
+	writeFile(t, filepath.Join(homeDir, ".config", "search-paper-cli", fileName), contents)
 }
 
 func copyFile(t *testing.T, src, dst string) {

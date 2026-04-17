@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/jtsang4/search-paper-cli/internal/config"
+	"github.com/jtsang4/search-paper-cli/internal/connectors"
 	"github.com/jtsang4/search-paper-cli/internal/paper"
 	"github.com/jtsang4/search-paper-cli/internal/sources"
 )
@@ -727,6 +730,83 @@ func TestGatedSearchSources(t *testing.T) {
 			t.Fatalf("expected semantic results to remain available, got %#v", payload)
 		}
 	})
+}
+
+func TestSearchUsesMergedConfigForEndpointAndGating(t *testing.T) {
+	t.Parallel()
+
+	homeDir := t.TempDir()
+	writeCLIConfig(t, homeDir, "config.yaml", strings.Join([]string{
+		"acm_api_key: acm-from-file",
+		"arxiv_base_url: https://yaml.example/arxiv",
+		"",
+	}, "\n"))
+
+	var requestedPath string
+	var requestedQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath = r.URL.Path
+		requestedQuery = r.URL.Query().Get("search_query")
+		w.Header().Set("Content-Type", "application/atom+xml")
+		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <id>http://arxiv.org/abs/1234.5678v1</id>
+    <title>Merged Config Search</title>
+    <summary>Search result from env-selected endpoint.</summary>
+    <published>2024-04-08T00:00:00Z</published>
+    <author><name>Alice Example</name></author>
+    <link rel="alternate" type="text/html" href="http://arxiv.org/abs/1234.5678v1"></link>
+  </entry>
+</feed>`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"search", "--source", "arxiv", "merged config query"}, &stdout, &stderr, runOptions{
+		environ:          []string{"HOME=" + homeDir, "SEARCH_PAPER_ARXIV_BASE_URL=" + server.URL + "/env-arxiv"},
+		workingDir:       t.TempDir(),
+		repositoryRoot:   t.TempDir(),
+		connectorFactory: connectors.New,
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+
+	if requestedPath != "/env-arxiv" {
+		t.Fatalf("expected env endpoint to win over config endpoint, got path %q", requestedPath)
+	}
+	if requestedQuery != "all:merged config query" {
+		t.Fatalf("expected arxiv query to hit env endpoint, got %q", requestedQuery)
+	}
+
+	payload := decodeSearchResponse(t, stdout.Bytes())
+	if payload.Total != 1 || len(payload.Papers) != 1 {
+		t.Fatalf("expected one search result, got %#v", payload)
+	}
+
+	var sourcesStdout bytes.Buffer
+	var sourcesStderr bytes.Buffer
+	sourcesExit := runWithOptions([]string{"sources", "--format", "json"}, &sourcesStdout, &sourcesStderr, runOptions{
+		environ:        []string{"HOME=" + homeDir, "SEARCH_PAPER_ARXIV_BASE_URL=" + server.URL + "/env-arxiv"},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+	})
+	if sourcesExit != 0 {
+		t.Fatalf("expected sources exit code 0, got %d with stdout=%q stderr=%q", sourcesExit, sourcesStdout.String(), sourcesStderr.String())
+	}
+
+	var sourcesPayload struct {
+		Sources []sourceRegistryEntry `json:"sources"`
+	}
+	if err := json.Unmarshal(sourcesStdout.Bytes(), &sourcesPayload); err != nil {
+		t.Fatalf("expected valid sources payload, got %q: %v", sourcesStdout.String(), err)
+	}
+	assertSourceCapability(t, sourcesPayload.Sources, "acm", true, "", "supported", "unsupported", "unsupported")
 }
 
 func decodeSearchResponse(t *testing.T, data []byte) searchCommandResponse {

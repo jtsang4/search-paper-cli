@@ -132,21 +132,15 @@ func TestRootMisuse(t *testing.T) {
 func TestWarningsStayOnStderr(t *testing.T) {
 	t.Parallel()
 
-	repoRoot := t.TempDir()
-	cwd := filepath.Join(repoRoot, "nested")
-	if err := os.MkdirAll(cwd, 0o755); err != nil {
-		t.Fatalf("MkdirAll() error = %v", err)
-	}
-
-	if err := os.WriteFile(filepath.Join(cwd, ".env"), []byte("MALFORMED sentinel-secret\nSEARCH_PAPER_UNPAYWALL_EMAIL=ok@example.com\n"), 0o600); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	homeDir := t.TempDir()
+	writeCLIConfig(t, homeDir, "config.yaml", "ieee_api_key: [broken\n")
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	exitCode := runWithOptions([]string{"sources", "--format", "json"}, &stdout, &stderr, runOptions{
-		workingDir:     cwd,
-		repositoryRoot: repoRoot,
+		environ:        []string{"HOME=" + homeDir},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
 	})
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
@@ -171,23 +165,16 @@ func TestWarningsStayOnStderr(t *testing.T) {
 func TestSecretsAreRedacted(t *testing.T) {
 	t.Parallel()
 
-	repoRoot := t.TempDir()
-	cwd := filepath.Join(repoRoot, "nested")
-	if err := os.MkdirAll(cwd, 0o755); err != nil {
-		t.Fatalf("MkdirAll() error = %v", err)
-	}
-
+	homeDir := t.TempDir()
 	secret := "sentinel-secret-value"
-	if err := os.WriteFile(filepath.Join(cwd, ".env"), []byte("BROKEN "+secret+"\nSEARCH_PAPER_CORE_API_KEY="+secret+"\n"), 0o600); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
+	writeCLIConfig(t, homeDir, "config.yaml", "acm_api_key: \""+secret+"\"\n: bad\n")
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	exitCode := runWithOptions([]string{"sources", "--format", "json"}, &stdout, &stderr, runOptions{
-		environ:        []string{"SEARCH_PAPER_IEEE_API_KEY=" + secret},
-		workingDir:     cwd,
-		repositoryRoot: repoRoot,
+		environ:        []string{"HOME=" + homeDir, "SEARCH_PAPER_IEEE_API_KEY=" + secret},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
 	})
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
@@ -375,6 +362,76 @@ func TestIEEEACMGating(t *testing.T) {
 	}
 }
 
+func TestSourcesJSONUsesGlobalConfig(t *testing.T) {
+	t.Parallel()
+
+	homeDir := t.TempDir()
+	writeCLIConfig(t, homeDir, "config.yml", strings.Join([]string{
+		"ieee_api_key: ieee-from-yml",
+		"acm_api_key: acm-from-yml",
+		"",
+	}, "\n"))
+	writeCLIConfig(t, homeDir, "config.yaml", "ieee_api_key: ieee-from-yaml\n")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"sources", "--format", "json"}, &stdout, &stderr, runOptions{
+		environ:        []string{"HOME=" + homeDir},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+
+	var payload struct {
+		Status  string                `json:"status"`
+		Sources []sourceRegistryEntry `json:"sources"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("expected valid json, got %q: %v", stdout.String(), err)
+	}
+
+	assertSourceCapability(t, payload.Sources, "ieee", true, "", "supported", "unsupported", "unsupported")
+	assertSourceCapability(t, payload.Sources, "acm", false, "missing required credential: SEARCH_PAPER_ACM_API_KEY", "gated", "gated", "gated")
+}
+
+func TestSourcesJSONMergesEnvAndConfigPerKey(t *testing.T) {
+	t.Parallel()
+
+	homeDir := t.TempDir()
+	writeCLIConfig(t, homeDir, "config.yaml", strings.Join([]string{
+		"ieee_api_key: ieee-from-file",
+		"acm_api_key: acm-from-file",
+		"",
+	}, "\n"))
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"sources", "--format", "json"}, &stdout, &stderr, runOptions{
+		environ:        []string{"HOME=" + homeDir, "SEARCH_PAPER_IEEE_API_KEY="},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	var payload struct {
+		Status  string                `json:"status"`
+		Sources []sourceRegistryEntry `json:"sources"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("expected valid json, got %q: %v", stdout.String(), err)
+	}
+
+	assertSourceCapability(t, payload.Sources, "acm", true, "", "supported", "unsupported", "unsupported")
+	assertSourceCapability(t, payload.Sources, "ieee", false, "missing required credential: SEARCH_PAPER_IEEE_API_KEY", "gated", "gated", "gated")
+}
+
 func TestInvalidSourceError(t *testing.T) {
 	t.Parallel()
 
@@ -524,5 +581,17 @@ func assertNoPanicText(t *testing.T, outputs ...string) {
 		if strings.Contains(strings.ToLower(output), "panic") || strings.Contains(strings.ToLower(output), "traceback") {
 			t.Fatalf("expected no panic or traceback text, got %q", output)
 		}
+	}
+}
+
+func writeCLIConfig(t *testing.T, homeDir, fileName, contents string) {
+	t.Helper()
+
+	path := filepath.Join(homeDir, ".config", "search-paper-cli", fileName)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) error = %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", path, err)
 	}
 }

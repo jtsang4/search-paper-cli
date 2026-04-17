@@ -7,31 +7,36 @@ import (
 	"testing"
 )
 
-func TestPrefixedEnvLoadsValues(t *testing.T) {
-	assertPrefixedEnvLoadsValues(t)
-}
-
-func assertPrefixedEnvLoadsValues(t *testing.T) {
-	t.Helper()
+func TestGlobalConfigYAMLPrecedence(t *testing.T) {
+	homeDir := t.TempDir()
+	writeGlobalConfig(t, homeDir, "config.yml", strings.Join([]string{
+		"ieee_api_key: ieee-from-yml",
+		"acm_api_key: acm-from-yml",
+		"",
+	}, "\n"))
+	writeGlobalConfig(t, homeDir, "config.yaml", strings.Join([]string{
+		"ieee_api_key: ieee-from-yaml",
+		"",
+	}, "\n"))
 
 	cfg, diagnostics, err := Load(LoadOptions{
-		Environ: []string{
-			"SEARCH_PAPER_UNPAYWALL_EMAIL=prefixed@example.com",
-			"SEARCH_PAPER_CORE_API_KEY=",
-		},
-		WorkingDir:     t.TempDir(),
-		RepositoryRoot: t.TempDir(),
+		Environ: []string{"HOME=" + homeDir},
 	})
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.UnpaywallEmail != "prefixed@example.com" {
-		t.Fatalf("expected prefixed unpaywall email to load, got %q", cfg.UnpaywallEmail)
+	if cfg.IEEEAPIKey != "ieee-from-yaml" {
+		t.Fatalf("expected config.yaml to win, got %q", cfg.IEEEAPIKey)
 	}
 
-	if cfg.CoreAPIKey != "" {
-		t.Fatalf("expected explicitly empty prefixed core key to be preserved, got %q", cfg.CoreAPIKey)
+	if cfg.ACMAPIKey != "" {
+		t.Fatalf("expected config.yml to be ignored when config.yaml exists, got %q", cfg.ACMAPIKey)
+	}
+
+	wantPath := filepath.Join(homeDir, ".config", "search-paper-cli", "config.yaml")
+	if diagnostics.ConfigFile != wantPath {
+		t.Fatalf("expected diagnostics config file %q, got %q", wantPath, diagnostics.ConfigFile)
 	}
 
 	if len(diagnostics.Warnings) != 0 {
@@ -39,20 +44,201 @@ func assertPrefixedEnvLoadsValues(t *testing.T) {
 	}
 }
 
-func TestBaseURLOptionsLoadFromPrefixedEnv(t *testing.T) {
+func TestGlobalConfigYMLFallback(t *testing.T) {
+	homeDir := t.TempDir()
+	writeGlobalConfig(t, homeDir, "config.yml", strings.Join([]string{
+		"acm_api_key: acm-from-yml",
+		"ieee_api_key: ieee-from-yml",
+		"",
+	}, "\n"))
+
+	cfg, diagnostics, err := Load(LoadOptions{
+		Environ: []string{"HOME=" + homeDir},
+	})
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.ACMAPIKey != "acm-from-yml" || cfg.IEEEAPIKey != "ieee-from-yml" {
+		t.Fatalf("expected config.yml fallback values, got %#v", cfg)
+	}
+
+	wantPath := filepath.Join(homeDir, ".config", "search-paper-cli", "config.yml")
+	if diagnostics.ConfigFile != wantPath {
+		t.Fatalf("expected diagnostics config file %q, got %q", wantPath, diagnostics.ConfigFile)
+	}
+}
+
+func TestEnvMergePerKey(t *testing.T) {
+	homeDir := t.TempDir()
+	writeGlobalConfig(t, homeDir, "config.yaml", strings.Join([]string{
+		"acm_api_key: acm-from-file",
+		"arxiv_base_url: https://yaml.example/arxiv",
+		"",
+	}, "\n"))
+
 	cfg, diagnostics, err := Load(LoadOptions{
 		Environ: []string{
-			"SEARCH_PAPER_ARXIV_BASE_URL=https://arxiv.example/api",
-			"SEARCH_PAPER_OPENAIRE_BASE_URL=https://openaire.example/search/researchProducts",
-			"SEARCH_PAPER_OPENAIRE_LEGACY_BASE_URL=https://openaire.example/search/publications",
-			"SEARCH_PAPER_CORE_BASE_URL=https://core.example/v3/search/works",
-			"SEARCH_PAPER_EUROPEPMC_BASE_URL=https://europepmc.example/search",
-			"SEARCH_PAPER_PMC_SEARCH_URL=https://pmc.example/esearch.fcgi",
-			"SEARCH_PAPER_PMC_SUMMARY_URL=https://pmc.example/esummary.fcgi",
-			"SEARCH_PAPER_UNPAYWALL_BASE_URL=https://unpaywall.example/v2",
+			"HOME=" + homeDir,
+			"SEARCH_PAPER_IEEE_API_KEY=ieee-from-env",
+			"SEARCH_PAPER_ARXIV_BASE_URL=https://env.example/arxiv",
 		},
-		WorkingDir:     t.TempDir(),
-		RepositoryRoot: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.ACMAPIKey != "acm-from-file" {
+		t.Fatalf("expected config-only ACM key, got %q", cfg.ACMAPIKey)
+	}
+	if cfg.IEEEAPIKey != "ieee-from-env" {
+		t.Fatalf("expected env-only IEEE key, got %q", cfg.IEEEAPIKey)
+	}
+	if cfg.ArxivBaseURL != "https://env.example/arxiv" {
+		t.Fatalf("expected same-key env override to win, got %q", cfg.ArxivBaseURL)
+	}
+	if len(diagnostics.Warnings) != 0 {
+		t.Fatalf("expected no warnings, got %#v", diagnostics.Warnings)
+	}
+}
+
+func TestEnvMergeEmptyEnvBlocksGlobalConfig(t *testing.T) {
+	homeDir := t.TempDir()
+	writeGlobalConfig(t, homeDir, "config.yaml", "ieee_api_key: ieee-from-file\n")
+
+	cfg, _, err := Load(LoadOptions{
+		Environ: []string{
+			"HOME=" + homeDir,
+			"SEARCH_PAPER_IEEE_API_KEY=",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.IEEEAPIKey != "" {
+		t.Fatalf("expected explicit empty env to block file fallback, got %q", cfg.IEEEAPIKey)
+	}
+}
+
+func TestLegacyEnvIgnored(t *testing.T) {
+	homeDir := t.TempDir()
+	repoRoot := t.TempDir()
+	cwd := filepath.Join(repoRoot, "nested", "workspace")
+	if err := os.MkdirAll(cwd, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+
+	explicitPath := filepath.Join(repoRoot, "explicit.env")
+	writeEnvFile(t, explicitPath, "SEARCH_PAPER_ACM_API_KEY=acm-from-explicit\n")
+	writeEnvFile(t, filepath.Join(repoRoot, ".env"), "SEARCH_PAPER_IEEE_API_KEY=ieee-from-repo\n")
+	writeEnvFile(t, filepath.Join(cwd, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=cwd@example.com\n")
+
+	cfg, diagnostics, err := Load(LoadOptions{
+		Environ: []string{
+			"HOME=" + homeDir,
+			"SEARCH_PAPER_ENV_FILE=" + explicitPath,
+			"SEARCH_PAPER_CORE_API_KEY=core-from-env",
+		},
+		WorkingDir:     cwd,
+		RepositoryRoot: repoRoot,
+	})
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.CoreAPIKey != "core-from-env" {
+		t.Fatalf("expected real env var to load, got %q", cfg.CoreAPIKey)
+	}
+	if cfg.ACMAPIKey != "" || cfg.IEEEAPIKey != "" || cfg.UnpaywallEmail != "" {
+		t.Fatalf("expected legacy env inputs to be ignored, got %#v", cfg)
+	}
+	if diagnostics.ConfigFile != "" {
+		t.Fatalf("expected no config file diagnostics, got %q", diagnostics.ConfigFile)
+	}
+	if len(diagnostics.Warnings) != 0 {
+		t.Fatalf("expected legacy env discovery to be ignored silently, got %#v", diagnostics.Warnings)
+	}
+}
+
+func TestWarningsForMalformedGlobalConfig(t *testing.T) {
+	homeDir := t.TempDir()
+	writeGlobalConfig(t, homeDir, "config.yaml", "ieee_api_key: [broken\n")
+
+	cfg, diagnostics, err := Load(LoadOptions{
+		Environ: []string{"HOME=" + homeDir},
+	})
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg != (Config{}) {
+		t.Fatalf("expected malformed config to be ignored, got %#v", cfg)
+	}
+	if !hasWarningContaining(diagnostics.Warnings, "malformed global config") {
+		t.Fatalf("expected malformed config warning, got %#v", diagnostics.Warnings)
+	}
+}
+
+func TestSecretsStayOutOfWarnings(t *testing.T) {
+	homeDir := t.TempDir()
+	secret := "sentinel-secret-value"
+	writeGlobalConfig(t, homeDir, "config.yaml", "acm_api_key: \""+secret+"\"\n: bad\n")
+
+	_, diagnostics, err := Load(LoadOptions{
+		Environ: []string{"HOME=" + homeDir},
+	})
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	for _, warning := range diagnostics.Warnings {
+		if strings.Contains(warning.Message, secret) {
+			t.Fatalf("expected warning to omit secret, got %#v", diagnostics.Warnings)
+		}
+	}
+}
+
+func TestGlobalConfigIgnoresUnknownAndBlankValues(t *testing.T) {
+	homeDir := t.TempDir()
+	writeGlobalConfig(t, homeDir, "config.yaml", strings.Join([]string{
+		"unknown_key: value",
+		"ieee_api_key: \"   \"",
+		"acm_api_key: \"\t\"",
+		"",
+	}, "\n"))
+
+	cfg, diagnostics, err := Load(LoadOptions{
+		Environ: []string{"HOME=" + homeDir},
+	})
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.IEEEAPIKey != "" || cfg.ACMAPIKey != "" {
+		t.Fatalf("expected blank values to be ignored, got %#v", cfg)
+	}
+	if len(diagnostics.Warnings) != 0 {
+		t.Fatalf("expected blank and unknown keys to be ignored safely, got %#v", diagnostics.Warnings)
+	}
+}
+
+func TestGlobalConfigLoadsBaseURLOptions(t *testing.T) {
+	homeDir := t.TempDir()
+	writeGlobalConfig(t, homeDir, "config.yaml", strings.Join([]string{
+		"arxiv_base_url: https://arxiv.example/api",
+		"openaire_base_url: https://openaire.example/search/researchProducts",
+		"openaire_legacy_base_url: https://openaire.example/search/publications",
+		"core_base_url: https://core.example/v3/search/works",
+		"europepmc_base_url: https://europepmc.example/search",
+		"pmc_search_url: https://pmc.example/esearch.fcgi",
+		"pmc_summary_url: https://pmc.example/esummary.fcgi",
+		"unpaywall_base_url: https://unpaywall.example/v2",
+		"",
+	}, "\n"))
+
+	cfg, diagnostics, err := Load(LoadOptions{
+		Environ: []string{"HOME=" + homeDir},
 	})
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
@@ -87,151 +273,26 @@ func TestBaseURLOptionsLoadFromPrefixedEnv(t *testing.T) {
 	}
 }
 
-func TestEnvFilePrecedence(t *testing.T) {
-	t.Run("prefixed env values load directly and preserve empties", func(t *testing.T) {
-		assertPrefixedEnvLoadsValues(t)
-	})
-
-	t.Run("explicit env file wins and malformed lines do not crash", func(t *testing.T) {
-		repoRoot := t.TempDir()
-		cwd := filepath.Join(repoRoot, "nested", "workspace")
-		if err := os.MkdirAll(cwd, 0o755); err != nil {
-			t.Fatalf("MkdirAll() error = %v", err)
-		}
-
-		explicitPath := filepath.Join(repoRoot, "explicit.env")
-		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=repo@example.com\n")
-		writeEnvFile(t, filepath.Join(cwd, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=cwd@example.com\n")
-		writeEnvFile(t, explicitPath, strings.Join([]string{
-			"# comment",
-			"",
-			"export SEARCH_PAPER_UNPAYWALL_EMAIL=\"explicit@example.com\"",
-			"SEARCH_PAPER_IEEE_API_KEY='quoted-key'",
-			"NOT_A_VALID_ASSIGNMENT sentinel-secret",
-			"",
-		}, "\n"))
-
-		cfg, diagnostics, err := Load(LoadOptions{
-			Environ: []string{
-				"SEARCH_PAPER_ENV_FILE=" + explicitPath,
-			},
-			WorkingDir:     cwd,
-			RepositoryRoot: repoRoot,
-		})
-		if err != nil {
-			t.Fatalf("Load() error = %v", err)
-		}
-
-		if cfg.UnpaywallEmail != "explicit@example.com" {
-			t.Fatalf("expected explicit env file to win, got %q", cfg.UnpaywallEmail)
-		}
-
-		if cfg.IEEEAPIKey != "quoted-key" {
-			t.Fatalf("expected quoted export syntax to parse, got %q", cfg.IEEEAPIKey)
-		}
-
-		if diagnostics.EnvFile != explicitPath {
-			t.Fatalf("expected explicit env file path %q, got %q", explicitPath, diagnostics.EnvFile)
-		}
-
-		if !hasWarningContaining(diagnostics.Warnings, "malformed") {
-			t.Fatalf("expected malformed line warning, got %#v", diagnostics.Warnings)
-		}
-	})
-
-	t.Run("cwd env file wins over repository root", func(t *testing.T) {
-		repoRoot := t.TempDir()
-		cwd := filepath.Join(repoRoot, "child")
-		if err := os.MkdirAll(cwd, 0o755); err != nil {
-			t.Fatalf("MkdirAll() error = %v", err)
-		}
-
-		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=repo@example.com\n")
-		writeEnvFile(t, filepath.Join(cwd, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=cwd@example.com\n")
-
-		cfg, diagnostics, err := Load(LoadOptions{
-			WorkingDir:     cwd,
-			RepositoryRoot: repoRoot,
-		})
-		if err != nil {
-			t.Fatalf("Load() error = %v", err)
-		}
-
-		if cfg.UnpaywallEmail != "cwd@example.com" {
-			t.Fatalf("expected cwd env file to win, got %q", cfg.UnpaywallEmail)
-		}
-
-		if diagnostics.EnvFile != filepath.Join(cwd, ".env") {
-			t.Fatalf("expected cwd env file to be used, got %q", diagnostics.EnvFile)
-		}
-	})
-
-	t.Run("repository root env file is used when cwd is inside source tree", func(t *testing.T) {
-		repoRoot := t.TempDir()
-		cwd := filepath.Join(repoRoot, "nested", "child")
-		if err := os.MkdirAll(cwd, 0o755); err != nil {
-			t.Fatalf("MkdirAll() error = %v", err)
-		}
-
-		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=repo@example.com\n")
-
-		cfg, diagnostics, err := Load(LoadOptions{
-			WorkingDir:     cwd,
-			RepositoryRoot: repoRoot,
-		})
-		if err != nil {
-			t.Fatalf("Load() error = %v", err)
-		}
-
-		if cfg.UnpaywallEmail != "repo@example.com" {
-			t.Fatalf("expected repository root env file to be used, got %q", cfg.UnpaywallEmail)
-		}
-
-		if diagnostics.EnvFile != filepath.Join(repoRoot, ".env") {
-			t.Fatalf("expected repository root env file to be used, got %q", diagnostics.EnvFile)
-		}
-	})
-
-	t.Run("missing explicit env file does not crash and does not fall back", func(t *testing.T) {
-		repoRoot := t.TempDir()
-		cwd := filepath.Join(repoRoot, "child")
-		if err := os.MkdirAll(cwd, 0o755); err != nil {
-			t.Fatalf("MkdirAll() error = %v", err)
-		}
-
-		writeEnvFile(t, filepath.Join(repoRoot, ".env"), "SEARCH_PAPER_UNPAYWALL_EMAIL=repo@example.com\n")
-		missingPath := filepath.Join(repoRoot, "missing.env")
-
-		cfg, diagnostics, err := Load(LoadOptions{
-			Environ: []string{
-				"SEARCH_PAPER_ENV_FILE=" + missingPath,
-			},
-			WorkingDir:     cwd,
-			RepositoryRoot: repoRoot,
-		})
-		if err != nil {
-			t.Fatalf("Load() error = %v", err)
-		}
-
-		if cfg.UnpaywallEmail != "" {
-			t.Fatalf("expected no fallback when explicit env file is missing, got %q", cfg.UnpaywallEmail)
-		}
-
-		if diagnostics.EnvFile != missingPath {
-			t.Fatalf("expected missing explicit path to be reported, got %q", diagnostics.EnvFile)
-		}
-
-		if !hasWarningContaining(diagnostics.Warnings, "not found") {
-			t.Fatalf("expected missing file warning, got %#v", diagnostics.Warnings)
-		}
-	})
-}
-
 func writeEnvFile(t *testing.T, path string, content string) {
 	t.Helper()
 
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) error = %v", filepath.Dir(path), err)
+	}
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("WriteFile(%q) error = %v", path, err)
+	}
+}
+
+func writeGlobalConfig(t *testing.T, homeDir, fileName, content string) {
+	t.Helper()
+
+	configPath := filepath.Join(homeDir, ".config", "search-paper-cli", fileName)
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) error = %v", filepath.Dir(configPath), err)
+	}
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", configPath, err)
 	}
 }
 

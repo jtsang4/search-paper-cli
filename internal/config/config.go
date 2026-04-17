@@ -1,13 +1,12 @@
 package config
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
+
+	"go.yaml.in/yaml/v3"
 )
 
 type Config struct {
@@ -34,8 +33,8 @@ type Warning struct {
 }
 
 type Diagnostics struct {
-	EnvFile  string    `json:"env_file,omitempty"`
-	Warnings []Warning `json:"warnings,omitempty"`
+	ConfigFile string    `json:"config_file,omitempty"`
+	Warnings   []Warning `json:"warnings,omitempty"`
 }
 
 type LoadOptions struct {
@@ -51,102 +50,119 @@ type envValue struct {
 
 type binding struct {
 	prefixed string
+	yamlKey  string
 	assign   func(*Config, string)
 }
 
 var bindings = []binding{
 	{
 		prefixed: "SEARCH_PAPER_UNPAYWALL_EMAIL",
+		yamlKey:  "unpaywall_email",
 		assign: func(cfg *Config, value string) {
 			cfg.UnpaywallEmail = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_CORE_API_KEY",
+		yamlKey:  "core_api_key",
 		assign: func(cfg *Config, value string) {
 			cfg.CoreAPIKey = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_SEMANTIC_SCHOLAR_API_KEY",
+		yamlKey:  "semantic_scholar_api_key",
 		assign: func(cfg *Config, value string) {
 			cfg.SemanticScholarAPIKey = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_GOOGLE_SCHOLAR_PROXY_URL",
+		yamlKey:  "google_scholar_proxy_url",
 		assign: func(cfg *Config, value string) {
 			cfg.GoogleScholarProxyURL = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_DOAJ_API_KEY",
+		yamlKey:  "doaj_api_key",
 		assign: func(cfg *Config, value string) {
 			cfg.DOAJAPIKey = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_ZENODO_ACCESS_TOKEN",
+		yamlKey:  "zenodo_access_token",
 		assign: func(cfg *Config, value string) {
 			cfg.ZenodoAccessToken = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_IEEE_API_KEY",
+		yamlKey:  "ieee_api_key",
 		assign: func(cfg *Config, value string) {
 			cfg.IEEEAPIKey = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_ACM_API_KEY",
+		yamlKey:  "acm_api_key",
 		assign: func(cfg *Config, value string) {
 			cfg.ACMAPIKey = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_ARXIV_BASE_URL",
+		yamlKey:  "arxiv_base_url",
 		assign: func(cfg *Config, value string) {
 			cfg.ArxivBaseURL = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_OPENAIRE_BASE_URL",
+		yamlKey:  "openaire_base_url",
 		assign: func(cfg *Config, value string) {
 			cfg.OpenAIREBaseURL = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_OPENAIRE_LEGACY_BASE_URL",
+		yamlKey:  "openaire_legacy_base_url",
 		assign: func(cfg *Config, value string) {
 			cfg.OpenAIRELegacyBaseURL = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_CORE_BASE_URL",
+		yamlKey:  "core_base_url",
 		assign: func(cfg *Config, value string) {
 			cfg.CoreBaseURL = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_EUROPEPMC_BASE_URL",
+		yamlKey:  "europepmc_base_url",
 		assign: func(cfg *Config, value string) {
 			cfg.EuropePMCBaseURL = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_PMC_SEARCH_URL",
+		yamlKey:  "pmc_search_url",
 		assign: func(cfg *Config, value string) {
 			cfg.PMCSearchURL = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_PMC_SUMMARY_URL",
+		yamlKey:  "pmc_summary_url",
 		assign: func(cfg *Config, value string) {
 			cfg.PMCSummaryURL = value
 		},
 	},
 	{
 		prefixed: "SEARCH_PAPER_UNPAYWALL_BASE_URL",
+		yamlKey:  "unpaywall_base_url",
 		assign: func(cfg *Config, value string) {
 			cfg.UnpaywallBaseURL = value
 		},
@@ -154,59 +170,25 @@ var bindings = []binding{
 }
 
 func Load(opts LoadOptions) (Config, Diagnostics, error) {
-	workingDir := opts.WorkingDir
-	if workingDir == "" {
-		var err error
-		workingDir, err = os.Getwd()
-		if err != nil {
-			return Config{}, Diagnostics{}, fmt.Errorf("get working directory: %w", err)
-		}
-	}
-
 	processEnv := environMap(opts.Environ)
 	diagnostics := Diagnostics{}
-	fileEnv := map[string]envValue{}
 
-	envFilePath, explicit := selectEnvFile(processEnv, workingDir, opts.RepositoryRoot)
-	if envFilePath != "" || explicit {
-		diagnostics.EnvFile = envFilePath
-	}
-
-	switch {
-	case explicit && strings.TrimSpace(envFilePath) == "":
-		diagnostics.Warnings = append(diagnostics.Warnings, Warning{
-			Message: "explicit env file path is empty; skipping env file loading",
-		})
-	case envFilePath != "":
-		loaded, warnings, err := loadEnvFile(envFilePath)
+	fileValues := map[string]string{}
+	configPath, ok := selectGlobalConfigPath(processEnv, opts.Environ == nil)
+	if ok {
+		diagnostics.ConfigFile = configPath
+		loaded, warnings := loadGlobalConfigFile(configPath)
 		diagnostics.Warnings = append(diagnostics.Warnings, warnings...)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				if explicit {
-					diagnostics.Warnings = append(diagnostics.Warnings, Warning{
-						Message: fmt.Sprintf("explicit env file not found: %s", envFilePath),
-					})
-				}
-			} else {
-				return Config{}, diagnostics, fmt.Errorf("read env file %q: %w", envFilePath, err)
-			}
-		} else {
-			fileEnv = loaded
-		}
-	}
-
-	merged := map[string]envValue{}
-	for key, value := range fileEnv {
-		merged[key] = value
-	}
-	for key, value := range processEnv {
-		merged[key] = value
+		fileValues = loaded
 	}
 
 	cfg := Config{}
 	for _, item := range bindings {
-		value, ok := resolveValue(merged, item.prefixed)
-		if ok {
+		if value, present := processEnv[item.prefixed]; present {
+			item.assign(&cfg, value.value)
+			continue
+		}
+		if value, present := fileValues[item.yamlKey]; present {
 			item.assign(&cfg, value)
 		}
 	}
@@ -214,121 +196,94 @@ func Load(opts LoadOptions) (Config, Diagnostics, error) {
 	return cfg, diagnostics, nil
 }
 
-func selectEnvFile(env map[string]envValue, workingDir, repositoryRoot string) (string, bool) {
-	if value, ok := env["SEARCH_PAPER_ENV_FILE"]; ok {
-		if value.value == "" || filepath.IsAbs(value.value) || workingDir == "" {
-			return value.value, true
-		}
-		return filepath.Join(workingDir, value.value), true
+func selectGlobalConfigPath(env map[string]envValue, allowProcessFallback bool) (string, bool) {
+	homeDir := resolveHomeDir(env, allowProcessFallback)
+	if strings.TrimSpace(homeDir) == "" {
+		return "", false
 	}
 
-	if workingDir != "" {
-		candidate := filepath.Join(workingDir, ".env")
-		if fileExists(candidate) {
-			return candidate, false
-		}
+	configDir := filepath.Join(homeDir, ".config", "search-paper-cli")
+	yamlPath := filepath.Join(configDir, "config.yaml")
+	if fileExists(yamlPath) {
+		return yamlPath, true
 	}
 
-	if repositoryRoot != "" && isWithin(workingDir, repositoryRoot) {
-		candidate := filepath.Join(repositoryRoot, ".env")
-		if fileExists(candidate) {
-			return candidate, false
-		}
+	ymlPath := filepath.Join(configDir, "config.yml")
+	if fileExists(ymlPath) {
+		return ymlPath, true
 	}
 
 	return "", false
 }
 
-func loadEnvFile(path string) (map[string]envValue, []Warning, error) {
-	file, err := os.Open(path)
+func resolveHomeDir(env map[string]envValue, allowProcessFallback bool) string {
+	if value, ok := env["HOME"]; ok {
+		return strings.TrimSpace(value.value)
+	}
+	if !allowProcessFallback {
+		return ""
+	}
+
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return nil, nil, err
+		return ""
 	}
-	defer file.Close()
+	return strings.TrimSpace(homeDir)
+}
 
-	values := map[string]envValue{}
-	var warnings []Warning
-	scanner := bufio.NewScanner(file)
-	lineNumber := 0
-	for scanner.Scan() {
-		lineNumber++
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
+func loadGlobalConfigFile(path string) (map[string]string, []Warning) {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return map[string]string{}, []Warning{{
+			Message: fmt.Sprintf("failed to read global config %s; ignoring file", path),
+		}}
+	}
+
+	var raw map[string]any
+	if err := yaml.Unmarshal(contents, &raw); err != nil {
+		return map[string]string{}, []Warning{{
+			Message: fmt.Sprintf("malformed global config %s; ignoring file", path),
+		}}
+	}
+
+	values := make(map[string]string, len(raw))
+	for key, value := range raw {
+		key = strings.TrimSpace(strings.ToLower(key))
+		if key == "" {
 			continue
 		}
-
-		line = strings.TrimPrefix(line, "export ")
-		key, value, ok := parseEnvAssignment(line)
+		normalized, ok := normalizeConfigScalar(value)
 		if !ok {
-			warnings = append(warnings, Warning{
-				Message: fmt.Sprintf("ignored malformed env line %d in %s", lineNumber, path),
-			})
 			continue
 		}
-
-		values[key] = envValue{value: value, present: true}
+		values[key] = normalized
 	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, warnings, err
-	}
-
-	return values, warnings, nil
+	return values, nil
 }
 
-func parseEnvAssignment(line string) (string, string, bool) {
-	index := strings.IndexByte(line, '=')
-	if index <= 0 {
-		return "", "", false
-	}
-
-	key := strings.TrimSpace(line[:index])
-	if !validEnvKey(key) {
-		return "", "", false
-	}
-
-	value := strings.TrimSpace(line[index+1:])
-	value = stripQuotes(value)
-	return key, value, true
-}
-
-func stripQuotes(value string) string {
-	if len(value) < 2 {
-		return value
-	}
-
-	if value[0] == '\'' && value[len(value)-1] == '\'' {
-		return value[1 : len(value)-1]
-	}
-
-	if value[0] == '"' && value[len(value)-1] == '"' {
-		unquoted, err := strconv.Unquote(value)
-		if err == nil {
-			return unquoted
+func normalizeConfigScalar(value any) (string, bool) {
+	switch typed := value.(type) {
+	case nil:
+		return "", false
+	case string:
+		trimmed := strings.TrimSpace(typed)
+		if trimmed == "" {
+			return "", false
 		}
-		return value[1 : len(value)-1]
-	}
-
-	return value
-}
-
-func validEnvKey(key string) bool {
-	for index, r := range key {
-		switch {
-		case r >= 'A' && r <= 'Z':
-		case r >= 'a' && r <= 'z':
-		case r == '_':
-		case index > 0 && r >= '0' && r <= '9':
-		default:
-			return false
+		return trimmed, true
+	case fmt.Stringer:
+		trimmed := strings.TrimSpace(typed.String())
+		if trimmed == "" {
+			return "", false
 		}
+		return trimmed, true
+	case bool:
+		return fmt.Sprintf("%t", typed), true
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+		return fmt.Sprint(typed), true
+	default:
+		return "", false
 	}
-	return key != ""
-}
-
-func resolveValue(env map[string]envValue, prefixed string) (string, bool) {
-	value, ok := env[prefixed]
-	return value.value, ok
 }
 
 func environMap(environ []string) map[string]envValue {
@@ -356,16 +311,4 @@ func fileExists(path string) bool {
 		return false
 	}
 	return !info.IsDir()
-}
-
-func isWithin(path, root string) bool {
-	if path == "" || root == "" {
-		return false
-	}
-
-	rel, err := filepath.Rel(root, path)
-	if err != nil {
-		return false
-	}
-	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
