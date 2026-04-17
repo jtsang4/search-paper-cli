@@ -1,0 +1,235 @@
+{
+  "groupId": "merge-semantics",
+  "testedAt": "2026-04-17T09:38:52Z",
+  "isolation": {
+    "missionDir": "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff",
+    "tempRoot": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics",
+    "evidenceDir": "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/global-config-core/merge-semantics",
+    "binary": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli"
+  },
+  "toolsUsed": [
+    "shell",
+    "python3"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-MERGE-001",
+      "title": "Environment variables override global config for the same key",
+      "status": "pass",
+      "reason": "Arxiv used the env-selected override marker, and the same search payload showed config-only IEEE settings taking effect.",
+      "commands": [
+        {
+          "command": "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-001/home SEARCH_PAPER_ARXIV_BASE_URL='http://env-selected.invalid[' /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli search --format json --source arxiv,ieee 'merge semantics query'",
+          "cwd": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-001",
+          "home": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-001/home",
+          "configFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-001/home/.config/search-paper-cli/config.yaml",
+          "configContents": "arxiv_base_url: 'http://config-selected.invalid['\nieee_api_key: ieee-from-config\n",
+          "exitCode": 4,
+          "stdout": "{\"status\":\"ok\",\"mode\":\"degraded\",\"query\":\"merge semantics query\",\"requested_sources\":[\"arxiv\",\"ieee\"],\"used_sources\":[\"arxiv\",\"ieee\"],\"invalid_sources\":[],\"failed_sources\":[\"arxiv\",\"ieee\"],\"source_results\":{\"arxiv\":0,\"ieee\":0},\"errors\":{\"arxiv\":\"parse \\\"http://env-selected.invalid[?max_results=10&search_query=all%3Amerge+semantics+query\\\": invalid IP-literal\",\"ieee\":\"source \\\"ieee\\\" search is not implemented yet\"},\"total\":0,\"papers\":[]}\n",
+          "stderr": ""
+        }
+      ],
+      "evidenceFiles": [
+        "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/global-config-core/merge-semantics/VAL-MERGE-001.json"
+      ],
+      "proof": {
+        "pass": true,
+        "reason": "Arxiv used the env-selected override marker, and the same search payload showed config-only IEEE settings taking effect.",
+        "payload": {
+          "status": "ok",
+          "mode": "degraded",
+          "query": "merge semantics query",
+          "requested_sources": [
+            "arxiv",
+            "ieee"
+          ],
+          "used_sources": [
+            "arxiv",
+            "ieee"
+          ],
+          "invalid_sources": [],
+          "failed_sources": [
+            "arxiv",
+            "ieee"
+          ],
+          "source_results": {
+            "arxiv": 0,
+            "ieee": 0
+          },
+          "errors": {
+            "arxiv": "parse \"http://env-selected.invalid[?max_results=10&search_query=all%3Amerge+semantics+query\": invalid IP-literal",
+            "ieee": "source \"ieee\" search is not implemented yet"
+          },
+          "total": 0,
+          "papers": []
+        },
+        "checks": [
+          {
+            "name": "search returned degraded JSON payload",
+            "passed": true
+          },
+          {
+            "name": "arxiv error references env-selected endpoint marker",
+            "passed": true
+          },
+          {
+            "name": "arxiv error does not reference config-selected endpoint marker",
+            "passed": true
+          },
+          {
+            "name": "config-only IEEE key applied in same run",
+            "passed": true
+          }
+        ],
+        "observableProof": {
+          "arxivError": "parse \"http://env-selected.invalid[?max_results=10&search_query=all%3Amerge+semantics+query\": invalid IP-literal",
+          "ieeeError": "source \"ieee\" search is not implemented yet",
+          "usedSources": [
+            "arxiv",
+            "ieee"
+          ]
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MERGE-002",
+      "title": "Env and global config merge per key across different settings",
+      "status": "pass",
+      "reason": "Single sources run reflected ACM from env and IEEE from config together.",
+      "commands": [
+        {
+          "command": "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-002/home SEARCH_PAPER_ACM_API_KEY=acm-from-env /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli sources --format json --source acm,ieee",
+          "cwd": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-002",
+          "home": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-002/home",
+          "configFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-002/home/.config/search-paper-cli/config.yaml",
+          "configContents": "ieee_api_key: ieee-from-config\n",
+          "exitCode": 0,
+          "stdout": "{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"ieee\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}}]}\n",
+          "stderr": ""
+        }
+      ],
+      "evidenceFiles": [
+        "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/global-config-core/merge-semantics/VAL-MERGE-002.json"
+      ],
+      "proof": {
+        "pass": true,
+        "reason": "Single sources run reflected ACM from env and IEEE from config together.",
+        "payload": {
+          "status": "ok",
+          "sources": [
+            {
+              "id": "acm",
+              "enabled": true,
+              "disable_reason": "",
+              "capabilities": {
+                "search": "supported",
+                "download": "unsupported",
+                "read": "unsupported"
+              }
+            },
+            {
+              "id": "ieee",
+              "enabled": true,
+              "disable_reason": "",
+              "capabilities": {
+                "search": "supported",
+                "download": "unsupported",
+                "read": "unsupported"
+              }
+            }
+          ]
+        },
+        "checks": [
+          {
+            "name": "command exited successfully",
+            "passed": true
+          },
+          {
+            "name": "ACM enabled from env-only key",
+            "passed": true
+          },
+          {
+            "name": "IEEE enabled from config-only key",
+            "passed": true
+          },
+          {
+            "name": "stderr stayed empty",
+            "passed": true
+          }
+        ],
+        "observableProof": {
+          "acmEnabled": true,
+          "ieeeEnabled": true
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MERGE-003",
+      "title": "Explicit empty env values block fallback to file values for the same key",
+      "status": "pass",
+      "reason": "Explicitly empty SEARCH_PAPER_IEEE_API_KEY blocked fallback to the non-empty config value.",
+      "commands": [
+        {
+          "command": "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-003/home SEARCH_PAPER_IEEE_API_KEY='' /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli sources --format json --source ieee",
+          "cwd": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-003",
+          "home": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-003/home",
+          "configFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/merge-semantics/val-merge-003/home/.config/search-paper-cli/config.yaml",
+          "configContents": "ieee_api_key: ieee-from-config\n",
+          "exitCode": 0,
+          "stdout": "{\"status\":\"ok\",\"sources\":[{\"id\":\"ieee\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_IEEE_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}}]}\n",
+          "stderr": ""
+        }
+      ],
+      "evidenceFiles": [
+        "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/global-config-core/merge-semantics/VAL-MERGE-003.json"
+      ],
+      "proof": {
+        "pass": true,
+        "reason": "Explicitly empty SEARCH_PAPER_IEEE_API_KEY blocked fallback to the non-empty config value.",
+        "payload": {
+          "status": "ok",
+          "sources": [
+            {
+              "id": "ieee",
+              "enabled": false,
+              "disable_reason": "missing required credential: SEARCH_PAPER_IEEE_API_KEY",
+              "capabilities": {
+                "search": "gated",
+                "download": "gated",
+                "read": "gated"
+              }
+            }
+          ]
+        },
+        "checks": [
+          {
+            "name": "command exited successfully",
+            "passed": true
+          },
+          {
+            "name": "IEEE remained disabled",
+            "passed": true
+          },
+          {
+            "name": "disable reason shows missing credential instead of config fallback",
+            "passed": true
+          },
+          {
+            "name": "stderr stayed empty",
+            "passed": true
+          }
+        ],
+        "observableProof": {
+          "ieeeEnabled": false,
+          "disableReason": "missing required credential: SEARCH_PAPER_IEEE_API_KEY"
+        }
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 3 assertions: 3 passed, 0 failed, 0 blocked."
+}

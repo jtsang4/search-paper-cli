@@ -1,0 +1,26 @@
+{
+  "milestone": "global-config-core",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-CONFIG-001",
+    "VAL-CONFIG-002",
+    "VAL-CONFIG-003",
+    "VAL-CONFIG-004",
+    "VAL-CONFIG-005",
+    "VAL-CONFIG-006",
+    "VAL-MERGE-001",
+    "VAL-MERGE-002",
+    "VAL-MERGE-003"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": null
+}

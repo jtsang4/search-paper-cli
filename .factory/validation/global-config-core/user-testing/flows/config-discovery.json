@@ -1,0 +1,209 @@
+{
+  "groupId": "config-discovery",
+  "testedAt": "2026-04-17T09:34:52.116914+00:00",
+  "isolation": {
+    "missionDir": "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff",
+    "repoRoot": "/root/workspace/github/jtsang4/search-paper-cli",
+    "binary": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli",
+    "reportPath": "/root/workspace/github/jtsang4/search-paper-cli/.factory/validation/global-config-core/user-testing/flows/config-discovery.json",
+    "evidenceDir": "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/global-config-core/config-discovery",
+    "isolationTempRoot": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery",
+    "runRoot": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z",
+    "workingDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/workdir",
+    "tempHomes": {
+      "VAL-CONFIG-001": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-001-home",
+      "VAL-CONFIG-002-fallback": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-002-yml-fallback-home",
+      "VAL-CONFIG-002-precedence": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-002-yaml-wins-home",
+      "VAL-CONFIG-003": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-003-empty-home"
+    },
+    "wrapperCommandsAvoided": true,
+    "searchPaperEnvClearedForAllCommands": true
+  },
+  "toolsUsed": [
+    "shell"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-CONFIG-001",
+      "title": "config.yaml enables direct CLI configuration",
+      "status": "pass",
+      "reason": "config.yaml alone enabled ieee for direct sources --format json with no wrapper or legacy env input.",
+      "steps": [
+        {
+          "action": "Create only ~/.config/search-paper-cli/config.yaml with ieee_api_key in a hermetic HOME and run direct sources --format json via the built binary.",
+          "expected": "Command exits 0 and reports ieee enabled without wrapper mediation.",
+          "observed": "exit=0, ieee.enabled=True, wrapperAvoided=True"
+        }
+      ],
+      "commands": [
+        {
+          "label": "sources-config-yaml",
+          "command": "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-001-home /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli sources --format json",
+          "argv": [
+            "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli",
+            "sources",
+            "--format",
+            "json"
+          ],
+          "cwd": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/workdir",
+          "home": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-001-home",
+          "wrapperAvoided": true,
+          "searchPaperEnvCleared": true,
+          "exitCode": 0,
+          "stdout": "{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"base\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"biorxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"citeseerx\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"core\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"crossref\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"dblp\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"doaj\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"europepmc\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"google-scholar\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"hal\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"iacr\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"ieee\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"medrxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"openalex\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"openaire\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"pmc\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"pubmed\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"semantic\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"scihub\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"unsupported\",\"download\":\"supported\",\"read\":\"unsupported\"}},{\"id\":\"ssrn\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"unpaywall\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"zenodo\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}}]}\n",
+          "stderr": "",
+          "stdoutFile": "global-config-core/config-discovery/VAL-CONFIG-001-sources-config-yaml.stdout.txt",
+          "stderrFile": "global-config-core/config-discovery/VAL-CONFIG-001-sources-config-yaml.stderr.txt"
+        }
+      ],
+      "evidence": {
+        "rawFiles": [
+          "global-config-core/config-discovery/VAL-CONFIG-001-sources-config-yaml.stdout.txt",
+          "global-config-core/config-discovery/VAL-CONFIG-001-sources-config-yaml.stderr.txt"
+        ],
+        "consoleErrors": "n/a",
+        "network": "n/a"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CONFIG-002",
+      "title": "config.yml is used only as the compatibility fallback filename",
+      "status": "pass",
+      "reason": "config.yml enabled acm only when config.yaml was absent, and when both files existed config.yaml took precedence over config.yml for the ACM gate.",
+      "steps": [
+        {
+          "action": "Create only ~/.config/search-paper-cli/config.yml with acm_api_key and run direct sources --format json.",
+          "expected": "ACM is enabled because config.yaml is absent and config.yml is the fallback filename.",
+          "observed": "exit=0, acm.enabled=True"
+        },
+        {
+          "action": "Create both config.yml (non-empty acm_api_key) and config.yaml (empty acm_api_key) and run the same direct command.",
+          "expected": "config.yaml wins over config.yml, so ACM remains gated.",
+          "observed": "exit=0, acm.enabled=False"
+        }
+      ],
+      "commands": [
+        {
+          "label": "sources-config-yml-fallback",
+          "command": "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-002-yml-fallback-home /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli sources --format json",
+          "argv": [
+            "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli",
+            "sources",
+            "--format",
+            "json"
+          ],
+          "cwd": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/workdir",
+          "home": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-002-yml-fallback-home",
+          "wrapperAvoided": true,
+          "searchPaperEnvCleared": true,
+          "exitCode": 0,
+          "stdout": "{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"base\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"biorxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"citeseerx\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"core\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"crossref\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"dblp\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"doaj\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"europepmc\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"google-scholar\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"hal\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"iacr\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"ieee\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_IEEE_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"medrxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"openalex\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"openaire\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"pmc\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"pubmed\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"semantic\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"scihub\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"unsupported\",\"download\":\"supported\",\"read\":\"unsupported\"}},{\"id\":\"ssrn\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"unpaywall\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"zenodo\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}}]}\n",
+          "stderr": "",
+          "stdoutFile": "global-config-core/config-discovery/VAL-CONFIG-002-sources-config-yml-fallback.stdout.txt",
+          "stderrFile": "global-config-core/config-discovery/VAL-CONFIG-002-sources-config-yml-fallback.stderr.txt"
+        },
+        {
+          "label": "sources-config-yaml-wins-over-yml",
+          "command": "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-002-yaml-wins-home /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli sources --format json",
+          "argv": [
+            "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli",
+            "sources",
+            "--format",
+            "json"
+          ],
+          "cwd": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/workdir",
+          "home": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-002-yaml-wins-home",
+          "wrapperAvoided": true,
+          "searchPaperEnvCleared": true,
+          "exitCode": 0,
+          "stdout": "{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"base\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"biorxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"citeseerx\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"core\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"crossref\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"dblp\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"doaj\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"europepmc\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"google-scholar\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"hal\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"iacr\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"ieee\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_IEEE_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"medrxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"openalex\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"openaire\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"pmc\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"pubmed\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"semantic\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"scihub\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"unsupported\",\"download\":\"supported\",\"read\":\"unsupported\"}},{\"id\":\"ssrn\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"unpaywall\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"zenodo\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}}]}\n",
+          "stderr": "",
+          "stdoutFile": "global-config-core/config-discovery/VAL-CONFIG-002-sources-config-yaml-wins-over-yml.stdout.txt",
+          "stderrFile": "global-config-core/config-discovery/VAL-CONFIG-002-sources-config-yaml-wins-over-yml.stderr.txt"
+        }
+      ],
+      "evidence": {
+        "rawFiles": [
+          "global-config-core/config-discovery/VAL-CONFIG-002-sources-config-yml-fallback.stdout.txt",
+          "global-config-core/config-discovery/VAL-CONFIG-002-sources-config-yml-fallback.stderr.txt",
+          "global-config-core/config-discovery/VAL-CONFIG-002-sources-config-yaml-wins-over-yml.stdout.txt",
+          "global-config-core/config-discovery/VAL-CONFIG-002-sources-config-yaml-wins-over-yml.stderr.txt"
+        ],
+        "consoleErrors": "n/a",
+        "network": "n/a"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CONFIG-003",
+      "title": "Missing global config is non-fatal for direct CLI use",
+      "status": "pass",
+      "reason": "Without global config or relevant env vars, direct version and sources succeeded and both ACM and IEEE stayed gated.",
+      "steps": [
+        {
+          "action": "Run direct version from a hermetic HOME with no global config file and no SEARCH_PAPER_* env vars.",
+          "expected": "Command exits 0 and prints version output.",
+          "observed": "exit=0, stdout_nonempty=True"
+        },
+        {
+          "action": "Run direct sources --format json from the same empty HOME.",
+          "expected": "Command exits 0, emits valid JSON, and leaves ACM/IEEE gated.",
+          "observed": "exit=0, acm.enabled=False, ieee.enabled=False"
+        }
+      ],
+      "commands": [
+        {
+          "label": "version-no-global-config",
+          "command": "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-003-empty-home /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli version",
+          "argv": [
+            "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli",
+            "version"
+          ],
+          "cwd": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/workdir",
+          "home": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-003-empty-home",
+          "wrapperAvoided": true,
+          "searchPaperEnvCleared": true,
+          "exitCode": 0,
+          "stdout": "search-paper-cli v1.0.0\n",
+          "stderr": "",
+          "stdoutFile": "global-config-core/config-discovery/VAL-CONFIG-003-version-no-global-config.stdout.txt",
+          "stderrFile": "global-config-core/config-discovery/VAL-CONFIG-003-version-no-global-config.stderr.txt"
+        },
+        {
+          "label": "sources-no-global-config",
+          "command": "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-003-empty-home /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli sources --format json",
+          "argv": [
+            "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/bin/search-paper-cli",
+            "sources",
+            "--format",
+            "json"
+          ],
+          "cwd": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/workdir",
+          "home": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/global-config-core/config-discovery/run-20260417T093452Z/val-config-003-empty-home",
+          "wrapperAvoided": true,
+          "searchPaperEnvCleared": true,
+          "exitCode": 0,
+          "stdout": "{\"status\":\"ok\",\"sources\":[{\"id\":\"acm\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_ACM_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"arxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"base\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"biorxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"citeseerx\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"core\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"crossref\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"dblp\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"doaj\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"europepmc\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"google-scholar\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"hal\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"iacr\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"ieee\",\"enabled\":false,\"disable_reason\":\"missing required credential: SEARCH_PAPER_IEEE_API_KEY\",\"capabilities\":{\"search\":\"gated\",\"download\":\"gated\",\"read\":\"gated\"}},{\"id\":\"medrxiv\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"openalex\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"openaire\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"pmc\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"supported\",\"read\":\"supported\"}},{\"id\":\"pubmed\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"informational\",\"read\":\"informational\"}},{\"id\":\"semantic\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"scihub\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"unsupported\",\"download\":\"supported\",\"read\":\"unsupported\"}},{\"id\":\"ssrn\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}},{\"id\":\"unpaywall\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"unsupported\",\"read\":\"unsupported\"}},{\"id\":\"zenodo\",\"enabled\":true,\"disable_reason\":\"\",\"capabilities\":{\"search\":\"supported\",\"download\":\"record_dependent\",\"read\":\"record_dependent\"}}]}\n",
+          "stderr": "",
+          "stdoutFile": "global-config-core/config-discovery/VAL-CONFIG-003-sources-no-global-config.stdout.txt",
+          "stderrFile": "global-config-core/config-discovery/VAL-CONFIG-003-sources-no-global-config.stderr.txt"
+        }
+      ],
+      "evidence": {
+        "rawFiles": [
+          "global-config-core/config-discovery/VAL-CONFIG-003-version-no-global-config.stdout.txt",
+          "global-config-core/config-discovery/VAL-CONFIG-003-version-no-global-config.stderr.txt",
+          "global-config-core/config-discovery/VAL-CONFIG-003-sources-no-global-config.stdout.txt",
+          "global-config-core/config-discovery/VAL-CONFIG-003-sources-no-global-config.stderr.txt"
+        ],
+        "consoleErrors": "n/a",
+        "network": "n/a"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 3 assertions: 3 passed, 0 failed, 0 blocked, 0 skipped."
+}
