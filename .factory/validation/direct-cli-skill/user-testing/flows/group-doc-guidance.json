@@ -1,0 +1,114 @@
+{
+  "groupId": "group-doc-guidance",
+  "testedAt": "2026-04-17T11:00:47.508727+00:00",
+  "isolation": {
+    "workingArea": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/direct-cli-skill/group-doc-guidance",
+    "evidenceDir": "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/direct-cli-skill/group-doc-guidance",
+    "reportPath": "/root/workspace/github/jtsang4/search-paper-cli/.factory/validation/direct-cli-skill/user-testing/flows/group-doc-guidance.json",
+    "surface": "CLI/documentation inspection only",
+    "home": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/direct-cli-skill/group-doc-guidance/home",
+    "installedSkillCopy": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/direct-cli-skill/group-doc-guidance/installed-skill/search-paper",
+    "binaryUsed": "/root/workspace/github/jtsang4/search-paper-cli/dist/search-paper-cli_linux_amd64/search-paper-cli"
+  },
+  "toolsUsed": [
+    "shell/CLI",
+    "file inspection",
+    "rg"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-DIRECT-001",
+      "title": "Repository and skill guidance consistently prescribe direct CLI usage",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read README.md usage/config sections.",
+          "expected": "README prescribes direct `search-paper-cli` usage and documents global config plus ignored legacy env/runtime files.",
+          "observed": "README shows direct `search-paper-cli` commands, config at `~/.config/search-paper-cli/config.yaml` with `config.yml` fallback, per-key env precedence wording, and says `SEARCH_PAPER_ENV_FILE` / `.env` files do not participate in runtime config."
+        },
+        {
+          "action": "Read repo AGENTS.md guidance.",
+          "expected": "Repo guidance prefers direct CLI invocation and describes per-key env-over-config merge behavior.",
+          "observed": "AGENTS.md says to invoke `search-paper-cli` directly, documents config.yaml/config.yml discovery order, and states env wins per key with empty env values blocking fallback."
+        },
+        {
+          "action": "Read skills/search-paper/SKILL.md and references/USAGE.md.",
+          "expected": "Skill docs prescribe plain `search-paper-cli ...` commands with global config and exact env-only runtime guidance.",
+          "observed": "Both files direct users to run `search-paper-cli` directly, mention `~/.config/search-paper-cli/config.yaml` / `config.yml`, describe per-key env override semantics, and state `SEARCH_PAPER_ENV_FILE` and `.env` inputs are ignored."
+        }
+      ],
+      "evidence": {
+        "files": [
+          "direct-cli-skill/group-doc-guidance/VAL-DIRECT-001-doc-excerpts.txt"
+        ],
+        "consoleErrors": "not applicable (CLI/doc inspection only)",
+        "network": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DIRECT-002",
+      "title": "Shipped skill assets no longer expose the old wrapper flow as normal runtime behavior",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "List `skills/search-paper/` contents and inspect helper assets.",
+          "expected": "No runtime wrapper script remains; any helper is install/locate-only.",
+          "observed": "Skill directory contains `SKILL.md`, `references/USAGE.md`, and `scripts/ensure-search-paper-cli.sh`; no `run-search-paper-cli.sh` or skill-local `.env` scaffold exists."
+        },
+        {
+          "action": "Read `skills/search-paper/scripts/ensure-search-paper-cli.sh`.",
+          "expected": "Helper only resolves/installs the binary and does not inject runtime config.",
+          "observed": "Helper usage text says runtime configuration is handled by `search-paper-cli` itself from process env plus `~/.config/search-paper-cli/config.yaml` / `config.yml`; script only resolves PATH/local bin/install fallback."
+        },
+        {
+          "action": "Run repo-wide grep for wrapper and legacy env runtime instructions.",
+          "expected": "Shipped guidance should not present wrapper mediation as the normal runtime path.",
+          "observed": "Matches in shipped docs only describe ignoring `SEARCH_PAPER_ENV_FILE`/`.env` or preferring direct CLI use; remaining wrapper-related hits are in tests or historical validation assets, not shipped runtime guidance."
+        }
+      ],
+      "evidence": {
+        "files": [
+          "direct-cli-skill/group-doc-guidance/VAL-DIRECT-002-wrapper-grep.json",
+          "direct-cli-skill/group-doc-guidance/VAL-DIRECT-001-doc-excerpts.txt"
+        ],
+        "consoleErrors": "not applicable (CLI/doc inspection only)",
+        "network": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DIRECT-005",
+      "title": "Installed skill context still uses plain direct CLI commands",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Copy `skills/search-paper` into an isolated outside-repo-style temp directory and place the built CLI on PATH.",
+          "expected": "Installed-skill-style context can be exercised without wrapper assets.",
+          "observed": "Copied skill tree contains only `SKILL.md`, `references/USAGE.md`, and `scripts/ensure-search-paper-cli.sh`; built CLI was exposed on PATH from the temp work area."
+        },
+        {
+          "action": "Run `search-paper-cli sources --format json --source acm,ieee` from the copied skill dir with temp HOME config.yaml/config.yml and `SEARCH_PAPER_ENV_FILE` pointing at a legacy env file.",
+          "expected": "Direct command uses only process env plus global config files, ignoring wrapper mediation and legacy env-file input.",
+          "observed": "Command exited 0; stdout JSON showed `ieee.enabled=true` from temp `config.yaml`, `acm.enabled=false`, and the legacy env file did not enable ACM."
+        },
+        {
+          "action": "Rerun the same direct command with `SEARCH_PAPER_ACM_API_KEY=env-acm` and execute `sh scripts/ensure-search-paper-cli.sh`.",
+          "expected": "Process env should merge with global config per key, and helper should only locate the binary.",
+          "observed": "Direct command exited 0 with both `acm.enabled=true` and `ieee.enabled=true`; helper exited 0 and printed the binary path only, with no runtime config injection."
+        }
+      ],
+      "evidence": {
+        "files": [
+          "direct-cli-skill/group-doc-guidance/VAL-DIRECT-005-installed-skill-runtime.json"
+        ],
+        "consoleErrors": "not applicable (CLI/doc inspection only)",
+        "network": "none"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 3 assertions via CLI/doc inspection. All 3 passed: shipped docs consistently prescribe direct `search-paper-cli` usage with global config plus per-key env overrides, the retained helper is install/locate-only, and an installed-skill-style copy still runs plain direct commands while ignoring `SEARCH_PAPER_ENV_FILE`."
+}

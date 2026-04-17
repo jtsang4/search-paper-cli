@@ -1,0 +1,195 @@
+{
+  "groupId": "group-runtime-flows",
+  "testedAt": "2026-04-17T11:12:02Z",
+  "isolation": {
+    "workingArea": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/direct-cli-skill/group-runtime-flows",
+    "evidenceDir": "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/direct-cli-skill/group-runtime-flows",
+    "reportPath": "/root/workspace/github/jtsang4/search-paper-cli/.factory/validation/direct-cli-skill/user-testing/flows/group-runtime-flows.json",
+    "surface": "direct CLI execution only",
+    "outsideRepoWorkingDirs": [
+      "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/direct-cli-skill/group-runtime-flows/outside-runtime-cwd",
+      "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/direct-cli-skill/group-runtime-flows/outside-fallback-cwd"
+    ],
+    "standaloneBinary": "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/direct-cli-skill/group-runtime-flows/outside-artifact/bin/search-paper-cli",
+    "tempHomes": [
+      "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/direct-cli-skill/group-runtime-flows/homes/direct003-empty-home",
+      "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/direct-cli-skill/group-runtime-flows/outside-runtime-home",
+      "/root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/direct-cli-skill/group-runtime-flows/outside-fallback-home"
+    ]
+  },
+  "toolsUsed": [
+    "shell/CLI",
+    "python3 local mock HTTP server"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-MERGE-004",
+      "title": "Mixed env/config values drive fallback retrieval in one execution",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Write only unpaywall_email to temp HOME global config",
+          "expected": "Required fallback credential comes from global config",
+          "observed": "Global config contained only unpaywall_email: fallback@example.com"
+        },
+        {
+          "action": "Run direct get --as pdf --fallback with deterministic fallback endpoint overrides only in process env",
+          "expected": "One execution merges config credential with env endpoint overrides",
+          "observed": "Fallback command exited 0 with winning_stage=unpaywall and ordered attempts across env-selected endpoints"
+        }
+      ],
+      "evidence": {
+        "artifacts": [
+          "direct-cli-skill/group-runtime-flows/VAL-CROSS-003-get-pdf-fallback.json"
+        ],
+        "consoleErrors": "n/a",
+        "network": "GET /openaire/search/researchProducts -> 200, GET /openaire/search/publications -> 200, GET /core -> 200, GET /europepmc -> 200, GET /pmc/esearch.fcgi -> 200, GET /unpaywall/10.1000%2Fruntime-fallback-1?email=fallback@example.com -> 200, GET /files/unpaywall.pdf -> 200",
+        "createdFiles": [
+          "direct-cli-skill/group-runtime-flows/outside-fallback-cwd/fallback-downloads/10.1000-runtime-fallback-1.pdf"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DIRECT-003",
+      "title": "Direct CLI commands remain usable without wrapper-era required-env preflight",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run search-paper-cli version with temp HOME and no global config",
+          "expected": "Version succeeds without wrapper-era required-env preflight",
+          "observed": "Exit 0 with version text on stdout and empty stderr"
+        },
+        {
+          "action": "Run search-paper-cli sources with same empty temp HOME",
+          "expected": "Sources succeeds without SEARCH_PAPER_UNPAYWALL_EMAIL preflight",
+          "observed": "Exit 0 with valid JSON stdout, empty stderr, and gated acm/ieee sources left disabled"
+        }
+      ],
+      "evidence": {
+        "artifacts": [
+          "direct-cli-skill/group-runtime-flows/VAL-DIRECT-003-version.json",
+          "direct-cli-skill/group-runtime-flows/VAL-DIRECT-003-sources.json"
+        ],
+        "consoleErrors": "n/a",
+        "network": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DIRECT-004",
+      "title": "Standalone release artifact works outside the repository with global config",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Copy built artifact to an outside-repo bin directory under the assigned evidence boundary",
+          "expected": "Standalone binary runs without repository-relative runtime dependencies",
+          "observed": "Standalone binary executed from /root/.factory/missions/4163b74c-fa26-441d-92de-4df47fc390ff/evidence/direct-cli-skill/group-runtime-flows/outside-artifact/bin/search-paper-cli"
+        },
+        {
+          "action": "Run outside-repo sources, search, get --as pdf, and get --as text with temp HOME global config",
+          "expected": "Artifact honors the same global-config model outside the repository",
+          "observed": "All outside-repo commands exited 0 and retrieval flows wrote files under the outside-repo cwd"
+        }
+      ],
+      "evidence": {
+        "artifacts": [
+          "direct-cli-skill/group-runtime-flows/VAL-CROSS-001-sources.json",
+          "direct-cli-skill/group-runtime-flows/VAL-CROSS-002-search.json",
+          "direct-cli-skill/group-runtime-flows/VAL-CROSS-002-get-pdf.json",
+          "direct-cli-skill/group-runtime-flows/VAL-CROSS-002-get-text.json"
+        ],
+        "consoleErrors": "n/a",
+        "network": "GET http://127.0.0.1:14559/arxiv?... -> 200, GET http://127.0.0.1:14559/files/source.pdf -> 200",
+        "createdFiles": [
+          "direct-cli-skill/group-runtime-flows/outside-runtime-cwd/pdf-downloads/7000.0001v1.pdf",
+          "direct-cli-skill/group-runtime-flows/outside-runtime-cwd/text-downloads/7000.0001v1.pdf"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-001",
+      "title": "Outside-repo direct invocation merges env and global config in one run",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Set SEARCH_PAPER_ACM_API_KEY in process env only and ieee_api_key in global config only for one outside-repo run",
+          "expected": "One sources --format json payload reports both acm and ieee enabled",
+          "observed": "sources payload reported acm.enabled=true and ieee.enabled=true together"
+        }
+      ],
+      "evidence": {
+        "artifacts": [
+          "direct-cli-skill/group-runtime-flows/VAL-CROSS-001-sources.json"
+        ],
+        "consoleErrors": "n/a",
+        "network": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "title": "The same merged config is visible to sources, search, and preferred get retrieval flows",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run outside-repo sources with env ACM + config IEEE using one temp HOME/cwd",
+          "expected": "Merged config is visible in sources output",
+          "observed": "sources showed both acm and ieee enabled"
+        },
+        {
+          "action": "Run outside-repo search using the same HOME/env and config-provided arxiv_base_url override",
+          "expected": "search uses the same effective config",
+          "observed": "search returned one paper from the mocked arxiv endpoint"
+        },
+        {
+          "action": "Run outside-repo get --as pdf and get --as text using the searched paper JSON under the same HOME/env",
+          "expected": "Preferred retrieval flows stay usable without wrapper mediation",
+          "observed": "PDF download succeeded and text extraction succeeded with machine-readable stdout and empty stderr"
+        }
+      ],
+      "evidence": {
+        "artifacts": [
+          "direct-cli-skill/group-runtime-flows/VAL-CROSS-001-sources.json",
+          "direct-cli-skill/group-runtime-flows/VAL-CROSS-002-search.json",
+          "direct-cli-skill/group-runtime-flows/VAL-CROSS-002-get-pdf.json",
+          "direct-cli-skill/group-runtime-flows/VAL-CROSS-002-get-text.json"
+        ],
+        "consoleErrors": "n/a",
+        "network": "GET http://127.0.0.1:14559/arxiv?... -> 200, GET http://127.0.0.1:14559/files/source.pdf -> 200",
+        "createdFiles": [
+          "direct-cli-skill/group-runtime-flows/outside-runtime-cwd/pdf-downloads/7000.0001v1.pdf",
+          "direct-cli-skill/group-runtime-flows/outside-runtime-cwd/text-downloads/7000.0001v1.pdf"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-003",
+      "title": "Direct fallback retrieval works without wrapper-managed setup",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run outside-repo direct get --as pdf --fallback with global-config unpaywall_email and env deterministic overrides",
+          "expected": "CLI preserves JSON stdout and stderr-only diagnostics while fallback succeeds",
+          "observed": "Exit 0 with JSON stdout, empty stderr, winning_stage=unpaywall, ordered attempts, and a saved PDF file"
+        }
+      ],
+      "evidence": {
+        "artifacts": [
+          "direct-cli-skill/group-runtime-flows/VAL-CROSS-003-get-pdf-fallback.json"
+        ],
+        "consoleErrors": "n/a",
+        "network": "GET /openaire/search/researchProducts -> 200, GET /openaire/search/publications -> 200, GET /core -> 200, GET /europepmc -> 200, GET /pmc/esearch.fcgi -> 200, GET /unpaywall/10.1000%2Fruntime-fallback-1?email=fallback@example.com -> 200, GET /files/unpaywall.pdf -> 200",
+        "createdFiles": [
+          "direct-cli-skill/group-runtime-flows/outside-fallback-cwd/fallback-downloads/10.1000-runtime-fallback-1.pdf"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 6 assigned direct-CLI runtime assertions. All 6 passed using direct CLI invocations plus a standalone copied artifact in hermetic temp HOME/outside-repo contexts."
+}
