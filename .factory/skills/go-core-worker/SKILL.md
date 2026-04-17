@@ -1,6 +1,6 @@
 ---
 name: go-core-worker
-description: Build and verify core Go CLI foundations, config, registry, and search orchestration.
+description: Build and verify core Go CLI foundations, global config loading, registry behavior, and search orchestration.
 ---
 
 # Go Core Worker
@@ -13,7 +13,7 @@ Use for features that establish or modify:
 
 - Go module and package structure
 - root CLI commands and shared output formatting
-- config/env loading
+- global config/env loading and merge behavior
 - source registry/capability reporting
 - paper model and unified search orchestration
 
@@ -26,34 +26,35 @@ None.
 1. Read `mission.md`, `AGENTS.md`, `.factory/library/architecture.md`, `.factory/library/environment.md`, and the assigned feature.
 2. Identify the exact contract assertions the feature fulfills and restate them in your notes before editing.
 3. Write failing tests first. Prefer:
-   - unit tests for env/config logic
-   - CLI integration tests for command output and exit codes
-   - fixture-backed tests for search aggregation and dedupe
+   - unit tests for global-config discovery and env-over-config merge logic
+   - CLI integration tests for warnings-on-stderr and source gating output
+   - deterministic endpoint-override tests when same-key precedence must be proved black-box
 4. Run the new tests to confirm they fail for the intended reason.
-5. Implement the minimal production code to satisfy the failing tests while preserving shared orchestration and avoiding duplicated command logic.
-6. Run focused tests again until green.
-7. Run manifest validators relevant to the change:
+5. Implement the minimal production code to satisfy the failing tests while keeping config loading centralized in `internal/config`.
+6. Remove legacy runtime `.env` discovery completely when the feature requires it; do not leave compatibility fallbacks unless the feature explicitly says to.
+7. Run focused tests again until green.
+8. Run manifest validators relevant to the change:
    - `.factory/services.yaml` `typecheck`
    - `.factory/services.yaml` `lint`
    - `.factory/services.yaml` `test`
-8. Perform manual CLI smoke verification for the changed command surface using either `go test` integration cases or `go run`/built binary execution.
-9. Ensure warnings stay on stderr and JSON mode remains parseable.
-10. Create the feature commit. If `git commit` fails only because author identity is missing, retry with `git -c user.name="Droid" -c user.email="local@factory.invalid" commit ...` instead of changing git config.
-11. In the handoff, include concrete command output observations, tests added, and any source behaviors or contract nuances discovered.
+9. Perform manual CLI smoke verification for the changed command surface using temp `HOME` directories and direct `search-paper-cli` or `go run` invocation. Do not use wrapper scripts.
+10. Ensure warnings stay on stderr, JSON mode remains parseable, and no secrets appear in command output.
+11. Create the feature commit. If `git commit` fails only because author identity is missing, retry with `git -c user.name="Droid" -c user.email="local@factory.invalid" commit ...` instead of changing git config.
+12. In the handoff, include concrete command output observations, tests added, and any config-key mapping or precedence nuances discovered.
 
 ## Example Handoff
 
 ```json
 {
-  "salientSummary": "Implemented the root CLI, version/help surfaces, env loading, and the source registry JSON/text renderers. Added failing CLI/config tests first, then wired shared formatting and deterministic source ordering until all scoped and repo validators passed.",
-  "whatWasImplemented": "Created the Go module entrypoint, root command tree, shared formatter, env loader for prefixed environment variables, and a registry layer that exposes enabled state plus per-capability status for each source. Added CLI integration tests for help/version/sources output and config precedence behavior.",
+  "salientSummary": "Replaced legacy `.env` discovery with global YAML config loading, added per-key env override semantics, and updated CLI/config tests to prove yaml-over-yml precedence plus ignored legacy `.env` inputs.",
+  "whatWasImplemented": "Centralized config loading now resolves `~/.config/search-paper-cli/config.yaml` with `config.yml` fallback, maps lowercase YAML keys to the supported `SEARCH_PAPER_*` settings, merges process env per key, and ignores legacy `.env` inputs. Added failing tests first for malformed config warnings, blank/unknown values, same-key env precedence, and gated-source visibility in `sources`.",
   "whatWasLeftUndone": "",
   "verification": {
     "commandsRun": [
       {
-        "command": "go test ./... -run 'TestRootHelp|TestVersion|TestSourcesJSON|TestEnvPrecedence'",
+        "command": "go test ./internal/config -run 'Test(GlobalConfig|EnvMerge|LegacyEnvIgnored)' -count=1",
         "exitCode": 0,
-        "observation": "Focused CLI and config tests passed; JSON stdout remained parseable and warnings stayed on stderr."
+        "observation": "Focused config tests passed, including yaml-over-yml precedence and ignored legacy `.env` inputs."
       },
       {
         "command": "GOMAXPROCS=8 go test -run '^$' -p 8 ./...",
@@ -61,15 +62,15 @@ None.
         "observation": "Compilation/typecheck passed across all packages."
       },
       {
-        "command": "test -z \"$(gofmt -l .)\"",
+        "command": "test -z "$(gofmt -l .)"",
         "exitCode": 0,
         "observation": "Formatting is clean."
       }
     ],
     "interactiveChecks": [
       {
-        "action": "Ran `go run ./cmd/search-paper-cli --help` and `go run ./cmd/search-paper-cli sources` in a clean env.",
-        "observed": "Help listed the expected commands; `sources` emitted valid JSON with deterministic ordering and explicit IEEE/ACM disabled reasons."
+        "action": "Ran direct `search-paper-cli sources --format json` with temp HOME/config files and no wrapper commands.",
+        "observed": "`ieee` and `acm` gating reflected the merged env/global-config contract and warnings stayed on stderr."
       }
     ]
   },
@@ -79,17 +80,12 @@ None.
         "file": "internal/config/config_test.go",
         "cases": [
           {
-            "name": "TestPrefixedEnvLoadsValues",
-            "verifies": "Prefixed env vars load directly and preserve explicit empty values."
-          }
-        ]
-      },
-      {
-        "file": "internal/cli/root_test.go",
-        "cases": [
+            "name": "TestGlobalConfigYAMLPrecedence",
+            "verifies": "config.yaml wins over config.yml and legacy `.env` inputs are ignored."
+          },
           {
-            "name": "TestSourcesJSONOutput",
-            "verifies": "Default sources output is parseable JSON with deterministic ordering."
+            "name": "TestSameKeyEnvOverrideUsesEnvEndpoint",
+            "verifies": "A deterministic same-key endpoint override uses the env value rather than the config-file value."
           }
         ]
       }
@@ -101,6 +97,6 @@ None.
 
 ## When to Return to Orchestrator
 
-- The feature requires source behavior that depends on connectors not yet implemented.
-- The contract requires a CLI shape that conflicts with earlier feature decisions.
+- The feature requires a product-level decision about YAML key names or config semantics not already stated in mission artifacts.
+- A contract assertion can only be satisfied by changing release/skill packaging rather than core config behavior.
 - Live validation depends on credentials or upstream access that are unavailable.

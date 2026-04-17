@@ -1,11 +1,57 @@
 # Environment
 
-Environment variables, external dependencies, and setup notes.
+Environment variables, global configuration, external dependencies, and setup notes.
 
-**What belongs here:** required env vars, optional keys, `.env` loading behavior, secret-handling rules.
+**What belongs here:** required env vars, supported global-config keys, precedence rules, secret-handling rules.
 **What does NOT belong here:** test/build commands or port bindings.
 
 ---
+
+## Global config location
+
+Primary config file:
+
+- `~/.config/search-paper-cli/config.yaml`
+
+Compatibility fallback:
+
+- `~/.config/search-paper-cli/config.yml`
+
+If both files exist, `config.yaml` wins.
+
+## Supported global-config keys
+
+Lowercase snake_case keys mapped to the existing `SEARCH_PAPER_*` settings:
+
+- `unpaywall_email`
+- `core_api_key`
+- `semantic_scholar_api_key`
+- `google_scholar_proxy_url`
+- `doaj_api_key`
+- `zenodo_access_token`
+- `ieee_api_key`
+- `acm_api_key`
+- `arxiv_base_url`
+- `openaire_base_url`
+- `openaire_legacy_base_url`
+- `core_base_url`
+- `europepmc_base_url`
+- `pmc_search_url`
+- `pmc_summary_url`
+- `unpaywall_base_url`
+
+Unknown keys should be ignored safely.
+
+## Environment precedence
+
+- Only process environment variables with the exact `SEARCH_PAPER_*` names are recognized.
+- Process env wins per key over the global config file.
+- Explicitly empty env values still count as overrides and must block fallback to file values for that key.
+- Effective runtime config is the per-key merge of process env and global config.
+- Legacy `.env` inputs are no longer part of runtime config loading:
+  - `SEARCH_PAPER_ENV_FILE`
+  - cwd `.env`
+  - repository-root `.env`
 
 ## Required for specific capabilities
 
@@ -34,21 +80,10 @@ Environment variables, external dependencies, and setup notes.
 - `SEARCH_PAPER_PMC_SUMMARY_URL`
 - `SEARCH_PAPER_UNPAYWALL_BASE_URL`
 
-These are intended for local deterministic testing and built-artifact validation against mock servers. They are optional, should not be required for normal runtime use, and should not be pointed at secret or internal services unless that usage is already explicitly approved for the mission.
-
-## `.env` behavior to preserve
-
-1. `SEARCH_PAPER_ENV_FILE` wins when set.
-2. Otherwise `./.env` in the current working directory wins.
-3. Otherwise repository-root `.env` is used when running from within the source tree.
-4. Discovery stops after the first existing file.
-5. Only `SEARCH_PAPER_*` variables are recognized.
+These are intended for deterministic local testing and mock servers. They remain optional for normal runtime use.
 
 ## Secret handling
 
-- Never commit `.env` or any real credentials.
-- Never print secret values in logs, command output, or handoffs.
-- If local credentials are available in `.env`, workers may use them for live smoke checks.
-- A local ignored `.env` may already be pre-populated for this mission; treat it as runtime-only input, not source.
-- Live-network validation must degrade gracefully when optional credentials are unavailable.
-- Built-artifact validation outside the repository should rely on an explicit env file or the current working directory `.env`, not repository-root fallback.
+- Never commit real credentials.
+- Never print raw secret values in logs, stdout, stderr, or handoffs.
+- Use temp `HOME` directories for tests that exercise global-config loading so host credentials are never consulted accidentally.

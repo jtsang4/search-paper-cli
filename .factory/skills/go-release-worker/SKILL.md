@@ -1,6 +1,6 @@
 ---
 name: go-release-worker
-description: Build, package, and validate release artifacts and outside-repo CLI flows.
+description: Align release artifacts, skill packaging, direct-run workflow docs, and outside-repo validation for the Go CLI.
 ---
 
 # Go Release Worker
@@ -14,7 +14,8 @@ Use for features that implement or modify:
 - release packaging
 - artifact layout under `dist/`
 - outside-repo smoke validation
-- build/release automation and artifact parity
+- skill packaging / helper assets
+- user-facing direct-run workflow docs and validation assets
 
 ## Required Skills
 
@@ -22,48 +23,50 @@ None.
 
 ## Work Procedure
 
-1. Read the assigned feature plus `.factory/library/architecture.md`, `.factory/library/user-testing.md`, and the release-related contract assertions it fulfills.
-2. Write failing tests or release validation scripts first where practical (for example artifact naming/layout checks or CLI smoke tests against built binaries).
-3. Implement packaging/build logic that produces the required `dist/` deliverables.
-4. Run repository validators before packaging work is considered done:
+1. Read the assigned feature plus `.factory/library/architecture.md`, `.factory/library/environment.md`, `.factory/library/user-testing.md`, and the release-related contract assertions it fulfills.
+2. Identify every shipped guidance or helper asset affected by the feature (`README.md`, repo `AGENTS.md`, skill docs, helper scripts, release tests, `.factory/validation` flow definitions) before editing.
+3. Write failing tests or validation assets first where practical, especially for outside-repo artifact behavior and installed-skill-style direct CLI usage.
+4. Implement the minimal changes needed to make the shipped workflow plain `search-paper-cli ...` with global config plus per-key env overrides.
+5. Remove wrapper-driven runtime behavior when the feature calls for it; if any bootstrap helper remains, keep it install/locate-only and verify it does not inject runtime config.
+6. Update stale validation assets and documentation consistently so no shipped guidance contradicts the new workflow.
+7. Run repository validators before the feature is considered done:
    - `typecheck`
    - `lint`
    - `test`
    - `build`
-5. Produce the required artifact outputs under `dist/`.
-6. Validate the built artifact outside the repository root using real CLI invocations.
-7. Create the feature commit. If `git commit` fails only because author identity is missing, retry with `git -c user.name="Droid" -c user.email="local@factory.invalid" commit ...` instead of changing git config.
-8. Capture artifact paths, exact smoke commands, and outside-repo observations in the handoff.
+8. Produce or reuse the required artifact outputs under `dist/` and validate the built artifact outside the repository root using direct CLI invocations with temp `HOME`.
+9. Perform at least one installed-skill-style smoke check from a copied skill context using plain `search-paper-cli` commands, not the removed wrapper path.
+10. Create the feature commit. If `git commit` fails only because author identity is missing, retry with `git -c user.name="Droid" -c user.email="local@factory.invalid" commit ...` instead of changing git config.
+11. Capture exact artifact paths, grep/doc cleanup evidence, direct-run commands, and outside-repo observations in the handoff.
 
 ## Example Handoff
 
 ```json
 {
-  "salientSummary": "Implemented release packaging for a Linux amd64 standalone binary and tarball, then validated the artifact outside the repo with a real CLI search-to-retrieval smoke flow.",
-  "whatWasImplemented": "Added release build automation that writes a standalone `search-paper-cli` binary and compressed archive under `dist/`, plus smoke validation that executes the built binary from a temporary directory. Verified the artifact preserves env loading rules and machine-readable output outside the source tree.",
+  "salientSummary": "Removed the wrapper-driven skill flow, updated shipped guidance to direct `search-paper-cli` usage, and validated both the standalone artifact and an installed-skill-style context with temp HOME global config.",
+  "whatWasImplemented": "Deleted the runtime wrapper script, rewrote README/AGENTS/skill references to describe `~/.config/search-paper-cli/config.yaml` plus per-key env overrides, updated stale validation flow definitions, and retargeted release tests to outside-repo direct CLI behavior. Verified the built artifact and copied skill context use plain `search-paper-cli ...` commands with no `SEARCH_PAPER_ENV_FILE` or skill-local `.env` coupling.",
   "whatWasLeftUndone": "",
   "verification": {
     "commandsRun": [
       {
-        "command": "GOMAXPROCS=8 go test -count=1 -p 8 ./...",
+        "command": "go test ./internal/release -run 'Test(Artifact|Skill)' -count=1",
         "exitCode": 0,
-        "observation": "Full test suite passed before packaging."
+        "observation": "Release and skill tests passed with direct-run global-config expectations."
       },
       {
-        "command": "GOMAXPROCS=8 go build -o dist/search-paper-cli_linux_amd64/search-paper-cli ./cmd/search-paper-cli",
+        "command": "GOMAXPROCS=8 go build ./...",
         "exitCode": 0,
-        "observation": "Standalone Linux amd64 binary built successfully."
-      },
-      {
-        "command": "tar -czf dist/search-paper-cli_linux_amd64.tar.gz -C dist/search-paper-cli_linux_amd64 search-paper-cli",
-        "exitCode": 0,
-        "observation": "Compressed archive created successfully."
+        "observation": "All packages and the CLI binary build successfully."
       }
     ],
     "interactiveChecks": [
       {
-        "action": "Copied the built binary to a temporary directory outside the repo and ran help, sources, and a smoke search/retrieval flow.",
-        "observed": "The artifact executed successfully outside the repository and preserved the same JSON-first CLI contract."
+        "action": "Ran the built binary from an outside-repo temp directory with temp HOME global config and executed `sources`, `search`, and `get --as pdf`.",
+        "observed": "The direct CLI surface worked without wrapper assets, and stdout/stderr behavior stayed machine-readable."
+      },
+      {
+        "action": "Copied the skill directory to a temp location and followed the updated docs using plain `search-paper-cli` commands.",
+        "observed": "The installed-skill context no longer required wrapper scripts or skill-local `.env` scaffolding."
       }
     ]
   },
@@ -73,8 +76,17 @@ None.
         "file": "internal/release/release_test.go",
         "cases": [
           {
-            "name": "TestArtifactNamesAndLayout",
-            "verifies": "Packaging produces the expected binary and archive under dist."
+            "name": "TestArtifactUsesGlobalConfigOutsideRepo",
+            "verifies": "The standalone binary honors the new global-config model from an outside-repo context."
+          }
+        ]
+      },
+      {
+        "file": "internal/release/skill_test.go",
+        "cases": [
+          {
+            "name": "TestInstalledSkillContextUsesDirectCLI",
+            "verifies": "The retained skill surface relies on plain `search-paper-cli` invocation rather than a wrapper runtime path."
           }
         ]
       }
@@ -86,6 +98,6 @@ None.
 
 ## When to Return to Orchestrator
 
-- The agreed deliverable format needs to change.
+- The agreed deliverable format or skill packaging shape needs to change materially.
 - Outside-repo smoke validation fails due to environment limitations that workers cannot repair.
-- Packaging requires credentials, signing, or publishing decisions that need user input.
+- A doc/skill cleanup requirement conflicts with earlier mission guidance or introduces broader scope than the feature description allows.

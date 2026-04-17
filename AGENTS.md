@@ -6,17 +6,18 @@ This repository provides `search-paper-cli`, an agent-friendly Go CLI for search
 
 ## Recommended agent entrypoint
 
-Prefer using the bundled skill instead of invoking the CLI directly.
+Prefer invoking `search-paper-cli` directly.
+
+- Primary command form:
+
+```bash
+search-paper-cli <command> [args...]
+```
 
 - Skill directory: `skills/search-paper`
 - Skill manifest: `skills/search-paper/SKILL.md`
-- Wrapper command:
 
-```bash
-sh skills/search-paper/scripts/run-search-paper-cli.sh <command> [args...]
-```
-
-The wrapper binds `SEARCH_PAPER_ENV_FILE` to the skill-local `.env`, validates required configuration, and auto-installs the CLI when missing.
+The skill should describe the same direct CLI workflow rather than a wrapper-managed runtime path.
 
 ## Agent usage guidance
 
@@ -29,22 +30,38 @@ The wrapper binds `SEARCH_PAPER_ENV_FILE` to the skill-local `.env`, validates r
 
 ## Environment configuration
 
-For agent-driven usage, keep `.env` next to the skill files:
+The CLI reads runtime configuration from:
 
-- `skills/search-paper/.env.example`
-- `skills/search-paper/.env`
+1. Process environment variables with exact `SEARCH_PAPER_*` names
+2. `~/.config/search-paper-cli/config.yaml`
+3. `~/.config/search-paper-cli/config.yml` when `config.yaml` is absent
 
-Required variable:
+Per-key merge semantics apply: environment variables win for the same key, and missing env keys fall back to the global config file. Explicitly empty env values still count as overrides and block fallback for that key.
 
-- `SEARCH_PAPER_UNPAYWALL_EMAIL`
+Supported global-config keys are lowercase snake_case forms of the existing settings, including:
 
-Only `SEARCH_PAPER_*` variables are recognized.
+- `unpaywall_email`
+- `core_api_key`
+- `semantic_scholar_api_key`
+- `google_scholar_proxy_url`
+- `doaj_api_key`
+- `zenodo_access_token`
+- `ieee_api_key`
+- `acm_api_key`
+- `arxiv_base_url`
+- `openaire_base_url`
+- `openaire_legacy_base_url`
+- `core_base_url`
+- `europepmc_base_url`
+- `pmc_search_url`
+- `pmc_summary_url`
+- `unpaywall_base_url`
 
-CLI `.env` discovery order:
+Only exact `SEARCH_PAPER_*` environment variables are recognized. Do not rely on `SEARCH_PAPER_ENV_FILE`, cwd `.env`, repository-root `.env`, or skill-local `.env` as runtime configuration sources.
 
-1. `SEARCH_PAPER_ENV_FILE`
-2. `./.env` in the current working directory
-3. Repository-root `.env` when running inside the source tree
+Required variable / config key for Unpaywall-backed behavior:
+
+- `SEARCH_PAPER_UNPAYWALL_EMAIL` / `unpaywall_email`
 
 ## Installation
 
@@ -53,14 +70,6 @@ Install from source with Go:
 ```bash
 go install github.com/jtsang4/search-paper-cli/cmd/search-paper-cli@latest
 ```
-
-The skill wrapper can also auto-install the CLI:
-
-1. `SEARCH_PAPER_CLI_BIN` when it points to an executable
-2. `search-paper-cli` from `PATH`
-3. `skills/search-paper/bin/search-paper-cli`
-4. `go install github.com/jtsang4/search-paper-cli/cmd/search-paper-cli@latest`
-5. Latest Linux amd64 release artifact download
 
 ## Build
 
@@ -85,6 +94,8 @@ GOMAXPROCS=8 go test -count=1 -p 8 ./...
 GOMAXPROCS=8 go build ./...
 ```
 
+Use temp `HOME` directories for config-loading tests so the host's real `~/.config/search-paper-cli` never affects validation.
+
 ## Release packaging
 
 Build the Linux amd64 release artifact with:
@@ -102,10 +113,10 @@ Expected outputs:
 
 - `cmd/search-paper-cli` — CLI entrypoint
 - `internal/cli` — Cobra command wiring and command execution
-- `internal/config` — environment loading and config resolution
+- `internal/config` — runtime config loading and config resolution
 - `internal/connectors` — source integrations
 - `internal/paper` — normalized paper model helpers
 - `internal/sources` — source registry and capability metadata
 - `internal/release` — release and skill packaging validation
-- `skills/search-paper` — Agent Skill wrapper, examples, and helper scripts
+- `skills/search-paper` — Agent Skill manifest, references, and helper assets
 - `scripts/package-release.sh` — release packaging script

@@ -9,17 +9,17 @@ How the system works at a high level.
 
 ## System overview
 
-`search-paper-cli` is a single Go CLI that replaces the reference Python MCP/server + CLI split with one shared command-oriented application layer.
+`search-paper-cli` is a single Go CLI that exposes paper-source discovery, search, and retrieval through a JSON-first command surface.
 
 Primary command families:
 
 - `sources`
 - `search`
-- `download`
-- `read`
+- `get`
+- legacy `download` / `read`
 - `version`
 
-The product is JSON-first by default, with `--format text` as an opt-in human-readable renderer.
+The product is agent-friendly and should be runnable directly as `search-paper-cli ...` both from the repository and as a packaged standalone binary.
 
 ## Architectural layers
 
@@ -33,20 +33,20 @@ Responsible for:
 - writing JSON/text output
 - turning domain errors into stable machine-readable responses
 
-This layer must stay thin. It should delegate all real behavior to shared services.
+This layer must stay thin. It should delegate behavior to shared config, registry, search, and retrieval services.
 
 ### 2. Configuration layer
 
 Responsible for:
 
-- loading `.env` and process env
-- prefixed env resolution
-- source activation/gating
-- secret-safe diagnostics
+- resolving the global config directory under `~/.config/search-paper-cli/`
+- loading `config.yaml` first and `config.yml` only as a compatibility fallback
+- decoding lowercase snake_case YAML keys mapped to the supported `SEARCH_PAPER_*` settings
+- merging process environment over config file values per key
+- ignoring legacy `.env` sources (`SEARCH_PAPER_ENV_FILE`, cwd `.env`, repo-root `.env`)
+- emitting secret-safe diagnostics to stderr without corrupting JSON stdout
 
-This layer must not leak credentials to stdout/stderr.
-
-Source-tree env discovery may use repository-root `.env`; built-artifact execution outside the repo should rely on explicit env-file selection or the current working directory `.env`.
+The configuration layer is the single source of truth for runtime settings used by `sources`, `search`, and retrieval.
 
 ### 3. Source registry and capability model
 
@@ -57,7 +57,7 @@ Responsible for:
 - per-source capabilities for `search`, `download`, and `read`
 - disablement reasons for gated sources such as IEEE and ACM
 
-The registry is the canonical source of truth for source availability across `sources`, `search`, `download`, and `read`.
+The registry is the canonical source of truth for source availability across `sources`, `search`, and retrieval entrypoints.
 
 ### 4. Domain model
 
@@ -66,8 +66,8 @@ The core shared record is a normalized `Paper` model. In-memory fields may remai
 Key invariants:
 
 - every paper record has a stable `source`
-- unified search returns one normalized record shape across all providers
-- source-specific metadata may exist, but the top-level contract is stable
+- unified search returns one normalized record shape across providers
+- source-specific metadata may exist, but the top-level contract remains stable
 
 ### 5. Connector layer
 
@@ -79,6 +79,7 @@ Connector responsibilities:
 - retries/backoff when needed
 - response parsing
 - source-native search/download/read behavior
+- honoring endpoint overrides from the merged runtime config
 
 Shared orchestration responsibilities must stay out of connectors.
 
@@ -108,6 +109,7 @@ Responsible for:
 - save-path handling
 - machine-readable retrieval result states
 - OA-first fallback sequencing
+- exposing stage-level attempt details so validators can distinguish why a retrieval succeeded, skipped, or failed
 
 Fallback invariant:
 
@@ -116,47 +118,27 @@ Fallback invariant:
 3. Unpaywall DOI lookup
 4. optional Sci-Hub
 
-The retrieval layer should expose stage-level attempt details so validators and agents can tell why a retrieval succeeded or failed.
+### 8. Packaging and skill surface
 
-Repository rediscovery rules:
+Responsible for:
 
-- use DOI first when available
-- fall back to title-based rediscovery when DOI is absent
-- skip the stage only when neither DOI nor title is available
-- stop immediately when one repository stage produces a real downloadable file
+- producing release outputs under `dist/`
+- keeping the standalone binary usable outside the repository
+- keeping the retained `skills/search-paper` surface aligned with direct CLI usage rather than wrapper-mediated runtime config injection
 
-### 8. Packaging layer
-
-Responsible for producing release outputs under `dist/`.
-
-Minimum deliverables for this mission:
+Minimum deliverables remain:
 
 - standalone Linux amd64 binary named `search-paper-cli`
 - compressed archive containing that binary
-
-Built artifacts must preserve the same CLI surface and env behavior as source-tree invocation.
-
-## Source behavior classes
-
-Workers should reason about sources in behavior classes rather than assuming every connector behaves alike:
-
-- direct full-text sources
-- metadata/info-only sources
-- hard-unsupported retrieval sources
-- record-dependent / best-effort retrieval sources
-- gated skeleton sources
-
-See `source-capabilities.md` for the mission-level grouping.
 
 ## Validation-relevant invariants
 
 - default stdout is parseable JSON unless `--format text` is requested
 - warnings go to stderr
 - `sources` ordering and schema are deterministic
-- mixed valid/invalid source selection is reported in machine-readable form
-- successful download/read responses never point to non-existent files
-- unsupported/error retrieval responses do not leave stray files
+- global YAML config plus process env are the only runtime configuration inputs
 - built artifacts work outside the repository root
+- direct `get --as pdf` / `get --as text` flows consume the same merged config seen by `sources` and `search`
 
 ## Response contract
 
