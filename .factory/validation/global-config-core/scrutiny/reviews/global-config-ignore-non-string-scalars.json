@@ -1,0 +1,21 @@
+{
+  "featureId": "global-config-ignore-non-string-scalars",
+  "reviewedAt": "2026-04-17T09:25:39Z",
+  "commitId": "f480986ec33403f6ea451be666dd40676a83e080",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Reviewed the original failing commit `2d7cb597b2963e452fbb9905185ea44bd48ae959` and the fix commit `f480986ec33403f6ea451be666dd40676a83e080`. The fix removes non-string scalar coercion from `normalizeConfigScalar` so only non-empty YAML strings populate string-backed settings, which directly closes the bug that previously let malformed booleans and numbers enable gated sources or override endpoints. Added regressions in config and CLI tests cover both the credential-gating case and the endpoint-override case, and the worker handoff includes the requested direct black-box checks.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The shipped `skills/search-paper` guidance still documents wrapper-mediated runtime config through `SEARCH_PAPER_ENV_FILE` and a skill-local `.env`, which conflicts with the current global-config/direct-CLI runtime contract.",
+      "evidence": "skills/search-paper/SKILL.md:3,19 describe running the CLI with `SEARCH_PAPER_ENV_FILE` bound to the skill directory `.env`; compare AGENTS.md:60 (`Do not rely on SEARCH_PAPER_ENV_FILE, cwd .env, repository-root .env, or skill-local .env`) and .factory/library/architecture.md:127 (`skills/search-paper` should stay aligned with direct CLI usage rather than wrapper-mediated runtime config injection)."
+    }
+  ],
+  "addressesFailureFrom": ".factory/validation/global-config-core/scrutiny/reviews/global-config-loader-and-merge.json",
+  "summary": "I reviewed the fix feature metadata, handoff, transcript skeleton, prior failing review, and both the original and fix diffs. The fix adequately addresses the original failure: non-string YAML scalars are now ignored for string-backed settings, preventing malformed credential and endpoint values from changing effective runtime behavior, and I found no remaining blocking correctness issues in the reviewed change."
+}
