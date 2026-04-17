@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestSkillRunScriptDoesNotInjectLegacyRuntimeConfig(t *testing.T) {
+func TestInstalledSkillContextUsesDirectCLIWithGlobalConfig(t *testing.T) {
 	t.Parallel()
 
 	binaryPath := buildArtifactBinary(t)
@@ -19,19 +19,26 @@ func TestSkillRunScriptDoesNotInjectLegacyRuntimeConfig(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(skillRoot, "scripts"), 0o755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(skillRoot, "bin"), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
 
 	copyFile(t, filepath.Join(repoRoot, "skills", "search-paper", "scripts", "ensure-search-paper-cli.sh"), filepath.Join(skillRoot, "scripts", "ensure-search-paper-cli.sh"))
-	copyFile(t, filepath.Join(repoRoot, "skills", "search-paper", "scripts", "run-search-paper-cli.sh"), filepath.Join(skillRoot, "scripts", "run-search-paper-cli.sh"))
-	writeFile(t, filepath.Join(skillRoot, ".env.example"), "SEARCH_PAPER_UNPAYWALL_EMAIL=you@example.com\n")
-	writeFile(t, filepath.Join(skillRoot, ".env"), strings.Join([]string{
-		"SEARCH_PAPER_UNPAYWALL_EMAIL=skill@example.com",
-		"SEARCH_PAPER_IEEE_API_KEY=ieee-from-skill",
-		"",
-	}, "\n"))
+	copyFile(t, binaryPath, filepath.Join(skillRoot, "bin", "search-paper-cli"))
+	writeFile(t, filepath.Join(skillRoot, ".env"), "SEARCH_PAPER_ACM_API_KEY=acm-from-skill\n")
+	explicitEnvFile := filepath.Join(t.TempDir(), "legacy.env")
+	writeFile(t, explicitEnvFile, "SEARCH_PAPER_ACM_API_KEY=acm-from-explicit\n")
 
-	cmd := exec.Command("/bin/sh", filepath.Join(skillRoot, "scripts", "run-search-paper-cli.sh"), "sources")
-	cmd.Dir = t.TempDir()
-	cmd.Env = append(filteredEnv(), "SEARCH_PAPER_CLI_BIN="+binaryPath)
+	homeDir := t.TempDir()
+	writeGlobalConfig(t, homeDir, "config.yaml", "ieee_api_key: ieee-from-global\n")
+
+	cmd := exec.Command("/bin/sh", "-c", "search-paper-cli sources")
+	cmd.Dir = skillRoot
+	cmd.Env = []string{
+		"HOME=" + homeDir,
+		"PATH=" + filepath.Join(skillRoot, "bin") + ":/usr/bin:/bin",
+		"SEARCH_PAPER_ENV_FILE=" + explicitEnvFile,
+	}
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -39,19 +46,18 @@ func TestSkillRunScriptDoesNotInjectLegacyRuntimeConfig(t *testing.T) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("skill run script failed: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+		t.Fatalf("direct skill-context command failed: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
 	}
 
 	var payload artifactSourcesPayload
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("expected valid sources json, got %q: %v", stdout.String(), err)
 	}
-
 	if payload.Status != "ok" {
 		t.Fatalf("expected ok payload, got %#v", payload)
 	}
 
-	assertSourceEnabled(t, payload.Sources, "ieee", false)
+	assertSourceEnabled(t, payload.Sources, "ieee", true)
 	assertSourceEnabled(t, payload.Sources, "acm", false)
 }
 
@@ -111,37 +117,53 @@ func TestSkillEnsureScriptInstallsCLIWhenMissing(t *testing.T) {
 	}
 }
 
-func TestSkillRunScriptRequiresExactPrefixedEnvVariable(t *testing.T) {
+func TestInstalledSkillContextDirectCommandsNeedNoWrapperPreflight(t *testing.T) {
 	t.Parallel()
 
-	repoRoot := findRepoRoot(t)
+	binaryPath := buildArtifactBinary(t)
 	skillRoot := filepath.Join(t.TempDir(), "search-paper")
-	if err := os.MkdirAll(filepath.Join(skillRoot, "scripts"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(skillRoot, "bin"), 0o755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
+	copyFile(t, binaryPath, filepath.Join(skillRoot, "bin", "search-paper-cli"))
 
-	copyFile(t, filepath.Join(repoRoot, "skills", "search-paper", "scripts", "run-search-paper-cli.sh"), filepath.Join(skillRoot, "scripts", "run-search-paper-cli.sh"))
-	writeFile(t, filepath.Join(skillRoot, ".env.example"), "SEARCH_PAPER_UNPAYWALL_EMAIL=you@example.com\n")
-	writeFile(t, filepath.Join(skillRoot, ".env"), "UNPAYWALL_CONTACT=someone@example.com\n")
+	versionCmd := exec.Command("/bin/sh", "-c", "search-paper-cli version")
+	versionCmd.Dir = skillRoot
+	versionCmd.Env = []string{
+		"HOME=" + t.TempDir(),
+		"PATH=" + filepath.Join(skillRoot, "bin") + ":/usr/bin:/bin",
+	}
+	versionOutput, err := versionCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("version command failed: %v\noutput=%s", err, string(versionOutput))
+	}
+	if !strings.Contains(string(versionOutput), "search-paper-cli") {
+		t.Fatalf("expected version output, got %q", string(versionOutput))
+	}
 
-	cmd := exec.Command("/bin/sh", filepath.Join(skillRoot, "scripts", "run-search-paper-cli.sh"), "sources")
-	cmd.Dir = t.TempDir()
-	cmd.Env = filteredEnv()
+	sourcesCmd := exec.Command("/bin/sh", "-c", "search-paper-cli sources")
+	sourcesCmd.Dir = skillRoot
+	sourcesCmd.Env = []string{
+		"HOME=" + t.TempDir(),
+		"PATH=" + filepath.Join(skillRoot, "bin") + ":/usr/bin:/bin",
+	}
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err == nil {
-		t.Fatalf("expected missing exact prefixed env variable to fail")
+	sourcesCmd.Stdout = &stdout
+	sourcesCmd.Stderr = &stderr
+	if err := sourcesCmd.Run(); err != nil {
+		t.Fatalf("sources command failed: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
 	}
 
-	if !strings.Contains(stderr.String(), "only recognizes SEARCH_PAPER_-prefixed variables") {
-		t.Fatalf("expected explicit prefixed env warning, got stderr=%q", stderr.String())
+	var payload artifactSourcesPayload
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("expected valid sources json, got %q: %v", stdout.String(), err)
 	}
-	if !strings.Contains(stderr.String(), "SEARCH_PAPER_UNPAYWALL_EMAIL=you@example.com") {
-		t.Fatalf("expected concrete env example, got stderr=%q", stderr.String())
+	if payload.Status != "ok" {
+		t.Fatalf("expected ok payload, got %#v", payload)
 	}
+
+	assertSourceEnabled(t, payload.Sources, "ieee", false)
+	assertSourceEnabled(t, payload.Sources, "acm", false)
 }

@@ -14,7 +14,7 @@
       "evidence": [
         {
           "label": "built-cli single-source smoke",
-          "command": "env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin SEARCH_PAPER_ENV_FILE=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/core-behavior/.env \"/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli\" search --source crossref --limit 1 \"graph neural networks\"",
+          "command": "env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \"/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli\" search --source crossref --limit 1 \"graph neural networks\"",
           "exitCode": 0,
           "observation": "JSON response contained exactly one paper, requested_sources/used_sources were [\"crossref\"], source_results.crossref was 1, and every returned paper source was crossref.",
           "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-001-crossref-limit1.stdout",
@@ -39,7 +39,7 @@
       "evidence": [
         {
           "label": "built-cli partial-success smoke",
-          "command": "env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin SEARCH_PAPER_ENV_FILE=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/core-behavior/.env \"/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli\" search --source crossref,semantic --limit 2 \"graph neural networks\"",
+          "command": "env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \"/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli\" search --source crossref,semantic --limit 2 \"graph neural networks\"",
           "exitCode": 0,
           "observation": "Response stayed machine-readable with requested_sources=[\"crossref\",\"semantic\"], source_results.crossref=2, source_results.semantic=0, errors.semantic=\"unexpected status 429\", total=2, and normalized paper objects from Crossref.",
           "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-003-crossref-semantic-partial.stdout",
@@ -89,7 +89,7 @@
         },
         {
           "label": "built-cli schema smoke",
-          "command": "env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin SEARCH_PAPER_ENV_FILE=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/core-behavior/.env \"/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli\" search --source crossref --limit 1 \"graph neural networks\"",
+          "command": "env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \"/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli\" search --source crossref --limit 1 \"graph neural networks\"",
           "exitCode": 0,
           "observation": "Live artifact JSON included the normalized top-level paper keys and authors serialized as an array.",
           "stdoutPath": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/search/core-behavior/VAL-SEARCH-001-crossref-limit1.stdout",

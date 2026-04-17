@@ -6,7 +6,9 @@ usage() {
 Usage: sh scripts/ensure-search-paper-cli.sh
 
 Resolve the search-paper-cli binary path.
-If the CLI is missing, install the latest version automatically.
+This helper only locates or installs the binary; runtime configuration is handled by
+search-paper-cli itself from process env plus ~/.config/search-paper-cli/config.yaml
+(or config.yml when config.yaml is absent).
 Resolution order:
 1. SEARCH_PAPER_CLI_BIN when it points to an executable file
 2. search-paper-cli from PATH

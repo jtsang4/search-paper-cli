@@ -12,8 +12,8 @@
   "sharedStateObservations": [
     {
       "area": "skills",
-      "observation": "The shipped `skills/search-paper` guidance still documents wrapper-mediated runtime config through `SEARCH_PAPER_ENV_FILE` and a skill-local `.env`, which conflicts with the current global-config/direct-CLI runtime contract.",
-      "evidence": "skills/search-paper/SKILL.md:3,19 describe running the CLI with `SEARCH_PAPER_ENV_FILE` bound to the skill directory `.env`; compare AGENTS.md:60 (`Do not rely on SEARCH_PAPER_ENV_FILE, cwd .env, repository-root .env, or skill-local .env`) and .factory/library/architecture.md:127 (`skills/search-paper` should stay aligned with direct CLI usage rather than wrapper-mediated runtime config injection)."
+      "observation": "Historical note: before direct-cli alignment, `skills/search-paper` documented wrapper-mediated runtime config through `SEARCH_PAPER_ENV_FILE` and a skill-local `.env`, which conflicted with the current global-config/direct-CLI runtime contract.",
+      "evidence": "Historical evidence captured before this feature: skills/search-paper/SKILL.md described running the CLI with `SEARCH_PAPER_ENV_FILE` bound to the skill directory `.env`; compare AGENTS.md:60 (`Do not rely on SEARCH_PAPER_ENV_FILE, cwd .env, repository-root .env, or skill-local .env`) and .factory/library/architecture.md:127 (`skills/search-paper` should stay aligned with direct CLI usage rather than wrapper-mediated runtime config injection)."
     }
   ],
   "addressesFailureFrom": ".factory/validation/global-config-core/scrutiny/reviews/global-config-loader-and-merge.json",

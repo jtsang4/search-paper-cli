@@ -6,7 +6,7 @@
     "workingDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
     "outputDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/output",
     "builtCli": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
-    "envMode": "clean env via env -i equivalent with PATH, HOME, TMPDIR, SEARCH_PAPER_ENV_FILE=/dev/null only"
+    "envMode": "clean env via env -i equivalent with PATH, HOME, and TMPDIR only"
   },
   "toolsUsed": [
     "shell/cli"
@@ -25,7 +25,6 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "--help"
           ],
@@ -70,7 +69,6 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "version"
           ],
@@ -85,7 +83,6 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "--version"
           ],
@@ -128,7 +125,6 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "sources"
           ],
@@ -143,7 +139,6 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "sources"
           ],
@@ -234,7 +229,6 @@
             "PATH=/root/.cargo/bin:/usr/local/go/bin:/usr/local/swift/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.sdkman/candidates/kotlin/current/bin",
             "HOME=/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/core-behavior/work",
             "TMPDIR=/tmp",
-            "SEARCH_PAPER_ENV_FILE=/dev/null",
             "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
             "sources",
             "--format",

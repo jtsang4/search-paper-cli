@@ -7,7 +7,7 @@
     "repoRoot": "/root/workspace/github/jtsang4/search-paper-cli",
     "cliArtifact": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
     "workingDir": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-contracts",
-    "envFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-contracts/.env"
+    "configFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-contracts/home/.config/search-paper-cli/config.yaml"
   },
   "toolsUsed": [
     "shell/cli"
@@ -123,12 +123,12 @@
           "observed": "exit 4, total=0, errors={'unpaywall': 'unexpected status 422'}"
         },
         {
-          "action": "Run the same search with `SEARCH_PAPER_ENV_FILE` pointing at the assigned env file",
+          "action": "Run the same search with a temp `HOME` global config file providing the assigned settings",
           "expected": "CLI exits 0 and returns one metadata-only Unpaywall record",
           "observed": "exit 4, total=0, errors={'unpaywall': 'unexpected status 422'}"
         },
         {
-          "action": "Run `download` and `read` directly against the Unpaywall source with the configured env file",
+          "action": "Run `download` and `read` directly against the Unpaywall source with the configured global config",
           "expected": "Both commands return unsupported non-success results and create no files",
           "observed": "download: exit 3, state=unsupported; read: exit 3, state=unsupported; save dirs after run: download=[], read=[]"
         }

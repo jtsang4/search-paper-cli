@@ -43,7 +43,7 @@
   "suggestedGuidanceUpdates": [],
   "rejectedObservations": [
     {
-      "observation": "The shipped `skills/search-paper` guidance still describes wrapper-mediated runtime config via `SEARCH_PAPER_ENV_FILE` and a skill-local `.env`.",
+      "observation": "Historical note: before the direct-cli alignment feature landed, `skills/search-paper` still described wrapper-mediated runtime config via `SEARCH_PAPER_ENV_FILE` and a skill-local `.env`.",
       "reason": "already-planned in pending feature direct-cli-skill-release-alignment rather than a new scrutiny guidance update for this milestone"
     }
   ],

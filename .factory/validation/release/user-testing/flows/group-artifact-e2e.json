@@ -99,7 +99,7 @@
           "observed": "exit 0; help output listed search, download, read, sources, and version commands from the copied binary in outside-run/bin/search-paper-cli."
         },
         {
-          "action": "From the outside-repo directory, run `search --source arxiv \"artifact outside flow\"` using only the outside directory `.env`.",
+          "action": "From the outside-repo directory, run `search --source arxiv \"artifact outside flow\"` using only temp `HOME` global config plus direct `search-paper-cli` invocation.",
           "expected": "Artifact performs search outside the source tree and returns one normalized paper object.",
           "observed": "exit 0; returned 1 paper with DOI 10.1000/artifact-outside-1."
         },
@@ -128,7 +128,7 @@
         "createdFiles": [
           "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/outside-run/bin/search-paper-cli",
           "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/outside-run/downloads/10.1000-artifact-outside-1.pdf",
-          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/outside-run/.env"
+          "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/group-artifact-e2e/outside-run/.config/search-paper-cli/config.yaml"
         ]
       },
       "issues": null

@@ -7,7 +7,7 @@
     "repoRoot": "/root/workspace/github/jtsang4/search-paper-cli",
     "cliArtifact": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
     "workingDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-fallback",
-    "envFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-fallback/.env",
+    "configFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-fallback/home/.config/search-paper-cli/config.yaml",
     "evidenceDirectory": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/retrieval/retrieval-fallback"
   },
   "toolsUsed": [

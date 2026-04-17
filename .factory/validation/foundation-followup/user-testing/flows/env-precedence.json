@@ -43,42 +43,42 @@
     },
     {
       "id": "VAL-FOUNDATION-008",
-      "title": "Env file loading is predictable",
+      "title": "Global config fallback stays predictable while legacy env files are ignored",
       "status": "pass",
       "steps": [
         {
-          "action": "Run unpaywall search with SEARCH_PAPER_ENV_FILE pointing to an explicit env file containing comments, blank lines, export syntax, quoted values, and one malformed line",
-          "expected": "Explicit file wins over cwd/repo discovery, quoted/export values load, malformed line warns without crashing",
-          "observed": "exit 0; server observed email=explicit@example.com; stderr warning present=True"
+          "action": "Run unpaywall search with temp `HOME` global config providing `unpaywall_email` and a legacy `SEARCH_PAPER_ENV_FILE` also set",
+          "expected": "Global config provides the email while the legacy env-file path is ignored safely",
+          "observed": "exit 0; server observed email=global@example.com; stderr warning present=False"
         },
         {
-          "action": "Run sources --format json from a cwd containing its own .env",
-          "expected": "cwd .env wins over repository-root .env and search uses cwd-provided local base URL/email",
-          "observed": "exit 0; server observed email=cwd@example.com; total=1"
+          "action": "Run sources --format json from a cwd containing its own .env while temp `HOME` global config is present",
+          "expected": "cwd .env is ignored and the run continues to use only process env plus global config",
+          "observed": "exit 0; server observed email=global@example.com; total=1"
         },
         {
-          "action": "Run unpaywall search with SEARCH_PAPER_ENV_FILE set to a missing path while cwd .env exists",
-          "expected": "CLI warns, does not crash, and does not fall back to cwd/repo env files",
-          "observed": "exit 0; total=0; stderr='warning: explicit env file not found: /root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/foundation-followup/env-precedence/work/val008-missing-explicit/missing.env'; local server hit=False"
+          "action": "Run unpaywall search with SEARCH_PAPER_ENV_FILE set to a missing path while cwd `.env` exists",
+          "expected": "CLI ignores the missing legacy env file, does not crash, and does not fall back to cwd/repo env files",
+          "observed": "exit 0; total=1; stderr=''; local server hit=True"
         },
         {
-          "action": "Run sources --source ieee --format json using the explicit env file",
-          "expected": "Quoted/export IEEE key parses successfully and JSON stdout remains valid",
+          "action": "Run sources --source ieee --format json with IEEE enabled through global config and ACM through process env",
+          "expected": "Per-key merge keeps JSON stdout valid while reflecting both configuration sources",
           "observed": "exit 0; stdoutJSONValid=True; ieee enabled=True"
         }
       ],
       "evidence": {
         "terminalSnapshots": [
-          "foundation-followup/env-precedence/VAL-FOUNDATION-008-explicit-env-search.txt",
-          "foundation-followup/env-precedence/VAL-FOUNDATION-008-cwd-env-wins.txt",
-          "foundation-followup/env-precedence/VAL-FOUNDATION-008-missing-explicit-no-fallback.txt",
+          "foundation-followup/env-precedence/VAL-FOUNDATION-008-global-config-search.txt",
+          "foundation-followup/env-precedence/VAL-FOUNDATION-008-cwd-env-ignored.txt",
+          "foundation-followup/env-precedence/VAL-FOUNDATION-008-missing-legacy-env-ignored.txt",
           "foundation-followup/env-precedence/VAL-FOUNDATION-010-warning-stderr-json-stdout.txt"
         ],
         "serverObservations": "foundation-followup/env-precedence/server-observations.json",
         "network": {
-          "explicitEnvObservedEmail": "explicit@example.com",
-          "cwdEnvObservedEmail": "cwd@example.com",
-          "missingExplicitServerHit": false
+          "globalConfigObservedEmail": "global@example.com",
+          "cwdEnvIgnoredObservedEmail": "global@example.com",
+          "missingLegacyEnvServerHit": true
         }
       },
       "issues": null

@@ -2,11 +2,23 @@
 
 Use this reference when the skill is active and you need to understand which subcommand to use, what each subcommand expects, and common invocation patterns.
 
-Always invoke through the wrapper:
+Invoke the CLI directly:
 
 ```bash
-sh scripts/run-search-paper-cli.sh <command> [args...]
+search-paper-cli <command> [args...]
 ```
+
+If the command is missing, run `sh scripts/ensure-search-paper-cli.sh` once to locate or install it, then make that binary available on `PATH`.
+
+## Configuration
+
+Runtime configuration comes only from:
+
+- exact `SEARCH_PAPER_*` process environment variables
+- `~/.config/search-paper-cli/config.yaml`
+- `~/.config/search-paper-cli/config.yml` when `config.yaml` is absent
+
+Environment variables win per key, including explicitly empty values. Do not rely on `SEARCH_PAPER_ENV_FILE`, cwd `.env`, repository-root `.env`, or skill-local `.env` files.
 
 ## Command summary
 
@@ -24,9 +36,9 @@ sh scripts/run-search-paper-cli.sh <command> [args...]
 Use `sources` when you need to know what providers are available before searching or retrieving.
 
 ```bash
-sh scripts/run-search-paper-cli.sh sources
-sh scripts/run-search-paper-cli.sh sources --format text
-sh scripts/run-search-paper-cli.sh sources --source arxiv,semantic
+search-paper-cli sources
+search-paper-cli sources --format text
+search-paper-cli sources --source arxiv,semantic
 ```
 
 Typical flags:
@@ -39,8 +51,8 @@ Typical flags:
 Use `search` to query one or more providers and get normalized paper metadata.
 
 ```bash
-sh scripts/run-search-paper-cli.sh search --source arxiv --limit 5 "graph neural networks"
-sh scripts/run-search-paper-cli.sh search --source semantic --year 2024 --limit 10 "retrieval augmented generation"
+search-paper-cli search --source arxiv --limit 5 "graph neural networks"
+search-paper-cli search --source semantic --year 2024 --limit 10 "retrieval augmented generation"
 ```
 
 Typical flags:
@@ -63,7 +75,7 @@ When some requested sources fail but others succeed, the response still returns 
 Use `get --as pdf` when you already have a paper object or enough metadata to retrieve a file.
 
 ```bash
-sh scripts/run-search-paper-cli.sh get --as pdf --source arxiv --paper-json '{"paper_id":"1234.5678v1","title":"Example","source":"arxiv","pdf_url":"https://arxiv.org/pdf/1234.5678v1.pdf"}'
+search-paper-cli get --as pdf --source arxiv --paper-json '{"paper_id":"1234.5678v1","title":"Example","source":"arxiv","pdf_url":"https://arxiv.org/pdf/1234.5678v1.pdf"}'
 ```
 
 Typical inputs:
@@ -74,12 +86,18 @@ Typical inputs:
 - or source-specific identifiers such as paper id / DOI / URL depending on the workflow
 - optional save-directory arguments when you need control over output location
 
+Use `--fallback` with `get --as pdf` when you want OA-first fallback retrieval:
+
+```bash
+search-paper-cli get --as pdf --fallback --save-dir ./downloads --paper-json '{"paper_id":"10.1000/example","title":"Example","doi":"10.1000/example","source":"arxiv"}'
+```
+
 ## Retrieve a paper as extracted text
 
 Use `get --as text` when you want extracted paper content instead of a saved file.
 
 ```bash
-sh scripts/run-search-paper-cli.sh get --as text --source arxiv --paper-json '{"paper_id":"1234.5678v1","title":"Example","source":"arxiv","pdf_url":"https://arxiv.org/pdf/1234.5678v1.pdf"}'
+search-paper-cli get --as text --source arxiv --paper-json '{"paper_id":"1234.5678v1","title":"Example","source":"arxiv","pdf_url":"https://arxiv.org/pdf/1234.5678v1.pdf"}'
 ```
 
 Typical inputs mirror file retrieval, but use `--as text` and expect structured extracted content rather than only a saved artifact path.
@@ -89,8 +107,8 @@ Typical inputs mirror file retrieval, but use `--as text` and expect structured 
 Older callers may still use:
 
 ```bash
-sh scripts/run-search-paper-cli.sh download ...
-sh scripts/run-search-paper-cli.sh read ...
+search-paper-cli download ...
+search-paper-cli read ...
 ```
 
 Those aliases still work, but new agent workflows should prefer `get --as pdf|text` so retrieval intent is explicit and non-ambiguous.
@@ -98,11 +116,11 @@ Those aliases still work, but new agent workflows should prefer `get --as pdf|te
 ## Version
 
 ```bash
-sh scripts/run-search-paper-cli.sh version
+search-paper-cli version
 ```
 
 ## Notes
 
 - Prefer the CLI's default JSON output unless the user explicitly asks for text
-- If the wrapper reports missing configuration, create the skill-local `.env` first
-- If the CLI is missing, the wrapper will install the latest version automatically when possible
+- If `search-paper-cli` is missing, the ensure script can install or locate it, but runtime config still comes from process env plus the global config files
+- `SEARCH_PAPER_UNPAYWALL_EMAIL` / `unpaywall_email` is required for Unpaywall-backed lookup and fallback behavior

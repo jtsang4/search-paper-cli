@@ -19,8 +19,8 @@
   "sharedStateObservations": [
     {
       "area": "skills",
-      "observation": "The shipped `skills/search-paper` guidance still describes wrapper-mediated runtime config via `SEARCH_PAPER_ENV_FILE` and a skill-local `.env`, which no longer matches the implemented runtime contract and will mislead future workers until the direct-cli alignment feature lands.",
-      "evidence": "skills/search-paper/SKILL.md:3,19,34-38 and skills/search-paper/scripts/run-search-paper-cli.sh:8,23,39-40,92 still describe/inject `SEARCH_PAPER_ENV_FILE`; compare AGENTS.md:60 and .factory/library/architecture.md:46,139 which state legacy `.env` inputs are not runtime config sources."
+      "observation": "Historical note: before direct-cli alignment, `skills/search-paper` described wrapper-mediated runtime config via `SEARCH_PAPER_ENV_FILE` and a skill-local `.env`, which no longer matched the implemented runtime contract.",
+      "evidence": "Historical evidence captured before this feature: skills/search-paper/SKILL.md and skills/search-paper/scripts/run-search-paper-cli.sh described/injected `SEARCH_PAPER_ENV_FILE`; compare AGENTS.md:60 and .factory/library/architecture.md:46,139 which state legacy `.env` inputs are not runtime config sources."
     }
   ],
   "addressesFailureFrom": null,

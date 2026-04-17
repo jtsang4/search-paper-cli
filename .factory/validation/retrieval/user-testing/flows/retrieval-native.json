@@ -6,7 +6,7 @@
     "missionDir": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad",
     "artifact": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli",
     "workingDirectory": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-native",
-    "envFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-native/.env",
+    "configFile": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/retrieval-native/home/.config/search-paper-cli/config.yaml",
     "evidenceDir": "/root/.factory/missions/aa54e706-162d-4a5b-a111-c471c5f045ad/evidence/retrieval/retrieval-native"
   },
   "toolsUsed": [

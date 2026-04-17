@@ -351,6 +351,136 @@ func TestArtifactOutsideRepoFlow(t *testing.T) {
 	}
 }
 
+func TestArtifactOutsideRepoMergedConfigAcrossCommands(t *testing.T) {
+	t.Parallel()
+
+	binaryPath := buildArtifactBinary(t)
+	outsideDir := t.TempDir()
+	releaseDir := filepath.Join(outsideDir, "bin")
+	if err := os.MkdirAll(releaseDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) error = %v", releaseDir, err)
+	}
+	releaseBinary := filepath.Join(releaseDir, BinaryName)
+	copyFile(t, binaryPath, releaseBinary)
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/arxiv" && r.URL.Query().Get("search_query") == "all:artifact merged flow":
+			w.Header().Set("Content-Type", "application/atom+xml")
+			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <id>http://arxiv.org/abs/7000.0001v1</id>
+    <title>Artifact Merged Config Flow</title>
+    <summary>Contains doi 10.1000/artifact-merged-1.</summary>
+    <published>2024-04-08T00:00:00Z</published>
+    <author><name>Alice Example</name></author>
+    <link title="pdf" type="application/pdf" href="` + server.URL + `/files/source.pdf"></link>
+  </entry>
+</feed>`))
+		case r.URL.Path == "/files/source.pdf":
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(minimalPDF("Artifact merged source PDF"))
+		case r.URL.Path == "/openaire/search/researchProducts":
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><response><results></results></response>`))
+		case r.URL.Path == "/openaire/search/publications":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"response":{"results":{"result":[]}}}`))
+		case r.URL.Path == "/core":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"results":[]}`))
+		case r.URL.Path == "/europepmc":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"resultList":{"result":[]}}`))
+		case r.URL.Path == "/pmc/esearch.fcgi":
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><eSearchResult><IdList></IdList></eSearchResult>`))
+		case r.URL.Path == "/unpaywall/10.1000/artifact-merged-1":
+			if got := r.URL.Query().Get("email"); got != "merged@example.com" {
+				t.Fatalf("expected merged Unpaywall email, got %q", got)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"doi":"10.1000/artifact-merged-1","title":"Artifact Merged Config Flow","published_date":"2024-04-08","best_oa_location":{"url":"https://example.test/merged","url_for_pdf":"` + server.URL + `/files/unpaywall.pdf"},"z_authors":[{"given":"Alice","family":"Example"}]}`))
+		case r.URL.Path == "/files/unpaywall.pdf":
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write(minimalPDF("Artifact merged fallback PDF"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	writeGlobalConfig(t, outsideDir, "config.yaml", strings.Join([]string{
+		"ieee_api_key: ieee-from-global",
+		"arxiv_base_url: " + server.URL + "/arxiv",
+		"openaire_base_url: " + server.URL + "/openaire/search/researchProducts",
+		"openaire_legacy_base_url: " + server.URL + "/openaire/search/publications",
+		"core_base_url: " + server.URL + "/core",
+		"europepmc_base_url: " + server.URL + "/europepmc",
+		"pmc_search_url: " + server.URL + "/pmc/esearch.fcgi",
+		"pmc_summary_url: " + server.URL + "/pmc/esummary.fcgi",
+		"unpaywall_email: merged@example.com",
+		"unpaywall_base_url: " + server.URL + "/unpaywall",
+		"",
+	}, "\n"))
+
+	sourcesResponse := runArtifactCommand(t, releaseBinary, outsideDir, []string{
+		"SEARCH_PAPER_ACM_API_KEY=acm-from-env",
+	}, "sources")
+	if sourcesResponse.ExitCode != 0 {
+		t.Fatalf("expected outside-repo sources exit code 0, got %d stdout=%q stderr=%q", sourcesResponse.ExitCode, sourcesResponse.Stdout, sourcesResponse.Stderr)
+	}
+	var sourcesPayload artifactSourcesPayload
+	if err := json.Unmarshal([]byte(sourcesResponse.Stdout), &sourcesPayload); err != nil {
+		t.Fatalf("expected valid sources payload, got %q: %v", sourcesResponse.Stdout, err)
+	}
+	assertSourceEnabled(t, sourcesPayload.Sources, "acm", true)
+	assertSourceEnabled(t, sourcesPayload.Sources, "ieee", true)
+
+	searchResponse := runArtifactCommand(t, releaseBinary, outsideDir, nil, "search", "--source", "arxiv", "artifact merged flow")
+	if searchResponse.ExitCode != 0 {
+		t.Fatalf("expected outside-repo search exit code 0, got %d stdout=%q stderr=%q", searchResponse.ExitCode, searchResponse.Stdout, searchResponse.Stderr)
+	}
+	var searchPayload artifactSearchPayload
+	if err := json.Unmarshal([]byte(searchResponse.Stdout), &searchPayload); err != nil {
+		t.Fatalf("expected valid search payload, got %q: %v", searchResponse.Stdout, err)
+	}
+	if len(searchPayload.Papers) != 1 {
+		t.Fatalf("expected one merged-config search paper, got %#v", searchPayload)
+	}
+	paperJSON := marshalJSON(t, searchPayload.Papers[0])
+
+	pdfSaveDir := filepath.Join(outsideDir, "pdf-downloads")
+	pdfResponse := runArtifactCommand(t, releaseBinary, outsideDir, nil, "get", "--as", "pdf", "--fallback", "--save-dir", pdfSaveDir, "--paper-json", paperJSON)
+	if pdfResponse.ExitCode != 0 {
+		t.Fatalf("expected merged-config pdf retrieval exit code 0, got %d stdout=%q stderr=%q", pdfResponse.ExitCode, pdfResponse.Stdout, pdfResponse.Stderr)
+	}
+	var pdfPayload artifactRetrievalFlowPayload
+	if err := json.Unmarshal([]byte(pdfResponse.Stdout), &pdfPayload); err != nil {
+		t.Fatalf("expected valid pdf retrieval payload, got %q: %v", pdfResponse.Stdout, err)
+	}
+	if pdfPayload.State != "downloaded" {
+		t.Fatalf("expected downloaded pdf payload, got %#v", pdfPayload)
+	}
+	if pdfPayload.Path == "" || !strings.HasPrefix(pdfPayload.Path, pdfSaveDir+string(os.PathSeparator)) {
+		t.Fatalf("expected saved pdf path inside %q, got %#v", pdfSaveDir, pdfPayload)
+	}
+
+	textSaveDir := filepath.Join(outsideDir, "text-downloads")
+	textResponse := runArtifactCommand(t, releaseBinary, outsideDir, nil, "get", "--as", "text", "--save-dir", textSaveDir, "--paper-json", paperJSON)
+	if textResponse.ExitCode != 0 {
+		t.Fatalf("expected merged-config text retrieval exit code 0, got %d stdout=%q stderr=%q", textResponse.ExitCode, textResponse.Stdout, textResponse.Stderr)
+	}
+	if !strings.Contains(textResponse.Stdout, `"target":"text"`) {
+		t.Fatalf("expected text retrieval payload to report target text, got %q", textResponse.Stdout)
+	}
+	if !strings.Contains(textResponse.Stdout, `"status":"ok"`) {
+		t.Fatalf("expected text retrieval payload to stay machine-readable, got %q", textResponse.Stdout)
+	}
+}
+
 type artifactSourcesPayload struct {
 	Status  string `json:"status"`
 	Sources []struct {
