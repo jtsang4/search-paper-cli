@@ -89,8 +89,8 @@
       "status": "pass",
       "steps": [
         {
-          "action": "Run sources --format json with an explicit env file containing a malformed line",
-          "expected": "Warning is emitted only on stderr and stdout remains parseable JSON",
+          "action": "Run sources --format json with malformed global config YAML in temp `HOME`",
+          "expected": "Global-config parse warning is emitted only on stderr and stdout remains parseable JSON",
           "observed": "exit 0; stdoutJSONValid=True; stderrHasWarning=True; stdoutHasWarning=False"
         }
       ],
@@ -110,8 +110,8 @@
       "status": "pass",
       "steps": [
         {
-          "action": "Run sources --format json with sentinel secrets in both env vars and a malformed cwd .env line",
-          "expected": "CLI exits cleanly and neither stdout nor stderr contains the sentinel secret value",
+          "action": "Run sources --format json with sentinel secrets in env vars plus malformed global config content",
+          "expected": "CLI exits cleanly and neither stdout nor stderr contains the sentinel secret value while reporting only secret-safe diagnostics",
           "observed": "exit 0; stdoutJSONValid=True; secretPresentInStdout=False; secretPresentInStderr=False"
         }
       ],

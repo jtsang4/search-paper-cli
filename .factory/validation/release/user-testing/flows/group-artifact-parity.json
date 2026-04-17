@@ -101,7 +101,7 @@
     },
     {
       "id": "VAL-CROSS-006",
-      "title": "Built artifacts preserve env loading rules",
+      "title": "Built artifacts preserve merged config behavior while ignoring legacy env files",
       "status": "pass",
       "steps": [
         {
@@ -126,23 +126,23 @@
         },
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source unpaywall doi:10.1000/repo-fallback",
-          "expected": "Repo-root fallback applies only when the built artifact runs inside source-tree semantics.",
+          "expected": "When matching `SEARCH_PAPER_*` process env is present, the built artifact uses that env directly without consulting any repo-relative legacy files.",
           "observed": "exit 0; stdout='{\"status\":\"ok\",\"query\":\"doi:10.1000/repo-fallback\",\"requested_sources\":[\"unpaywall\"],\"used_sources\":[\"unpaywall\"],\"invalid_sources\":[],\"source_results\":{\"unpaywall\":1},\"total\":1,\"papers\":[{\"paper_id\":\"10.1000%2Frepo-fallback\",\"title\":\"Unkno'; stderr=''"
         },
         {
           "action": "/root/workspace/github/jtsang4/search-paper-cli/.tmp/user-testing/search-paper-cli search --source unpaywall doi:10.1000/repo-fallback",
-          "expected": "Repo-root fallback applies only when the built artifact runs inside source-tree semantics.",
+          "expected": "Without matching process env or global-config values, the same query stays disabled outside the repo because legacy repo files are ignored.",
           "observed": "exit 0; stdout='{\"status\":\"ok\",\"query\":\"doi:10.1000/repo-fallback\",\"requested_sources\":[\"unpaywall\"],\"used_sources\":[\"unpaywall\"],\"invalid_sources\":[],\"source_results\":{\"unpaywall\":0},\"total\":0,\"papers\":[]}'; stderr=''"
         }
       ],
       "evidence": {
         "terminalSnapshots": [
-          "release/group-artifact-parity/VAL-CROSS-006-cwd-env.log",
-          "release/group-artifact-parity/VAL-CROSS-006-explicit-env.log",
+          "release/group-artifact-parity/VAL-CROSS-006-global-config-only.log",
+          "release/group-artifact-parity/VAL-CROSS-006-env-merge.log",
           "release/group-artifact-parity/VAL-CROSS-006-prefixed-wins.log",
-          "release/group-artifact-parity/VAL-CROSS-006-empty-prefixed-blocks-legacy.log",
-          "release/group-artifact-parity/VAL-CROSS-006-repo-fallback-inside.log",
-          "release/group-artifact-parity/VAL-CROSS-006-repo-fallback-outside.log"
+          "release/group-artifact-parity/VAL-CROSS-006-empty-prefixed-blocks-config-fallback.log",
+          "release/group-artifact-parity/VAL-CROSS-006-inherited-process-env.log",
+          "release/group-artifact-parity/VAL-CROSS-006-clean-outside-repo.log"
         ],
         "network": "Unpaywall mock requests logged in release/group-artifact-parity/server-requests.json; prefixed request email observed as 'prefixed@example.invalid'",
         "artifactPaths": [
