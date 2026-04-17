@@ -22,7 +22,7 @@ const (
 	exitCodeRuntimeError = 4
 )
 
-const defaultVersion = "search-paper-cli v1.0.0"
+const defaultVersion = "search-paper-cli v1.1.0"
 
 var version = defaultVersion
 
