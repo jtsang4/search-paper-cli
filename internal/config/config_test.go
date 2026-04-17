@@ -223,6 +223,34 @@ func TestGlobalConfigIgnoresUnknownAndBlankValues(t *testing.T) {
 	}
 }
 
+func TestGlobalConfigIgnoresNonStringScalars(t *testing.T) {
+	homeDir := t.TempDir()
+	writeGlobalConfig(t, homeDir, "config.yaml", strings.Join([]string{
+		"ieee_api_key: false",
+		"acm_api_key: 12345",
+		"arxiv_base_url: 67890",
+		"unpaywall_base_url: true",
+		"",
+	}, "\n"))
+
+	cfg, diagnostics, err := Load(LoadOptions{
+		Environ: []string{"HOME=" + homeDir},
+	})
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.IEEEAPIKey != "" || cfg.ACMAPIKey != "" {
+		t.Fatalf("expected non-string credential scalars to be ignored, got %#v", cfg)
+	}
+	if cfg.ArxivBaseURL != "" || cfg.UnpaywallBaseURL != "" {
+		t.Fatalf("expected non-string endpoint scalars to be ignored, got %#v", cfg)
+	}
+	if len(diagnostics.Warnings) != 0 {
+		t.Fatalf("expected non-string scalars to be ignored safely, got %#v", diagnostics.Warnings)
+	}
+}
+
 func TestGlobalConfigLoadsBaseURLOptions(t *testing.T) {
 	homeDir := t.TempDir()
 	writeGlobalConfig(t, homeDir, "config.yaml", strings.Join([]string{

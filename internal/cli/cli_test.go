@@ -432,6 +432,42 @@ func TestSourcesJSONMergesEnvAndConfigPerKey(t *testing.T) {
 	assertSourceCapability(t, payload.Sources, "ieee", false, "missing required credential: SEARCH_PAPER_IEEE_API_KEY", "gated", "gated", "gated")
 }
 
+func TestSourcesJSONIgnoresNonStringGlobalScalars(t *testing.T) {
+	t.Parallel()
+
+	homeDir := t.TempDir()
+	writeCLIConfig(t, homeDir, "config.yaml", strings.Join([]string{
+		"ieee_api_key: false",
+		"acm_api_key: 12345",
+		"",
+	}, "\n"))
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"sources", "--format", "json"}, &stdout, &stderr, runOptions{
+		environ:        []string{"HOME=" + homeDir},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+
+	var payload struct {
+		Status  string                `json:"status"`
+		Sources []sourceRegistryEntry `json:"sources"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("expected valid json, got %q: %v", stdout.String(), err)
+	}
+
+	assertSourceCapability(t, payload.Sources, "acm", false, "missing required credential: SEARCH_PAPER_ACM_API_KEY", "gated", "gated", "gated")
+	assertSourceCapability(t, payload.Sources, "ieee", false, "missing required credential: SEARCH_PAPER_IEEE_API_KEY", "gated", "gated", "gated")
+}
+
 func TestInvalidSourceError(t *testing.T) {
 	t.Parallel()
 

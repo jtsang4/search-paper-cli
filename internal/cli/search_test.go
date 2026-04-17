@@ -809,6 +809,61 @@ func TestSearchUsesMergedConfigForEndpointAndGating(t *testing.T) {
 	assertSourceCapability(t, sourcesPayload.Sources, "acm", true, "", "supported", "unsupported", "unsupported")
 }
 
+func TestSearchIgnoresNonStringEndpointOverride(t *testing.T) {
+	t.Parallel()
+
+	homeDir := t.TempDir()
+	writeCLIConfig(t, homeDir, "config.yaml", strings.Join([]string{
+		"arxiv_base_url: 12345",
+		"",
+	}, "\n"))
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"search", "--source", "arxiv", "endpoint fallback query"}, &stdout, &stderr, runOptions{
+		environ:        []string{"HOME=" + homeDir},
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+		connectorFactory: func(id string, cfg config.Config) (sources.Connector, error) {
+			if id != "arxiv" {
+				t.Fatalf("unexpected connector id %q", id)
+			}
+			if cfg.ArxivBaseURL != "" {
+				t.Fatalf("expected non-string endpoint override to be ignored, got %q", cfg.ArxivBaseURL)
+			}
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{
+					ID:      "arxiv",
+					Enabled: true,
+					Capabilities: sources.Capabilities{
+						Search:   sources.CapabilitySupported,
+						Download: sources.CapabilitySupported,
+						Read:     sources.CapabilitySupported,
+					},
+				},
+				SearchResults: []paper.Paper{},
+			}), nil
+		},
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+
+	payload := decodeSearchResponse(t, stdout.Bytes())
+	if payload.Total != 0 || len(payload.Papers) != 0 {
+		t.Fatalf("expected non-string endpoint override to leave connector config unchanged, got %#v", payload)
+	}
+	if payload.SourceResults["arxiv"] != 0 {
+		t.Fatalf("expected search to complete with zero stub results, got %#v", payload.SourceResults)
+	}
+	if _, failed := payload.Errors["arxiv"]; failed {
+		t.Fatalf("expected no source failure when ignoring non-string endpoint override, got %#v", payload.Errors)
+	}
+}
+
 func decodeSearchResponse(t *testing.T, data []byte) searchCommandResponse {
 	t.Helper()
 

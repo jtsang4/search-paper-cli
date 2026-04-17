@@ -271,16 +271,6 @@ func normalizeConfigScalar(value any) (string, bool) {
 			return "", false
 		}
 		return trimmed, true
-	case fmt.Stringer:
-		trimmed := strings.TrimSpace(typed.String())
-		if trimmed == "" {
-			return "", false
-		}
-		return trimmed, true
-	case bool:
-		return fmt.Sprintf("%t", typed), true
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
-		return fmt.Sprint(typed), true
 	default:
 		return "", false
 	}
