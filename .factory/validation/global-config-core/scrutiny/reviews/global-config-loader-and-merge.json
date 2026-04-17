@@ -1,0 +1,28 @@
+{
+  "featureId": "global-config-loader-and-merge",
+  "reviewedAt": "2026-04-17T09:08:10.705836Z",
+  "commitId": "2d7cb597b2963e452fbb9905185ea44bd48ae959",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Global YAML config discovery, precedence, and env-over-config merge are mostly implemented as described, but the loader currently coerces non-string YAML scalars into strings. That lets values like `ieee_api_key: false` or `acm_api_key: 0` satisfy non-empty credential checks and incorrectly enable gated sources.",
+    "issues": [
+      {
+        "file": "internal/config/config.go",
+        "line": 280,
+        "severity": "blocking",
+        "description": "`normalizeConfigScalar` converts booleans and numbers into non-empty strings instead of rejecting non-string config values. Because source gating only checks whether `cfg.IEEEAPIKey` / `cfg.ACMAPIKey` are non-empty, a malformed config such as `ieee_api_key: false` enables IEEE instead of leaving it gated. I reproduced this with `go run ./cmd/search-paper-cli sources --format json` under a temp HOME containing `config.yaml` with `ieee_api_key: false`, which returned `ieee.enabled=true`. The loader should ignore non-string scalars for these string-backed settings so malformed YAML cannot enable sources or override endpoints unexpectedly."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The shipped `skills/search-paper` guidance still describes wrapper-mediated runtime config via `SEARCH_PAPER_ENV_FILE` and a skill-local `.env`, which no longer matches the implemented runtime contract and will mislead future workers until the direct-cli alignment feature lands.",
+      "evidence": "skills/search-paper/SKILL.md:3,19,34-38 and skills/search-paper/scripts/run-search-paper-cli.sh:8,23,39-40,92 still describe/inject `SEARCH_PAPER_ENV_FILE`; compare AGENTS.md:60 and .factory/library/architecture.md:46,139 which state legacy `.env` inputs are not runtime config sources."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed the feature handoff, transcript skeleton, worker skill, and commit `2d7cb597b2963e452fbb9905185ea44bd48ae959`. The feature correctly swaps runtime discovery to global YAML and updates focused tests, but it still accepts non-string YAML scalars as credential/base-URL values, which can incorrectly enable gated sources."
+}

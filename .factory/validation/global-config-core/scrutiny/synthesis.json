@@ -1,0 +1,51 @@
+{
+  "milestone": "global-config-core",
+  "round": 1,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go test -count=1 -p 8 ./...",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go test -run '^$' -p 8 ./...",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "test -z \"$(gofmt -l .)\"",
+      "exitCode": 0
+    },
+    "build": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go build ./...",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "failedFeatures": [
+      "global-config-loader-and-merge"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "global-config-loader-and-merge",
+      "severity": "blocking",
+      "description": "internal/config/config.go normalizes non-string YAML scalars like `ieee_api_key: false` into non-empty strings, so malformed global config can incorrectly enable gated sources or override endpoints instead of being ignored."
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [],
+  "rejectedObservations": [
+    {
+      "observation": "The shipped `skills/search-paper` guidance still describes wrapper-mediated runtime config via `SEARCH_PAPER_ENV_FILE` and a skill-local `.env`.",
+      "reason": "already-planned in pending feature direct-cli-skill-release-alignment rather than a new scrutiny guidance update for this milestone"
+    }
+  ],
+  "previousRound": null
+}
