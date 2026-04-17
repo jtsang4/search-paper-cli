@@ -17,18 +17,55 @@ import (
 func TestArtifactLayoutNamesAndPaths(t *testing.T) {
 	t.Parallel()
 
-	layout := ArtifactLayout("/tmp/search-paper-cli")
-	if layout.DistDir != "/tmp/search-paper-cli/dist" {
-		t.Fatalf("expected dist dir path, got %q", layout.DistDir)
+	cases := []struct {
+		name            string
+		target          Target
+		wantArtifactDir string
+		wantBinary      string
+		wantArchive     string
+	}{
+		{
+			name:            "linux amd64",
+			target:          Target{OS: "linux", Arch: "amd64"},
+			wantArtifactDir: "/tmp/search-paper-cli/dist/search-paper-cli_linux_amd64",
+			wantBinary:      "/tmp/search-paper-cli/dist/search-paper-cli_linux_amd64/search-paper-cli",
+			wantArchive:     "/tmp/search-paper-cli/dist/search-paper-cli_linux_amd64.tar.gz",
+		},
+		{
+			name:            "darwin arm64",
+			target:          Target{OS: "darwin", Arch: "arm64"},
+			wantArtifactDir: "/tmp/search-paper-cli/dist/search-paper-cli_darwin_arm64",
+			wantBinary:      "/tmp/search-paper-cli/dist/search-paper-cli_darwin_arm64/search-paper-cli",
+			wantArchive:     "/tmp/search-paper-cli/dist/search-paper-cli_darwin_arm64.tar.gz",
+		},
+		{
+			name:            "windows amd64",
+			target:          Target{OS: "windows", Arch: "amd64"},
+			wantArtifactDir: "/tmp/search-paper-cli/dist/search-paper-cli_windows_amd64",
+			wantBinary:      "/tmp/search-paper-cli/dist/search-paper-cli_windows_amd64/search-paper-cli.exe",
+			wantArchive:     "/tmp/search-paper-cli/dist/search-paper-cli_windows_amd64.zip",
+		},
 	}
-	if layout.ArtifactDir != "/tmp/search-paper-cli/dist/"+ArtifactDirName {
-		t.Fatalf("expected artifact dir path, got %q", layout.ArtifactDir)
-	}
-	if layout.BinaryPath != layout.ArtifactDir+"/"+BinaryName {
-		t.Fatalf("expected binary path, got %q", layout.BinaryPath)
-	}
-	if layout.ArchivePath != layout.DistDir+"/"+ArchiveName {
-		t.Fatalf("expected archive path, got %q", layout.ArchivePath)
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			layout := ArtifactLayout("/tmp/search-paper-cli", tc.target)
+			if layout.DistDir != "/tmp/search-paper-cli/dist" {
+				t.Fatalf("expected dist dir path, got %q", layout.DistDir)
+			}
+			if layout.ArtifactDir != tc.wantArtifactDir {
+				t.Fatalf("expected artifact dir path %q, got %q", tc.wantArtifactDir, layout.ArtifactDir)
+			}
+			if layout.BinaryPath != tc.wantBinary {
+				t.Fatalf("expected binary path %q, got %q", tc.wantBinary, layout.BinaryPath)
+			}
+			if layout.ArchivePath != tc.wantArchive {
+				t.Fatalf("expected archive path %q, got %q", tc.wantArchive, layout.ArchivePath)
+			}
+		})
 	}
 }
 

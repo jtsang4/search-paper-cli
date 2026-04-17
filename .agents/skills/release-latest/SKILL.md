@@ -54,16 +54,24 @@ Hard blockers include:
    - `GOMAXPROCS=8 go build ./...`
 8. Run release packaging:
    - `./scripts/package-release.sh`
-9. Verify both expected artifacts exist:
+9. Verify all expected artifacts exist:
    - `dist/search-paper-cli_linux_amd64/search-paper-cli`
    - `dist/search-paper-cli_linux_amd64.tar.gz`
+   - `dist/search-paper-cli_linux_arm64/search-paper-cli`
+   - `dist/search-paper-cli_linux_arm64.tar.gz`
+   - `dist/search-paper-cli_darwin_amd64/search-paper-cli`
+   - `dist/search-paper-cli_darwin_amd64.tar.gz`
+   - `dist/search-paper-cli_darwin_arm64/search-paper-cli`
+   - `dist/search-paper-cli_darwin_arm64.tar.gz`
+   - `dist/search-paper-cli_windows_amd64/search-paper-cli.exe`
+   - `dist/search-paper-cli_windows_amd64.zip`
 10. Review `git status` and the staged diff before committing.
 11. Commit only the release changes with:
    - `git commit -m "release: set CLI version to <VERSION>"`
 12. Create the tag:
    - `git tag "<VERSION>"`
 13. Push the release commit and tag to `origin`. Stop if either push fails.
-14. Create the GitHub release and upload both artifacts with `gh release create`.
+14. Create the GitHub release and upload all built artifacts with `gh release create`.
 
 ## Output
 
@@ -75,5 +83,13 @@ Report:
 - artifact paths:
   - `dist/search-paper-cli_linux_amd64/search-paper-cli`
   - `dist/search-paper-cli_linux_amd64.tar.gz`
+  - `dist/search-paper-cli_linux_arm64/search-paper-cli`
+  - `dist/search-paper-cli_linux_arm64.tar.gz`
+  - `dist/search-paper-cli_darwin_amd64/search-paper-cli`
+  - `dist/search-paper-cli_darwin_amd64.tar.gz`
+  - `dist/search-paper-cli_darwin_arm64/search-paper-cli`
+  - `dist/search-paper-cli_darwin_arm64.tar.gz`
+  - `dist/search-paper-cli_windows_amd64/search-paper-cli.exe`
+  - `dist/search-paper-cli_windows_amd64.zip`
 
 If any blocker occurs, stop immediately and report the exact failing step and command.

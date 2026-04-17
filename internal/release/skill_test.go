@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -114,6 +115,50 @@ func TestSkillEnsureScriptInstallsCLIWhenMissing(t *testing.T) {
 	}
 	if !fileExists(wantPath) {
 		t.Fatalf("expected installed binary at %q", wantPath)
+	}
+}
+
+func TestSkillEnsureScriptResolvesPlatformLocalBinary(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := findRepoRoot(t)
+	skillRoot := filepath.Join(t.TempDir(), "search-paper")
+	if err := os.MkdirAll(filepath.Join(skillRoot, "scripts"), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(skillRoot, "bin"), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	copyFile(t, filepath.Join(repoRoot, "skills", "search-paper", "scripts", "ensure-search-paper-cli.sh"), filepath.Join(skillRoot, "scripts", "ensure-search-paper-cli.sh"))
+
+	localBinary := filepath.Join(skillRoot, "bin", "search-paper-cli")
+	if runtime.GOOS == "windows" {
+		localBinary += ".exe"
+	}
+	writeFile(t, localBinary, "#!/bin/sh\nprintf 'local-binary\\n'\n")
+	if err := os.Chmod(localBinary, 0o755); err != nil {
+		t.Fatalf("Chmod(%q) error = %v", localBinary, err)
+	}
+
+	cmd := exec.Command("/bin/sh", filepath.Join(skillRoot, "scripts", "ensure-search-paper-cli.sh"))
+	cmd.Dir = skillRoot
+	cmd.Env = []string{
+		"HOME=" + t.TempDir(),
+		"PATH=/usr/bin:/bin",
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("ensure script failed: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+
+	resolvedPath := strings.TrimSpace(stdout.String())
+	if resolvedPath != localBinary {
+		t.Fatalf("expected local binary path %q, got %q", localBinary, resolvedPath)
 	}
 }
 
