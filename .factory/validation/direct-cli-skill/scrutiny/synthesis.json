@@ -1,0 +1,38 @@
+{
+  "milestone": "direct-cli-skill",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go test -count=1 -p 8 ./...",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go test -run '^$' -p 8 ./...",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "test -z \"$(gofmt -l .)\"",
+      "exitCode": 0
+    },
+    "build": {
+      "passed": true,
+      "command": "GOMAXPROCS=8 go build ./...",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [],
+  "rejectedObservations": [],
+  "previousRound": null
+}

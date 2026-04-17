@@ -1,0 +1,15 @@
+{
+  "featureId": "direct-cli-skill-release-alignment",
+  "reviewedAt": "2026-04-17T10:50:53.555662Z",
+  "commitId": "e352b76deccb26581e99a6713afdbaa4824bf04e",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Reviewed the feature handoff, both worker transcript skeletons, the direct-cli alignment diff range culminating in commit `e352b76deccb26581e99a6713afdbaa4824bf04e`, the shipped skill/docs, release tests, and the touched validation assets. The implementation consistently removes wrapper-mediated runtime guidance, keeps the retained skill install/locate-only, and the touched validation flow JSON now frames legacy `.env` inputs only as ignored legacy inputs rather than active runtime configuration.",
+    "issues": []
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Pass. The direct-cli feature is aligned across shipped docs, skill assets, release tests, and touched validation flows, and I found no high-confidence correctness issues. I explicitly verified that the touched `.factory/validation` flow JSON no longer describes legacy `.env` or repo-root fallback as active runtime behavior; remaining mentions are only in ignored-legacy scenarios."
+}
