@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -27,38 +29,227 @@ var (
 	doiPattern     = regexp.MustCompile(`(?i)\b(?:https?://(?:dx\.)?doi\.org/|doi:\s*)?(10\.\d{4,9}/[-._;()/:A-Z0-9]+)\b`)
 	spaceRegexp    = regexp.MustCompile(`\s+`)
 	pdfTextPattern = regexp.MustCompile(`\(([^()]|\\.)+\)\s*Tj`)
+	httpCache      = responseCache{
+		entries: map[string]cachedResponse{},
+	}
 )
+
+type cachedResponse struct {
+	body      []byte
+	expiresAt time.Time
+}
+
+type responseCache struct {
+	mu      sync.Mutex
+	entries map[string]cachedResponse
+}
+
+type HTTPStatusError struct {
+	StatusCode  int
+	BodySnippet string
+	RetryAfter  string
+	Attempts    int
+}
+
+func (e HTTPStatusError) Error() string {
+	parts := []string{fmt.Sprintf("unexpected status %d after %d attempt(s)", e.StatusCode, e.Attempts)}
+	if e.RetryAfter != "" {
+		parts = append(parts, "retry_after="+e.RetryAfter)
+	}
+	if e.BodySnippet != "" {
+		parts = append(parts, "body="+e.BodySnippet)
+	}
+	return strings.Join(parts, "; ")
+}
 
 func defaultHTTPClient() *http.Client {
 	return &http.Client{Timeout: 30 * time.Second}
 }
 
 func executeJSON(client *http.Client, request *http.Request, target any) error {
-	response, err := client.Do(request)
+	body, err := executeRequestBytes(client, request)
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
-
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("unexpected status %d", response.StatusCode)
-	}
-
-	return json.NewDecoder(response.Body).Decode(target)
+	return json.Unmarshal(body, target)
 }
 
 func executeBytes(client *http.Client, request *http.Request) ([]byte, error) {
-	response, err := client.Do(request)
+	return executeRequestBytes(client, request)
+}
+
+func executeRequestBytes(client *http.Client, request *http.Request) ([]byte, error) {
+	if client == nil {
+		client = defaultHTTPClient()
+	}
+
+	cacheKey := httpCacheKey(request)
+	if cacheKey != "" {
+		if body, ok := httpCache.get(cacheKey); ok {
+			return body, nil
+		}
+	}
+
+	const maxAttempts = 3
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		req, err := cloneRequestForAttempt(request)
+		if err != nil {
+			return nil, err
+		}
+		response, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			if attempt < maxAttempts && retryableNetworkError(err) {
+				time.Sleep(retryDelay(attempt, ""))
+				continue
+			}
+			return nil, err
+		}
+
+		body, readErr := io.ReadAll(response.Body)
+		_ = response.Body.Close()
+		if readErr != nil {
+			lastErr = readErr
+			if attempt < maxAttempts && retryableNetworkError(readErr) {
+				time.Sleep(retryDelay(attempt, ""))
+				continue
+			}
+			return nil, readErr
+		}
+
+		if response.StatusCode >= 200 && response.StatusCode < 300 {
+			if cacheKey != "" {
+				httpCache.set(cacheKey, body, 5*time.Minute)
+			}
+			return body, nil
+		}
+
+		statusErr := HTTPStatusError{
+			StatusCode:  response.StatusCode,
+			BodySnippet: bodySnippet(body),
+			RetryAfter:  strings.TrimSpace(response.Header.Get("Retry-After")),
+			Attempts:    attempt,
+		}
+		lastErr = statusErr
+		if attempt < maxAttempts && retryableStatus(response.StatusCode) {
+			time.Sleep(retryDelay(attempt, statusErr.RetryAfter))
+			continue
+		}
+		return nil, statusErr
+	}
+
+	return nil, lastErr
+}
+
+func cloneRequestForAttempt(request *http.Request) (*http.Request, error) {
+	req := request.Clone(request.Context())
+	if request.Body == nil {
+		return req, nil
+	}
+	if request.GetBody == nil {
+		req.Body = request.Body
+		return req, nil
+	}
+	body, err := request.GetBody()
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	req.Body = body
+	return req, nil
+}
 
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, fmt.Errorf("unexpected status %d", response.StatusCode)
+func retryableStatus(statusCode int) bool {
+	switch statusCode {
+	case http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+func retryableNetworkError(err error) bool {
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "connection reset") ||
+		strings.Contains(lower, "connection refused") ||
+		strings.Contains(lower, "temporary") ||
+		strings.Contains(lower, "timeout") ||
+		strings.Contains(lower, "eof")
+}
+
+func retryDelay(attempt int, retryAfter string) time.Duration {
+	if retryAfter != "" {
+		if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds >= 0 {
+			delay := time.Duration(seconds) * time.Second
+			if delay <= 5*time.Second {
+				return delay
+			}
+			return 5 * time.Second
+		}
+		if parsed, err := http.ParseTime(retryAfter); err == nil {
+			delay := time.Until(parsed)
+			if delay > 0 && delay <= 5*time.Second {
+				return delay
+			}
+			if delay > 5*time.Second {
+				return 5 * time.Second
+			}
+		}
 	}
 
-	return io.ReadAll(response.Body)
+	switch attempt {
+	case 1:
+		return 250 * time.Millisecond
+	case 2:
+		return 500 * time.Millisecond
+	default:
+		return time.Second
+	}
+}
+
+func bodySnippet(body []byte) string {
+	value := strings.TrimSpace(string(body))
+	if len(value) > 180 {
+		value = value[:180]
+	}
+	return strings.ReplaceAll(value, "\n", " ")
+}
+
+func httpCacheKey(request *http.Request) string {
+	if request == nil || request.Method != http.MethodGet || request.URL == nil {
+		return ""
+	}
+	return request.Method + " " + request.URL.String()
+}
+
+func (c *responseCache) get(key string) ([]byte, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	entry, ok := c.entries[key]
+	if !ok {
+		return nil, false
+	}
+	if time.Now().After(entry.expiresAt) {
+		delete(c.entries, key)
+		return nil, false
+	}
+	body := append([]byte(nil), entry.body...)
+	return body, true
+}
+
+func (c *responseCache) set(key string, body []byte, ttl time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.entries[key] = cachedResponse{
+		body:      append([]byte(nil), body...),
+		expiresAt: time.Now().Add(ttl),
+	}
 }
 
 func searchResult(items []paper.Paper, limit int) sources.SearchResult {

@@ -34,7 +34,8 @@ Keep command usage in `references/USAGE.md`. The bundled helper script is instal
 6. Required variable / config key for Unpaywall-backed behavior: `SEARCH_PAPER_UNPAYWALL_EMAIL` / `unpaywall_email`.
 7. This skill only recognizes exact `SEARCH_PAPER_`-prefixed environment variables. Do not infer non-prefixed or fuzzy-matched variable names.
 8. Do not use `SEARCH_PAPER_ENV_FILE`, cwd `.env`, repository-root `.env`, or skill-local `.env` files as runtime inputs. They are ignored by the direct CLI workflow.
-9. `search --year` is a hard constraint. Pass it only in `YYYY` or `YYYY-YYYY` form and expect the CLI to enforce the year locally on final results, not only as a best-effort upstream hint.
-10. If some sources fail but others succeed, treat the result as degraded mode rather than full success. Inspect the returned failed-source fields and errors instead of assuming every requested source completed.
-11. Prefer the CLI's default JSON output unless the user explicitly asks for text output.
-12. Avoid presenting agent callers with ambiguous retrieval choices. Use `search` for discovery, then `get --as pdf|text` for retrieval. Only use legacy `download` or `read` when compatibility with older callers is required.
+9. Prefer `search --from-date YYYY-MM-DD --to-date YYYY-MM-DD` for day-level time windows. The CLI enforces these locally on final results and returns `date_precision: year|month|day` when a provider exposes coarse dates.
+10. `search --year` remains a hard year-level constraint. Pass it only in `YYYY` or `YYYY-YYYY` form. Use one date mode per command: `--year` or `--from-date` / `--to-date`.
+11. If some sources fail but others succeed, treat the result as degraded mode. Inspect `partial_success_reason`, `failed_sources`, and `errors`.
+12. Prefer the CLI's default JSON output unless the user explicitly asks for text output.
+13. Avoid presenting agent callers with ambiguous retrieval choices. Use `search` for discovery, then `get --as pdf|text` for retrieval. Only use legacy `download` or `read` when compatibility with older callers is required.

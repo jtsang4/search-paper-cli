@@ -7,7 +7,7 @@
 - Go CLI with JSON-first output and optional `--format text`
 - Main commands: `sources`, `search`, `get`, `version`
 - Legacy `download` and `read` aliases remain available for compatibility
-- Normalized paper schema across sources: `paper_id`, `title`, `authors`, `abstract`, `doi`, `published_date`, `pdf_url`, `url`, `source`
+- Normalized paper schema across sources: `paper_id`, `title`, `authors`, `abstract`, `doi`, `published_date`, `date_precision`, `pdf_url`, `url`, `source`
 - Built-in source registry with capability reporting and gated-source handling
 - Native retrieval plus optional OA-first fallback chain and optional Sci-Hub fallback
 - Global YAML config at `~/.config/search-paper-cli/config.yaml` with `config.yml` compatibility fallback
@@ -49,6 +49,7 @@ Search papers:
 search-paper-cli search "graph neural networks"
 search-paper-cli search --source semantic,crossref --limit 5 "multimodal agents"
 search-paper-cli search --source semantic --year 2024-2025 "agentic retrieval"
+search-paper-cli search --source semantic,crossref --from-date 2026-04-01 --to-date 2026-05-18 "HTML CSS code generation"
 ```
 
 Retrieve a known paper record:

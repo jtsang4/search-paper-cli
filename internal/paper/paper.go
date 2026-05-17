@@ -6,29 +6,34 @@ import (
 )
 
 type Paper struct {
-	PaperID       string   `json:"paper_id"`
-	Title         string   `json:"title"`
-	Authors       []string `json:"authors"`
-	Abstract      string   `json:"abstract"`
-	DOI           string   `json:"doi"`
-	PublishedDate string   `json:"published_date"`
-	PDFURL        string   `json:"pdf_url"`
-	URL           string   `json:"url"`
-	Source        string   `json:"source"`
+	PaperID          string   `json:"paper_id"`
+	Title            string   `json:"title"`
+	Authors          []string `json:"authors"`
+	Abstract         string   `json:"abstract"`
+	DOI              string   `json:"doi"`
+	PublishedDate    string   `json:"published_date"`
+	DatePrecision    string   `json:"date_precision,omitempty"`
+	PDFURL           string   `json:"pdf_url"`
+	URL              string   `json:"url"`
+	Source           string   `json:"source"`
+	RelevanceScore   float64  `json:"relevance_score,omitempty"`
+	RelevanceReasons []string `json:"relevance_reasons,omitempty"`
 }
 
 func (p Paper) Normalized() Paper {
 	normalized := Paper{
-		PaperID:       normalizeSpace(p.PaperID),
-		Title:         normalizeSpace(p.Title),
-		Authors:       make([]string, 0, len(p.Authors)),
-		Abstract:      normalizeSpace(p.Abstract),
-		DOI:           normalizeDOI(p.DOI),
-		PublishedDate: normalizeSpace(p.PublishedDate),
-		PDFURL:        strings.TrimSpace(p.PDFURL),
-		URL:           strings.TrimSpace(p.URL),
-		Source:        strings.ToLower(strings.TrimSpace(p.Source)),
+		PaperID:        normalizeSpace(p.PaperID),
+		Title:          normalizeSpace(p.Title),
+		Authors:        make([]string, 0, len(p.Authors)),
+		Abstract:       normalizeSpace(p.Abstract),
+		DOI:            normalizeDOI(p.DOI),
+		PublishedDate:  normalizeSpace(p.PublishedDate),
+		PDFURL:         strings.TrimSpace(p.PDFURL),
+		URL:            strings.TrimSpace(p.URL),
+		Source:         strings.ToLower(strings.TrimSpace(p.Source)),
+		RelevanceScore: p.RelevanceScore,
 	}
+	normalized.DatePrecision = normalizeDatePrecision(p.DatePrecision, normalized.PublishedDate)
 
 	if len(p.Authors) != 0 {
 		for _, author := range p.Authors {
@@ -37,6 +42,15 @@ func (p Paper) Normalized() Paper {
 				continue
 			}
 			normalized.Authors = append(normalized.Authors, author)
+		}
+	}
+	if len(p.RelevanceReasons) != 0 {
+		for _, reason := range p.RelevanceReasons {
+			reason = normalizeSpace(reason)
+			if reason == "" {
+				continue
+			}
+			normalized.RelevanceReasons = append(normalized.RelevanceReasons, reason)
 		}
 	}
 
@@ -135,4 +149,22 @@ func normalizeSpace(value string) string {
 	}
 
 	return b.String()
+}
+
+func normalizeDatePrecision(value, publishedDate string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "year", "month", "day":
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+
+	switch len(strings.TrimSpace(publishedDate)) {
+	case 4:
+		return "year"
+	case 7:
+		return "month"
+	case 10:
+		return "day"
+	default:
+		return ""
+	}
 }

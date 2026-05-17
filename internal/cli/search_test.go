@@ -26,6 +26,7 @@ type searchCommandResponse struct {
 	FailedSources    []string          `json:"failed_sources"`
 	SourceResults    map[string]int    `json:"source_results"`
 	Errors           map[string]string `json:"errors"`
+	PartialReason    string            `json:"partial_success_reason"`
 	Total            int               `json:"total"`
 	Papers           []paper.Paper     `json:"papers"`
 	Error            map[string]any    `json:"error"`
@@ -180,6 +181,9 @@ func TestUnifiedPartialSuccess(t *testing.T) {
 	}
 	if payload.Errors["crossref"] != "crossref upstream failure" {
 		t.Fatalf("unexpected source errors %#v", payload.Errors)
+	}
+	if payload.PartialReason != "crossref: upstream_error" {
+		t.Fatalf("unexpected partial success reason %q", payload.PartialReason)
 	}
 }
 
@@ -463,6 +467,96 @@ func TestSemanticYearFilter(t *testing.T) {
 		}
 	})
 
+	t.Run("date range is enforced with precision-aware bounds", func(t *testing.T) {
+		t.Parallel()
+
+		requests := map[string][]sources.SearchRequest{}
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"search", "--source", "semantic,crossref", "--from-date", "2026-04-01", "--to-date", "2026-05-18", "html css code generation"}, &stdout, &stderr, runOptions{
+			workingDir:     t.TempDir(),
+			repositoryRoot: t.TempDir(),
+			connectorFactory: func(id string, _ config.Config) (sources.Connector, error) {
+				requests[id] = append(requests[id], sources.SearchRequest{})
+				return sources.NewStubConnector(sources.StubConnector{
+					DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+					SearchResults: []paper.Paper{
+						{PaperID: id + "-day", Title: "HTML CSS Code Generation", PublishedDate: "2026-04-15", Source: id},
+						{PaperID: id + "-month", Title: "Frontend UI Generation", PublishedDate: "2026-04", Source: id},
+						{PaperID: id + "-year", Title: "Only Year Precision", PublishedDate: "2026", Source: id},
+						{PaperID: id + "-old", Title: "Older Result", PublishedDate: "2026-03-31", Source: id},
+					},
+				}), nil
+			},
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+
+		payload := decodeSearchResponse(t, stdout.Bytes())
+		if payload.Total != 4 {
+			t.Fatalf("expected four filtered papers, got %#v", payload)
+		}
+		if payload.SourceResults["semantic"] != 2 || payload.SourceResults["crossref"] != 2 {
+			t.Fatalf("expected post-filter source counts, got %#v", payload.SourceResults)
+		}
+		for _, item := range payload.Papers {
+			if item.PaperID == "semantic-year" || item.PaperID == "crossref-year" || item.PaperID == "semantic-old" || item.PaperID == "crossref-old" {
+				t.Fatalf("expected low-confidence or older dates to be filtered out, got %#v", payload.Papers)
+			}
+			if item.PublishedDate == "2026-04" && item.DatePrecision != "month" {
+				t.Fatalf("expected month precision, got %#v", item)
+			}
+			if item.PublishedDate == "2026-04-15" && item.DatePrecision != "day" {
+				t.Fatalf("expected day precision, got %#v", item)
+			}
+		}
+	})
+
+	t.Run("date range forwards derived semantic year when bounded", func(t *testing.T) {
+		t.Parallel()
+
+		requests := map[string][]sources.SearchRequest{}
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"search", "--source", "semantic,crossref", "--from-date", "2026-04-01", "--to-date", "2026-05-18", "bounded search"}, &stdout, &stderr, runOptions{
+			workingDir:     t.TempDir(),
+			repositoryRoot: t.TempDir(),
+			connectorFactory: func(id string, _ config.Config) (sources.Connector, error) {
+				return recordingConnector{
+					id:       id,
+					requests: requests,
+				}, nil
+			},
+		})
+		if exitCode != 0 {
+			t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+		if got := requests["semantic"][0].Year; got != "2026" {
+			t.Fatalf("expected semantic year filter from date range, got %#v", requests)
+		}
+		if got := requests["crossref"][0].Year; got != "" {
+			t.Fatalf("expected non-semantic sources to receive empty year, got %#v", requests)
+		}
+	})
+
+	t.Run("year cannot be mixed with date range flags", func(t *testing.T) {
+		t.Parallel()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		exitCode := runWithOptions([]string{"search", "--source", "semantic", "--year", "2026", "--from-date", "2026-04-01", "bad date range"}, &stdout, &stderr, runOptions{
+			workingDir:     t.TempDir(),
+			repositoryRoot: t.TempDir(),
+		})
+		if exitCode != 2 {
+			t.Fatalf("expected exit code 2, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "--year") || !strings.Contains(stdout.String(), "--from-date") {
+			t.Fatalf("expected mixed date flag error, got %q", stdout.String())
+		}
+	})
+
 	t.Run("invalid year format returns invalid usage", func(t *testing.T) {
 		t.Parallel()
 
@@ -491,6 +585,53 @@ func TestSemanticYearFilter(t *testing.T) {
 			t.Fatalf("unexpected invalid year payload %#v", payload)
 		}
 	})
+}
+
+func TestRelevanceRanking(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runWithOptions([]string{"search", "--source", "semantic", "HTML CSS code generation"}, &stdout, &stderr, runOptions{
+		workingDir:     t.TempDir(),
+		repositoryRoot: t.TempDir(),
+		connectorFactory: func(id string, _ config.Config) (sources.Connector, error) {
+			return sources.NewStubConnector(sources.StubConnector{
+				DescriptorValue: sources.Descriptor{ID: id, Enabled: true, Capabilities: sources.Capabilities{Search: sources.CapabilitySupported}},
+				SearchResults: []paper.Paper{
+					{
+						PaperID:       "quantum-css",
+						Title:         "CSS quantum codes for error correction",
+						Abstract:      "Quantum CSS code construction.",
+						PublishedDate: "2026-04-01",
+						Source:        id,
+					},
+					{
+						PaperID:       "frontend-css",
+						Title:         "HTML and CSS code generation for frontend UI",
+						Abstract:      "Large language models generate web interfaces.",
+						PublishedDate: "2026-04-02",
+						PDFURL:        "https://example.test/paper.pdf",
+						Source:        id,
+					},
+				},
+			}), nil
+		},
+	})
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d with stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+
+	payload := decodeSearchResponse(t, stdout.Bytes())
+	if payload.Papers[0].PaperID != "frontend-css" {
+		t.Fatalf("expected frontend result first, got %#v", payload.Papers)
+	}
+	if payload.Papers[0].RelevanceScore <= payload.Papers[1].RelevanceScore {
+		t.Fatalf("expected higher relevance score for frontend result, got %#v", payload.Papers)
+	}
+	if !slices.Contains(payload.Papers[1].RelevanceReasons, "ambiguous_css_context_penalty") {
+		t.Fatalf("expected CSS ambiguity penalty, got %#v", payload.Papers[1])
+	}
 }
 
 func TestUnpaywallDOIOnly(t *testing.T) {

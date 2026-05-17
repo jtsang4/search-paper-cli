@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/jtsang4/search-paper-cli/internal/config"
@@ -63,6 +64,75 @@ func TestSemantic(t *testing.T) {
 	}
 	if got.PDFURL != "https://semantic.example/paper.pdf" || got.URL != "https://semanticscholar.org/paper/semantic-1" {
 		t.Fatalf("unexpected semantic urls %#v", got)
+	}
+}
+
+func TestSemanticToleratesNumericExternalIDs(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+  "data": [
+    {
+      "paperId": "semantic-numeric",
+      "title": "Numeric external ids",
+      "authors": [],
+      "publicationDate": "2026-04-15",
+      "externalIds": {"CorpusId": 123456, "DOI": "10.1000/NUMERIC-1"}
+    }
+  ]
+}`))
+	}))
+	defer server.Close()
+
+	connector := NewSemantic(config.Config{})
+	connector.BaseURL = server.URL
+	result, err := connector.Search(sources.SearchRequest{Query: "numeric ids", Limit: 1})
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+	got := singlePaper(t, result)
+	if got.DOI != "10.1000/numeric-1" || got.DatePrecision != "day" {
+		t.Fatalf("unexpected semantic paper %#v", got)
+	}
+}
+
+func TestExecuteJSONRetriesRateLimitsAndCaches(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte(`rate limited`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	var payload struct {
+		OK bool `json:"ok"`
+	}
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/retry", nil)
+	if err != nil {
+		t.Fatalf("NewRequest() error = %v", err)
+	}
+	if err := executeJSON(server.Client(), req, &payload); err != nil {
+		t.Fatalf("executeJSON() error = %v", err)
+	}
+	if !payload.OK || calls.Load() != 2 {
+		t.Fatalf("expected retry success after two calls, payload=%#v calls=%d", payload, calls.Load())
+	}
+
+	payload.OK = false
+	if err := executeJSON(server.Client(), req, &payload); err != nil {
+		t.Fatalf("executeJSON() cached error = %v", err)
+	}
+	if !payload.OK || calls.Load() != 2 {
+		t.Fatalf("expected cached success without another call, payload=%#v calls=%d", payload, calls.Load())
 	}
 }
 

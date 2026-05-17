@@ -4,10 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jtsang4/search-paper-cli/internal/config"
 	"github.com/jtsang4/search-paper-cli/internal/connectors"
@@ -25,6 +25,7 @@ type searchResponse struct {
 	FailedSources    []string          `json:"failed_sources,omitempty"`
 	SourceResults    map[string]int    `json:"source_results"`
 	Errors           map[string]string `json:"errors,omitempty"`
+	PartialReason    string            `json:"partial_success_reason,omitempty"`
 	Total            int               `json:"total"`
 	Papers           []paper.Paper     `json:"papers"`
 }
@@ -40,7 +41,10 @@ type yearConstraint struct {
 	end   int
 }
 
-var publishedYearPattern = regexp.MustCompile(`\b(19|20)\d{2}\b`)
+type dateConstraint struct {
+	start *time.Time
+	end   *time.Time
+}
 
 func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) int {
 	for _, arg := range args {
@@ -60,6 +64,8 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 	selectedSources := flags.String("source", "", "Comma-separated source ids to search.")
 	limit := flags.Int("limit", 10, "Maximum number of results to request from each source.")
 	year := flags.String("year", "", "Optional year filter in YYYY or YYYY-YYYY form. Forwarded upstream to Semantic Scholar and enforced locally on final results.")
+	fromDate := flags.String("from-date", "", "Optional inclusive start date filter in YYYY-MM-DD form. Enforced locally on final results.")
+	toDate := flags.String("to-date", "", "Optional inclusive end date filter in YYYY-MM-DD form. Enforced locally on final results.")
 	if err := flags.Parse(args); err != nil {
 		return writeInvalidUsage(stdout, normalizeFlagError(err), map[string]any{
 			"command": "search",
@@ -87,6 +93,17 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 			"format":  "YYYY or YYYY-YYYY",
 			"example": "2024 or 2022-2024",
 		})
+	}
+	dateFilter, dateYearValue, dateErr := parseDateConstraint(yearFilter, strings.TrimSpace(*fromDate), strings.TrimSpace(*toDate))
+	if dateErr != nil {
+		return writeInvalidUsage(stdout, dateErr.Error(), map[string]any{
+			"command": "search",
+			"format":  "YYYY-MM-DD",
+			"example": "--from-date 2026-04-01 --to-date 2026-05-18",
+		})
+	}
+	if yearValue == "" {
+		yearValue = dateYearValue
 	}
 
 	_, cfg, exitCode := loadRuntimeConfig(stdout, stderr, opts)
@@ -167,8 +184,8 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 			runtimeFailures++
 			continue
 		}
-		filteredPapers := filterPapersByYear(result.Papers, yearFilter)
-		if yearFilter != nil {
+		filteredPapers := filterPapersByDateRange(result.Papers, dateFilter)
+		if dateFilter != nil {
 			sourceResults[descriptor.ID] = len(filteredPapers)
 		} else {
 			sourceResults[descriptor.ID] = result.Count
@@ -176,7 +193,7 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 		allPapers = append(allPapers, filteredPapers...)
 	}
 
-	deduped := paper.Dedupe(allPapers)
+	deduped := rankPapers(query, paper.Dedupe(allPapers))
 	mode := "complete"
 	if len(failedSources) != 0 {
 		mode = "degraded"
@@ -191,6 +208,7 @@ func runSearchCommand(args []string, stdout, stderr io.Writer, opts runOptions) 
 		FailedSources:    failedSources,
 		SourceResults:    sourceResults,
 		Errors:           sourceErrors,
+		PartialReason:    partialSuccessReason(failedSources, sourceErrors),
 		Total:            len(deduped),
 		Papers:           deduped,
 	}
@@ -323,6 +341,9 @@ func renderSearchText(response searchResponse) string {
 			b.WriteString(fmt.Sprintf("  %s: %s\n", id, response.Errors[id]))
 		}
 	}
+	if response.PartialReason != "" {
+		b.WriteString(fmt.Sprintf("partial_success_reason: %s\n", response.PartialReason))
+	}
 	b.WriteString(fmt.Sprintf("total: %d\n", response.Total))
 	for _, item := range response.Papers {
 		b.WriteString(fmt.Sprintf("- [%s] %s\n", item.Source, item.Title))
@@ -429,7 +450,67 @@ func parseYearValue(value string) (int, error) {
 	return year, nil
 }
 
-func filterPapersByYear(papers []paper.Paper, constraint *yearConstraint) []paper.Paper {
+func parseDateConstraint(yearFilter *yearConstraint, fromValue, toValue string) (*dateConstraint, string, error) {
+	if yearFilter != nil && (fromValue != "" || toValue != "") {
+		return nil, "", fmt.Errorf("search --year cannot be combined with --from-date or --to-date")
+	}
+
+	if yearFilter != nil {
+		start := time.Date(yearFilter.start, time.January, 1, 0, 0, 0, 0, time.UTC)
+		end := time.Date(yearFilter.end, time.December, 31, 0, 0, 0, 0, time.UTC)
+		return &dateConstraint{start: &start, end: &end}, "", nil
+	}
+
+	if fromValue == "" && toValue == "" {
+		return nil, "", nil
+	}
+
+	var start *time.Time
+	var end *time.Time
+	if fromValue != "" {
+		parsed, err := parseSearchDate(fromValue, "--from-date")
+		if err != nil {
+			return nil, "", err
+		}
+		start = &parsed
+	}
+	if toValue != "" {
+		parsed, err := parseSearchDate(toValue, "--to-date")
+		if err != nil {
+			return nil, "", err
+		}
+		end = &parsed
+	}
+	if start != nil && end != nil && start.After(*end) {
+		return nil, "", fmt.Errorf("search --from-date must be on or before --to-date")
+	}
+
+	return &dateConstraint{start: start, end: end}, semanticYearRange(start, end), nil
+}
+
+func parseSearchDate(value, flagName string) (time.Time, error) {
+	parsed, err := time.Parse("2006-01-02", strings.TrimSpace(value))
+	if err != nil {
+		return time.Time{}, fmt.Errorf("search %s must be YYYY-MM-DD", flagName)
+	}
+	year := parsed.Year()
+	if year < 1900 || year > 2099 {
+		return time.Time{}, fmt.Errorf("search %s must be YYYY-MM-DD", flagName)
+	}
+	return parsed, nil
+}
+
+func semanticYearRange(start, end *time.Time) string {
+	if start == nil || end == nil {
+		return ""
+	}
+	if start.Year() == end.Year() {
+		return strconv.Itoa(start.Year())
+	}
+	return fmt.Sprintf("%04d-%04d", start.Year(), end.Year())
+}
+
+func filterPapersByDateRange(papers []paper.Paper, constraint *dateConstraint) []paper.Paper {
 	if constraint == nil {
 		return papers
 	}
@@ -439,11 +520,14 @@ func filterPapersByYear(papers []paper.Paper, constraint *yearConstraint) []pape
 
 	filtered := make([]paper.Paper, 0, len(papers))
 	for _, item := range papers {
-		year, ok := extractPublishedYear(item.PublishedDate)
+		start, end, ok := paperDateBounds(item)
 		if !ok {
 			continue
 		}
-		if year < constraint.start || year > constraint.end {
+		if constraint.start != nil && start.Before(*constraint.start) {
+			continue
+		}
+		if constraint.end != nil && end.After(*constraint.end) {
 			continue
 		}
 		filtered = append(filtered, item)
@@ -451,14 +535,35 @@ func filterPapersByYear(papers []paper.Paper, constraint *yearConstraint) []pape
 	return filtered
 }
 
-func extractPublishedYear(value string) (int, bool) {
-	match := publishedYearPattern.FindString(strings.TrimSpace(value))
-	if match == "" {
-		return 0, false
+func paperDateBounds(item paper.Paper) (time.Time, time.Time, bool) {
+	value := strings.TrimSpace(item.PublishedDate)
+	precision := strings.TrimSpace(item.DatePrecision)
+	if precision == "" {
+		precision = item.Normalized().DatePrecision
 	}
-	year, err := strconv.Atoi(match)
-	if err != nil {
-		return 0, false
+
+	switch precision {
+	case "day":
+		parsed, err := time.Parse("2006-01-02", value)
+		if err != nil {
+			return time.Time{}, time.Time{}, false
+		}
+		return parsed, parsed, true
+	case "month":
+		parsed, err := time.Parse("2006-01", value)
+		if err != nil {
+			return time.Time{}, time.Time{}, false
+		}
+		end := parsed.AddDate(0, 1, -1)
+		return parsed, end, true
+	case "year":
+		parsed, err := time.Parse("2006", value)
+		if err != nil {
+			return time.Time{}, time.Time{}, false
+		}
+		end := time.Date(parsed.Year(), time.December, 31, 0, 0, 0, 0, time.UTC)
+		return parsed, end, true
+	default:
+		return time.Time{}, time.Time{}, false
 	}
-	return year, true
 }

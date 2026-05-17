@@ -32,6 +32,7 @@ func TestPaperModel(t *testing.T) {
 			Abstract:      "This is a test.",
 			DOI:           "10.1000/abc-123",
 			PublishedDate: "2024-05-01",
+			DatePrecision: "day",
 			PDFURL:        "https://example.com/paper.pdf",
 			URL:           "https://example.com/paper",
 			Source:        "arxiv",

@@ -53,20 +53,30 @@ Use `search` to query one or more providers and get normalized paper metadata.
 ```bash
 search-paper-cli search --source arxiv --limit 5 "graph neural networks"
 search-paper-cli search --source semantic --year 2024 --limit 10 "retrieval augmented generation"
+search-paper-cli search --source semantic,crossref --from-date 2026-04-01 --to-date 2026-05-18 "HTML CSS code generation"
 ```
 
 Typical flags:
 
 - `--source <csv>` chooses one or more sources
 - `--limit <n>` caps requested results per source
+- `--from-date <YYYY-MM-DD>` sets an inclusive day-level start date
+- `--to-date <YYYY-MM-DD>` sets an inclusive day-level end date
 - `--year <value>` must be `YYYY` or `YYYY-YYYY`; it is forwarded to Semantic Scholar and also enforced locally on final results
 - final positional argument is the search query
 
-Search output includes normalized papers plus metadata like requested sources, used sources, per-source result counts, failed sources, and errors.
+Prefer `--from-date` / `--to-date` for windows like "since April 2026". Use one date mode per command: `--year` or `--from-date` / `--to-date`.
+
+Search output includes normalized papers plus metadata like requested sources, used sources, per-source result counts, failed sources, partial success reason, and errors. Paper records may include:
+
+- `date_precision`: `year`, `month`, or `day`
+- `relevance_score`
+- `relevance_reasons`
 
 When some requested sources fail but others succeed, the response still returns successful papers but switches to degraded mode. Always inspect:
 
 - `mode`
+- `partial_success_reason`
 - `failed_sources`
 - `errors`
 

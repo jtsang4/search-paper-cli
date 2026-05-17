@@ -2,6 +2,7 @@ package connectors
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"net/http"
@@ -72,7 +73,7 @@ func (c *Semantic) Search(request sources.SearchRequest) (sources.SearchResult, 
 			} `json:"authors"`
 			Abstract        string            `json:"abstract"`
 			PublicationDate string            `json:"publicationDate"`
-			ExternalIDs     map[string]string `json:"externalIds"`
+			ExternalIDs     flexibleStringMap `json:"externalIds"`
 			URL             string            `json:"url"`
 			OpenAccessPDF   struct {
 				URL string `json:"url"`
@@ -104,6 +105,33 @@ func (c *Semantic) Search(request sources.SearchRequest) (sources.SearchResult, 
 		})
 	}
 	return searchResult(items, request.Limit), nil
+}
+
+type flexibleStringMap map[string]string
+
+func (m *flexibleStringMap) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		*m = flexibleStringMap{}
+		return nil
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	result := make(map[string]string, len(raw))
+	for key, value := range raw {
+		switch typed := value.(type) {
+		case string:
+			result[key] = typed
+		case float64:
+			result[key] = strconv.FormatFloat(typed, 'f', -1, 64)
+		case bool:
+			result[key] = strconv.FormatBool(typed)
+		}
+	}
+	*m = result
+	return nil
 }
 
 func (c *Semantic) Download(request sources.DownloadRequest) (sources.RetrievalResult, error) {
