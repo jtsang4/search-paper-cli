@@ -5,6 +5,7 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 
 DIST_DIR="$REPO_ROOT/dist"
+VALIDATION_HOME=$(mktemp -d)
 TARGETS="
 linux amd64
 linux arm64
@@ -13,12 +14,18 @@ darwin arm64
 windows amd64
 "
 
+cleanup() {
+  chmod -R u+w "$VALIDATION_HOME" 2>/dev/null || true
+  rm -rf "$VALIDATION_HOME"
+}
+trap cleanup EXIT
+
 cd "$REPO_ROOT"
 
-GOMAXPROCS=8 go test -run '^$' -p 8 ./...
+HOME="$VALIDATION_HOME" GOMAXPROCS=8 go test -run '^$' -p 8 ./...
 test -z "$(gofmt -l .)"
-GOMAXPROCS=8 go test -count=1 -p 8 ./...
-GOMAXPROCS=8 go build ./...
+HOME="$VALIDATION_HOME" GOMAXPROCS=8 go test -count=1 -p 8 ./...
+HOME="$VALIDATION_HOME" GOMAXPROCS=8 go build ./...
 
 printf '%s' "$TARGETS" | while IFS=' ' read -r target_os target_arch; do
   [ -n "${target_os}" ] || continue
